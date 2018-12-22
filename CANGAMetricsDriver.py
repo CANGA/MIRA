@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import mpl_toolkits
 
 # Bring in all the different metric modules
+from computeAdjacencyStencil import computeAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 from computeLocalityMetric import computeLocalityMetric
 from computeAreaWeight import computeAreaWeight
@@ -51,6 +52,13 @@ if __name__ == '__main__':
        varCoordS = g_fidS.variables['coord'][:]
        varConT = g_fidT.variables['connect1'][:]
        varCoordT = g_fidT.variables['coord'][:]
+       
+       start = time.time()
+       # Compute adjacency maps for both meshes
+       edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
+       edgeMapT, sortedEdgeMapT, varConStenDexT = computeAdjacencyStencil(varConT)
+       endt = time.time()
+       print('Time to precompute adjacency maps (sec): ', endt - start)
        
        start = time.time()
        # Precompute the area weights and then look them up in the integral below

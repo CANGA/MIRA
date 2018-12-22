@@ -157,7 +157,6 @@ def computeAdjacencyStencil(varCon):
               sdex = int(sortedEdgeMap[mm,3])
               
               if (mdex[cdex] > (NP - 1)) and (mdex[cdex] < 2 * NP):
-                     print(cdex, mdex[cdex] + kk)
                      varConStenDex[cdex, mdex[cdex] + kk] = sdex
               else:
                      continue
