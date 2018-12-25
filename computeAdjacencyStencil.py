@@ -112,17 +112,14 @@ def computeAdjacencyStencil(varCon):
        
        # Loop over the right most column of the edgeMap and set stencil partially
        NM = edgeMap.shape[0]
-       mdex = np.zeros((NC, 1), dtype=int)
+       mdex = np.zeros(NC, dtype=int)
        kk = 0
        cdex = 0
        for mm in range(NM):
               
               if mm > 0:
                      # Check that we are on the same cell else reset kk
-                     if int(edgeMap[mm,3]) - 1 == cdex:
-                            kk += 1
-                     else:
-                            mdex[cdex] = NP + kk + 1
+                     if int(edgeMap[mm,3]) - 1 != cdex:
                             kk = 0
               
               # Get index of the current cell (right column of edgeMap)
@@ -131,6 +128,8 @@ def computeAdjacencyStencil(varCon):
               sdex = int(edgeMap[mm,0])
               
               varConStenDex[cdex, NP + kk] = sdex
+              kk += 1
+              mdex[cdex] = kk
               
        # Fetch the left column of edgeMap and argsort() to get sorting indices
        missingCells = edgeMap[:, 0]
@@ -146,9 +145,7 @@ def computeAdjacencyStencil(varCon):
               
               if mm > 0:
                      # Check that we are on the same cell else reset kk
-                     if int(sortedEdgeMap[mm,0]) - 1 == cdex:
-                            kk += 1
-                     else:
+                     if int(edgeMap[mm,0]) - 1 != cdex:
                             kk = 0
               
               # Get index of the current cell (right column of edgeMap)
@@ -156,10 +153,14 @@ def computeAdjacencyStencil(varCon):
               # Get index of the connected cell (left column of edgeMap)
               sdex = int(sortedEdgeMap[mm,3])
               
+              edex = (NP + mdex[cdex] + kk)
+              varConStenDex[cdex, edex] = sdex
+              kk += 1
+              """
               if (mdex[cdex] > (NP - 1)) and (mdex[cdex] < 2 * NP):
                      varConStenDex[cdex, mdex[cdex] + kk] = sdex
               else:
                      continue
-
+              """
                             
-       return edgeMap, sortedEdgeMap, varConStenDex
+       return mdex, edgeMap, sortedEdgeMap, varConStenDex

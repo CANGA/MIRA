@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import mpl_toolkits
 
 # Bring in all the different metric modules
+from computeGradient import computeGradient
 from computeAdjacencyStencil import computeAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 from computeLocalityMetric import computeLocalityMetric
@@ -54,8 +55,8 @@ if __name__ == '__main__':
        varCoordT = g_fidT.variables['coord'][:]
        
        start = time.time()
-       # Compute adjacency maps for both meshes
-       edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
+       # Compute adjacency maps for both meshes (source stencil NOT needed)
+       #edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
        edgeMapT, sortedEdgeMapT, varConStenDexT = computeAdjacencyStencil(varConT)
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
@@ -106,6 +107,14 @@ if __name__ == '__main__':
        
        endt = time.time()
        print('Time to read NC and Exodus data (sec): ', endt - start)
+       
+       start = time.time()
+       # Precompute the gradient operator on regridded and sampled target data
+       varsOnTargetMesh = [varST, varS2T]
+       gradientST = computeGradient(varsOnTargetMesh, varCoordT, varConStenDexT, areaT)
+       
+       endt = time.time()
+       print('Time to compute gradients on target mesh (sec): ')
        
        start = time.time()
        # Global conservation metric

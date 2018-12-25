@@ -12,6 +12,13 @@ import math as mt
 import numpy as np
 from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
+def computeCentroid(NP, cell):
+       centroid = np.mat([0.0, 0.0, 0.0])
+       for pp in range(NP):
+              centroid += cell[:,pp]
+              
+       centroid *= 1.0 / NP
+
 def computeMaximumDistance(NP, pcloud, centroid):
        
        maxDist = 0.0
@@ -40,19 +47,15 @@ def computeLocalPatchExtrema(jj, varConS, varCoordS, varS, varConT, varCoordT):
        
        # Index the target cell from the input coordinates
        cellT = varConT[jj,:]
-       NC = len(cellT)
+       NP = len(cellT)
        cdexT = cellT - 1;
        cell = varCoordT[:,cdexT]
        
        # compute the centroid of the target cell
-       centroid = np.mat([0.0, 0.0, 0.0])
-       for pp in range(NC):
-              centroid += cell[:,pp]
-              
-       centroid *= 1.0 / NC
+       centroid = computeCentroid(NP, cell)
        
        # Compute the maximum distance from the centroid to the corners of the target cell
-       mdistT = computeMaximumDistance(NC, cell, centroid)
+       mdistT = computeMaximumDistance(NP, cell, centroid)
                      
        # Search the source coordinates for any that are within the radius mdistT
        NS = varCoordS.shape[1]
