@@ -145,7 +145,7 @@ def computeAdjacencyStencil(varCon):
               
               if mm > 0:
                      # Check that we are on the same cell else reset kk
-                     if int(edgeMap[mm,0]) - 1 != cdex:
+                     if int(sortedEdgeMap[mm,0]) - 1 != cdex:
                             kk = 0
               
               # Get index of the current cell (right column of edgeMap)
@@ -153,14 +153,11 @@ def computeAdjacencyStencil(varCon):
               # Get index of the connected cell (left column of edgeMap)
               sdex = int(sortedEdgeMap[mm,3])
               
-              edex = (NP + mdex[cdex] + kk)
-              varConStenDex[cdex, edex] = sdex
-              kk += 1
-              """
-              if (mdex[cdex] > (NP - 1)) and (mdex[cdex] < 2 * NP):
-                     varConStenDex[cdex, mdex[cdex] + kk] = sdex
+              if mdex[cdex] < NP:
+                     edex = NP + mdex[cdex] + kk
+                     varConStenDex[cdex, edex] = sdex
+                     kk += 1
               else:
                      continue
-              """
                             
-       return mdex, edgeMap, sortedEdgeMap, varConStenDex
+       return edgeMap, sortedEdgeMap, varConStenDex

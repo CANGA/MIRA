@@ -18,6 +18,8 @@ def computeCentroid(NP, cell):
               centroid += cell[:,pp]
               
        centroid *= 1.0 / NP
+       
+       return centroid
 
 def computeMaximumDistance(NP, pcloud, centroid):
        
