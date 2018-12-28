@@ -26,6 +26,7 @@ from computeAreaWeight import computeAreaWeight
 from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
+from computeGradientPreserveMetrics import computeGradientPreserveMetrics
 
 if __name__ == '__main__':
        
@@ -110,11 +111,11 @@ if __name__ == '__main__':
        
        start = time.time()
        # Precompute the gradient operator on regridded and sampled target data
-       varsOnTargetMesh = [varST, varS2T]
-       gradientST = computeGradient(varsOnTargetMesh, varCoordT, varConStenDexT, areaT)
+       varsOnTM = [varST, varS2T]
+       gradientsOnTM = computeGradient(varsOnTM, varCoordT, varConStenDexT, areaT)
        
        endt = time.time()
-       print('Time to compute gradients on target mesh (sec): ')
+       print('Time to compute gradients on target mesh (sec): ', endt - start)
        
        start = time.time()
        # Global conservation metric
@@ -128,6 +129,8 @@ if __name__ == '__main__':
        # Local Extrema preservation
        Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
        computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT)
+       # Gradient preservation
+       H1, H1_2 = computeGradientPreserveMetrics(gradientsOnTM, varsOnTM, areaT)
        endt = time.time()
        print('Time to execute metrics (sec): ', endt - start)
        

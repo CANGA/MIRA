@@ -110,7 +110,7 @@ def computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, 
        L2Num = computeGlobalWeightedIntegral(NT, varDiff2, areaT)
        LinfNum = np.amax(abs(varDiff))
        
-       Lmin_1 = L1Num / L1Den
+       Lmin_1 = float(L1Num / L1Den)
        Lmin_2 = mt.sqrt(L2Num) / mt.sqrt(L2Den)
        Lmin_inf = LinfNum / LinfDen
        
@@ -121,7 +121,7 @@ def computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, 
        L2Num = computeGlobalWeightedIntegral(NT, varDiff2, areaT)
        LinfNum = np.amax(abs(varDiff))
        
-       Lmax_1 = L1Num / L1Den
+       Lmax_1 = float(L1Num / L1Den)
        Lmax_2 = mt.sqrt(L2Num) / mt.sqrt(L2Den)
        Lmax_inf = LinfNum / LinfDen
        
