@@ -49,7 +49,7 @@ if __name__ == '__main__':
        g_fidS = Dataset(exo_fileS)
        g_fidT = Dataset(exo_fileT)
        
-       # Get connectivity and coordinate arrays
+       # Get connectivity and coordinate arrays (check for multiple connectivity)
        varConS = g_fidS.variables['connect1'][:]
        varCoordS = g_fidS.variables['coord'][:]
        varConT = g_fidT.variables['connect1'][:]
