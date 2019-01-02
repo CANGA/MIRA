@@ -5,7 +5,7 @@ Main file: CANGAMetricsDriver.py
 
 TO TEST: User change the following lines in the main function of the file above
 
-# Set the name of the field variable in question (scalar)
+       # Set the name of the field variable in question (scalar)
        varName = 'Psi'
        
        # Field sampled at the source (SS)
