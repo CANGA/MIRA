@@ -30,6 +30,16 @@ from computeGradientPreserveMetrics import computeGradientPreserveMetrics
 
 if __name__ == '__main__':
        
+       # Set the mesh configuration (mutually exclusive):
+       # ExodusSingleConn
+       # ExodusMultiConn
+       # SCRIPwithoutConn
+       # SCRIPwithConn
+       ExodusSingleConn = True
+       ExodusMultiConn = False
+       SCRIPwithoutConn = False
+       SCRIPwithConn = False
+       
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
        
@@ -40,20 +50,37 @@ if __name__ == '__main__':
        # Field sampled at the target (ST)
        nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        
-       # Source Exodus .g file (only needed for global conservation)
-       exo_fileS = 'outCSne30.g'
-       # Target Exodus .g file
-       exo_fileT = 'outRLL1deg.g'
-       
-       # Open the .g mesh files for reading
-       g_fidS = Dataset(exo_fileS)
-       g_fidT = Dataset(exo_fileT)
-       
-       # Get connectivity and coordinate arrays (check for multiple connectivity)
-       varConS = g_fidS.variables['connect1'][:]
-       varCoordS = g_fidS.variables['coord'][:]
-       varConT = g_fidT.variables['connect1'][:]
-       varCoordT = g_fidT.variables['coord'][:]
+       if ExodusSingleConn:
+              # Source Exodus .g file (only needed for global conservation)
+              exo_fileS = 'outCSne30.g'
+              # Target Exodus .g file
+              exo_fileT = 'outRLL1deg.g'
+              
+              # Open the .g mesh files for reading
+              g_fidS = Dataset(exo_fileS)
+              g_fidT = Dataset(exo_fileT)
+              
+              # Get connectivity and coordinate arrays (check for multiple connectivity)
+              varConS = g_fidS.variables['connect1'][:]
+              varCoordS = g_fidS.variables['coord'][:]
+              varConT = g_fidT.variables['connect1'][:]
+              varCoordT = g_fidT.variables['coord'][:]
+       elif ExodusMultiConn:
+              # Look for multiple connectivity arrays in the .nc file
+              # Source Exodus .g file (only needed for global conservation)
+              exo_fileS = 'outCSne30.g'
+              # Target Exodus .g file
+              exo_fileT = 'outRLL1deg.g'
+              
+              # Open the .g mesh files for reading
+              g_fidS = Dataset(exo_fileS)
+              g_fidT = Dataset(exo_fileT)
+              
+              # Get the list of available variables
+              varListS = g_fidS.variables.keys()
+              varListT = g_fidT.variables.keys()
+              
+              # Search the variables for instances of "connect"
        
        start = time.time()
        # Compute adjacency maps for both meshes (source stencil NOT needed)

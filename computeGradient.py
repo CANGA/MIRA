@@ -15,6 +15,7 @@ Parameterized flux integral assumes constant radius and field value.
 
 import numpy as np
 import math as mt
+from computeEdgesArray import computeEdgesArray
 
 def computeCentroid(NP, cell):
        centroid = np.mat([0.0, 0.0, 0.0])
@@ -24,26 +25,6 @@ def computeCentroid(NP, cell):
        centroid *= 1.0 / NP
        
        return centroid
-       
-def computeEdgesArray(NP, connect):
-       
-       if NP == 4:
-              edex = [0, 1, 1, 2, 2, 3, 3, 0]
-              
-              edges = np.array([[connect.flat[edex[0]], connect.flat[edex[1]]], \
-                                [connect.flat[edex[2]], connect.flat[edex[3]]], \
-                                [connect.flat[edex[4]], connect.flat[edex[5]]], \
-                                [connect.flat[edex[6]], connect.flat[edex[7]]]])
-       elif NP == 3:
-              edex = [0, 1, 1, 2, 2, 0]
-                     
-              edges = np.array([[connect.flat[edex[0]], connect.flat[edex[1]]], \
-                                [connect.flat[edex[2]], connect.flat[edex[3]]], \
-                                [connect.flat[edex[4]], connect.flat[edex[5]]]])
-       else:
-              print('ONLY TRIANGLES OR QUADRILATERALS SUPPORTED!')
-       
-       return edges
 
 def computeGradient(varList, varCoords, varStenDex, areas):
        

@@ -17,38 +17,7 @@ and right to left connectivity for cell 2
 """
 
 import numpy as np
-
-def computeEdgesArray(NP, connect, oppose):
-       
-       if NP == 4:
-              # Set the direction of edges
-              if oppose == True:
-                     edex = [1, 0, 2, 1, 3, 2, 0, 3]
-              elif oppose == False:
-                     edex = [0, 1, 1, 2, 2, 3, 3, 0]
-              else:
-                     edex = [0, 1, 1, 2, 2, 3, 3, 0]
-              
-              edges = np.array([[connect.flat[edex[0]], connect.flat[edex[1]]], \
-                                [connect.flat[edex[2]], connect.flat[edex[3]]], \
-                                [connect.flat[edex[4]], connect.flat[edex[5]]], \
-                                [connect.flat[edex[6]], connect.flat[edex[7]]]])
-       elif NP == 3:
-              # Set the direction of edges
-              if oppose == True:
-                     edex = [1, 0, 2, 1, 0, 2]
-              elif oppose == False:
-                     edex = [0, 1, 1, 2, 2, 0]
-              else:
-                     edex = [0, 1, 1, 2, 2, 0]
-                     
-              edges = np.array([[connect.flat[edex[0]], connect.flat[edex[1]]], \
-                                [connect.flat[edex[2]], connect.flat[edex[3]]], \
-                                [connect.flat[edex[4]], connect.flat[edex[5]]]])
-       else:
-              print('ONLY TRIANGLES OR QUADRILATERALS SUPPORTED!')
-       
-       return edges
+from computeEdgesArray import computeEdgesArray
 
 def computeAdjacencyStencil(varCon):
        
@@ -70,7 +39,7 @@ def computeAdjacencyStencil(varCon):
               cid = (cc + 1) * np.ones((NP, 1))
               
               # Get the local node pair map for these edges
-              edges = computeEdgesArray(NP, varCon[cc,:], False)
+              edges = computeEdgesArray(NP, varCon[cc,:])
               
               # Append the cell map to the end of the node map
               edges = np.append(edges, cid, axis=1)
