@@ -19,6 +19,7 @@ import mpl_toolkits
 
 # Bring in all the different metric modules
 from computeGradient import computeGradient
+from computeCoordConSCRIP import computeCoordConSCRIP
 from computeAdjacencyStencil import computeAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 from computeLocalityMetric import computeLocalityMetric
@@ -51,7 +52,7 @@ if __name__ == '__main__':
        nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        
        if ExodusSingleConn:
-              # Source Exodus .g file (only needed for global conservation)
+              # Source Exodus .g file
               exo_fileS = 'outCSne30.g'
               # Target Exodus .g file
               exo_fileT = 'outRLL1deg.g'
@@ -65,6 +66,34 @@ if __name__ == '__main__':
               varCoordS = g_fidS.variables['coord'][:]
               varConT = g_fidT.variables['connect1'][:]
               varCoordT = g_fidT.variables['coord'][:]
+              
+       elif SCRIPwithoutConn:
+              # Source SCRIP file
+              scp_fileS = 'Grids/ne30np4_pentagons.091226.nc'
+              # Target SCRIP file
+              scp_fileT = 'Grids/ne30np4_latlon.091226.nc'
+              
+              # Open the .nc SCRIP files for reading
+              s_fidS = Dataset(scp_fileS)
+              s_fidT = Dataset(scp_fileT)
+              
+              # Get the list of available variables
+              varListS = s_fidS.variables.keys()
+              varListT = s_fidT.variables.keys()
+              
+              # Get RAW (no ID) connectivity and coordinate arrays
+              lonS = s_fidS.variables['grid_corner_lon'][:]
+              latS = s_fidS.variables['grid_corner_lat'][:]
+              lonT = s_fidT.variables['grid_corner_lon'][:]
+              latT = s_fidT.variables['grid_corner_lat'][:]
+              
+              # Make coordinate and connectivity from raw SCRIP data
+              start = time.time()
+              varCoordS, varConS = computeCoordConSCRIP(lonS, latS)
+              varCoordT, varConT = computeCoordConSCRIP(lonT, latT)
+              endt = time.time()
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              
        elif ExodusMultiConn:
               # Look for multiple connectivity arrays in the .nc file
               # Source Exodus .g file (only needed for global conservation)
@@ -80,7 +109,13 @@ if __name__ == '__main__':
               varListS = g_fidS.variables.keys()
               varListT = g_fidT.variables.keys()
               
-              # Search the variables for instances of "connect"
+              # Search the variables for instances of "connect" comprehension
+              print('NOT IMPLEMENTED YET.')
+              
+       elif SCRIPwithConn:
+              
+              # Assuming mesh data files are available...
+              print('NOT IMPLEMENTED YET.')
        
        start = time.time()
        # Compute adjacency maps for both meshes (source stencil NOT needed)

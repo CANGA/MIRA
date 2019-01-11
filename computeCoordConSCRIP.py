@@ -11,51 +11,30 @@ Created on Tue Jan  8 10:16:17 2019
 """
 
 import numpy as np
-import random as rand
+from scipy.spatial import cKDTree
 
-def computeSpacePartitionSearch(thisGrid, pointList, COINCIDENT_TOLERANCE):
+def computeKDtreeSearch(thisGrid, pointList, COINCIDENT_TOLERANCE):
        
-       gridID = 0
-       NP = np.size(pointList, axis=0)
        newPointList = pointList
-              
-       # Compute a partion into 4... 
-       aloc = int(NP / 4)
-       bloc = int(NP / 2)
-       cloc = int(3 * NP / 4)
-       # Pick random indices in each partition
-       pdex1 = rand.randint(0, aloc)
-       pdex2 = rand.randint(aloc, bloc)
-       pdex3 = rand.randint(bloc, cloc)
-       pdex4 = rand.randint(cloc, NP - 1)
-       # Compute differences
-       diff1 = np.subtract(thisGrid.T, pointList[pdex1,:])
-       diff2 = np.subtract(thisGrid.T, pointList[pdex2,:])
-       diff3 = np.subtract(thisGrid.T, pointList[pdex3,:])
-       diff4 = np.subtract(thisGrid.T, pointList[pdex4,:])
-       # Compute distances
-       dist1 = np.linalg.norm(diff1)
-       dist2 = np.linalg.norm(diff2)
-       dist3 = np.linalg.norm(diff3)
-       dist4 = np.linalg.norm(diff4)
-       dists = np.array([dist1, dist2, dist3, dist4])
+       # compute the KD tree object
+       pointTree = cKDTree(pointList, leafsize=20)
+       # compute a few (10) of the nearest neighbors 
+       NN = 10
+       dd, ndex = pointTree.query(thisGrid, k=range(1,NN), eps=0, p=2, \
+                                distance_upper_bound=np.Inf, n_jobs=1)
        
-       # Compute minimum of branch distances and get the winning partition
-       mdex = 1
+       # Get the minimum distance from the set of nearest neighbors
+       dmin = np.amin(dd)
        
-       # Compare distances and search only in half the points
-       if mdex == 1:
-              NS = 0
-              NE = int(NP / 2)
-       elif dist2 < dist1:
-              NS = int(NP / 2)
-              NE = NP
+       # If a coincident node is among the nearest neighbors, set the gridID
+       if dmin <= COINCIDENT_TOLERANCE:
+              gdex = np.argmin(dd)
+              gridID = ndex[gdex]
        else:
-              NS = 0
-              NE = NP
+              # This is a new grid to the coordinate list, set the gridID
+              newPointList = np.append(pointList, [thisGrid.T], axis=0)
+              gridID = np.size(newPointList, axis=0)
               
-       # Compute linear search over the winning partition
-       gridID, newPointList = computeLinearSearch(thisGrid, pointList, NS, NE, COINCIDENT_TOLERANCE)
        
        return gridID, newPointList
 
@@ -70,7 +49,7 @@ def computeLinearSearch(thisGrid, pointList, NS, NE, COINCIDENT_TOLERANCE):
               pDiff = np.subtract(thisGrid.T, pointList[kk,:])
               
               # Get out of this search if coincidence is met
-              if np.linalg.norm(pDiff) <= COINCIDENT_TOLERANCE:
+              if np.sum(np.power(pDiff, 2)) <= COINCIDENT_TOLERANCE:
                      gridID = kk
                      newGrid = False
                      break;
@@ -88,7 +67,7 @@ def computeCoordConSCRIP(lon, lat):
        
        # Initialize and set tolerance for coincident grids
        INITIAL_SEARCH = 100
-       COINCIDENT_TOLERANCE = 1.0E-12
+       COINCIDENT_TOLERANCE = 1.0E-14
        NC = np.size(lon, axis=0)
        NG = np.size(lon, axis=1)
        # Coordinate array starts as two triplets (REMOVED AT THE END) 
@@ -97,7 +76,6 @@ def computeCoordConSCRIP(lon, lat):
        varCon = np.zeros((NC, NG))
        
        # Loop over the raw connectivity cells
-       NC = 1000
        for ii in range(NC):
               
               # Loop over grids in the connectivity
@@ -111,10 +89,15 @@ def computeCoordConSCRIP(lon, lat):
                             NP = np.size(varCoord, axis=0)
                             gridID, varCoord = computeLinearSearch(thisGrid, varCoord, 0, NP, COINCIDENT_TOLERANCE)
                      else:
-                            # Simple partitioned search for coincident node
-                            gridID, varCoord = computeSpacePartitionSearch(thisGrid, varCoord, COINCIDENT_TOLERANCE)
+                            # Use a KD tree in each search
+                            gridID, varCoord = computeKDtreeSearch(thisGrid, varCoord, COINCIDENT_TOLERANCE)
                             
                      # Put this grid ID into the connectivity
-                     varCon[ii,jj] = gridID
+                     varCon[ii,jj] = int(gridID)
+                     
+              #print(ii, varCon[ii,:])
+              
+       # Remove the first triplet from the coordinate array
+       varCoord = np.delete(varCoord, 0, axis=0)
        
        return varCoord, varCon

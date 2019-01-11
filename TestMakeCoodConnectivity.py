@@ -7,6 +7,7 @@ Created on Tue Jan  8 15:50:24 2019
 
 @author: TempestGuerra
 """
+import time
 from netCDF4 import Dataset
 from computeCoordConSCRIP import computeCoordConSCRIP
 
@@ -24,5 +25,9 @@ lon = s_fid.variables['grid_corner_lon'][:]
 lat = s_fid.variables['grid_corner_lat'][:]
 
 # Make coordinate and connectivity from raw SCRIP data
+
 # 2D lat/lon grid on a circle
+start = time.time()
 varCoord, varCon = computeCoordConSCRIP(lon, lat)
+endt = time.time()
+print('Time to precompute SCRIP mesh info (sec): ', endt - start)
