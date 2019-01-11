@@ -3,7 +3,7 @@ NAME
     NetCDF reader and CANGA intercomparison with Python
 PURPOSE
     Reads 3 NetCDF files containing model output (identical variables) and
-    computes regridding metrics
+    computes regridding metrics. Also takes mesh data from Exodus or SCRIP.
 PROGRAMMER(S)
     Jorge Guerra, Paul Ullrich
 REVISION HISTORY
@@ -11,6 +11,7 @@ REVISION HISTORY
 REFERENCES
 '''    
 
+import sys, getopt
 import time
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
@@ -29,17 +30,120 @@ from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
 
+# Parse the command line
+def parseCommandLine(argv):
+       # Field variable name
+       varName = ''
+       
+       # NC files with field data
+       sourceSampledFile = ''
+       targetSampledFile = ''
+       remappedFile = ''
+       
+       # Mesh information files
+       sourceMesh = ''
+       targetMesh = ''
+       
+       ExodusSingleConn = False
+       SCRIPwithoutConn = False
+       
+       # Mesh data configuration
+       meshConfig = ''
+       
+       try:
+              opts, args = getopt.getopt(argv, 'hv:', \
+                                        ['ss=','s2t=','st=','sm=','tm=', \
+                                         'ExodusSingleConn', 'SCRIPwithoutConn'])
+       except getopt.GetoptError:
+              print('Command line not properly set:', \
+                    'CANGAMEtricsDriver.py', \
+                    '-ss <sourceSampledFile>', \
+                    '-s2t <remappedFile>', \
+                    '-st <targetSampledFile>', \
+                    '-sm <sourceMesh>', \
+                    '-tm <targetMesh>', '--meshConfiguration')
+              sys.exit(2)
+              
+       for opt, arg in opts:
+              # Request for usage help
+              if opt == '-h':
+                     print('Command line not properly set:', \
+                           'CANGAMEtricsDriver.py', \
+                           '-ss <sourceSampledFile>', \
+                           '-s2t <remappedFile>', \
+                           '-st <targetSampledFile>', \
+                           '-sm <sourceMesh>', \
+                           '-tm <targetMesh>', '--meshConfiguration')
+                     sys.exit()
+              elif opt == '-v':
+                     varName = arg
+              elif opt == '--ss':
+                     sourceSampledFile = arg
+              elif opt == '--s2t':
+                     remappedFile = arg
+              elif opt == '--st':
+                     targetSampledFile = arg
+              elif opt == '--sm':
+                     sourceMesh = arg
+              elif opt == '--tm':
+                     targetMesh = arg
+              elif opt == '--ExodusSingleConn':
+                     meshConfig = 'ExodusSingleConn'
+                     ExodusSingleConn = True
+              elif opt == '--SCRIPwithoutConn':
+                     meshConfig = 'SCRIPwithoutConn'
+                     SCRIPwithoutConn = True
+                     
+       # Check that mesh files are consistent
+       if sourceMesh[len(sourceMesh) - 1] != targetMesh[len(targetMesh) - 1]:
+              print('Mesh data files have inconsistent file extensions!')
+              print('Source and target mesh files MUST have the same extension.')
+              sys.exit(2)
+              
+       # Check that only one configuration is chosen
+       if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
+              print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False):
+              print('Expecting only ONE mesh configuration option!')
+              print('None of the options are set.')
+              sys.exit(2)
+                     
+       # Check that configurations match the correct file extensions
+       if meshConfig == 'ExodusSingleConn':
+              if sourceMesh[len(sourceMesh) - 1] != 'g':
+                     print('Expected Exodus .g mesh data files!')
+                     print('Exodus files MUST have .g extension')
+                     sys.exit(2)
+       if meshConfig == 'SCRIPwithoutConn':
+              if sourceMesh[len(sourceMesh) - 1] != 'c':
+                     print('Expected SCRIP .nc mesh data files!')
+                     print('SCRIP files MUST have .nc extension')
+                     sys.exit(2)
+       
+       print('Welcome to CANGA remapping intercomparison metrics!')              
+       print('Mesh data must be in NETCDF format.')
+       
+       return varName, sourceSampledFile, targetSampledFile, \
+              remappedFile, sourceMesh, targetMesh, \
+              ExodusSingleConn, SCRIPwithoutConn
+
 if __name__ == '__main__':
        
+       # Parse the commandline!
+       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       
        # Set the mesh configuration (mutually exclusive):
-       # ExodusSingleConn
-       # ExodusMultiConn
-       # SCRIPwithoutConn
-       # SCRIPwithConn
+       # ExodusSingleConn -> DEFAULT BEST
+       # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
+       # SCRIPwithoutConn -> UNFORTUNATE SECOND
+       # SCRIPwithConn -> NOT IMPLEMENTED (READING METIS MESH INFO PROBLEMATIC)
        ExodusSingleConn = True
-       ExodusMultiConn = False
+       #ExodusMultiConn = False
        SCRIPwithoutConn = False
-       SCRIPwithConn = False
+       #SCRIPwithConn = False
        
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
@@ -93,7 +197,7 @@ if __name__ == '__main__':
               varCoordT, varConT = computeCoordConSCRIP(lonT, latT)
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
-              
+       """       
        elif ExodusMultiConn:
               # Look for multiple connectivity arrays in the .nc file
               # Source Exodus .g file (only needed for global conservation)
@@ -116,6 +220,7 @@ if __name__ == '__main__':
               
               # Assuming mesh data files are available...
               print('NOT IMPLEMENTED YET.')
+       """
        
        start = time.time()
        # Compute adjacency maps for both meshes (source stencil NOT needed)
