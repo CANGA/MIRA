@@ -13,11 +13,6 @@ from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
 def computeStandardNorms(varS2T, varST, areaT):
        
-       # Initialize outputs
-       L_1 = 0.0
-       L_2 = 0.0
-       L_inf = 0.0
-       
        # Compute the difference
        varDiff = np.subtract(varS2T, varST)
        varDiff2 = np.power(varDiff, 2)
@@ -33,8 +28,8 @@ def computeStandardNorms(varS2T, varST, areaT):
        L2Num = computeGlobalWeightedIntegral(NT, varDiff2, areaT)
        LinfNum = np.amax(abs(varDiff))
        
-       L_1 = float(L1Num / L1Den)
-       L_2 = mt.sqrt(L2Num) / mt.sqrt(L2Den)
+       L_1 = L1Num[0] / L1Den[0]
+       L_2 = mt.sqrt(L2Num / L2Den)
        L_inf = LinfNum / LinfDen
        
        return L_1, L_2, L_inf
