@@ -19,6 +19,7 @@ def computeAreaWeight(coords, connect):
        # Order 4 Gauss quadrature nodes and weights
        # TO DO: Add order 6 as done in tempest remap
        def getGaussNodesWeights():
+              
               GN = [-0.8611363115940526, \
                     -0.3399810435848563, \
                     +0.3399810435848563, \
@@ -28,7 +29,21 @@ def computeAreaWeight(coords, connect):
                     0.6521451548625461, \
                     0.6521451548625461, \
                     0.3478548451374538]
+              """ 6th order method is slower
+              GN = [-0.9324695142031521, \
+                    -0.6612093864662645, \
+                    -0.2386191860831969, \
+                    +0.2386191860831969, \
+                    +0.6612093864662645, \
+                    +0.9324695142031521]
               
+              GW = [0.1713244923791704, \
+                    0.3607615730481386, \
+                    0.4679139345726910, \
+                    0.4679139345726910, \
+                    0.3607615730481386, \
+                    0.1713244923791704]
+              """
               # Scale the points/weights to [0 1]
               GN = 1.0 + 0.5 * np.matrix(GN)
               GW = 0.5 * np.matrix(GW)
@@ -41,20 +56,20 @@ def computeAreaWeight(coords, connect):
        
        # Change connect to 0-based
        cdex = connect - 1
-       # Get the coordinates of the quad patch
+       # Get the coordinates of the patch
        nodes = coords[:, cdex]
        
        # Set the number of subtriangles
-       NST = len(nodes) - 2
+       NST = np.size(nodes, axis=1) - 2
        
        # Loop over the subtriangles and add up the areas
-       NP = 4
        GN, GW = getGaussNodesWeights()
+       NP = len(GW)
        for ii in range(NST):
               # Gather the coordinate components
-              node1 = nodes[:, 0]
-              node2 = nodes[:, ii+1]
-              node3 = nodes[:, ii+2]
+              node1 = nodes[:,0]
+              node2 = nodes[:,ii+1]
+              node3 = nodes[:,ii+2]
               
               n1x = node1[0]
               n1y = node1[1]
@@ -73,20 +88,20 @@ def computeAreaWeight(coords, connect):
                             dA = GN[pp]
                             dB = GN[qq]
                             
-                            dOmdB = (1.0 - dB)
                             dOmdA = (1.0 - dA)
+                            dOmdB = (1.0 - dB)
                             
                             dF = [dOmdB * (dOmdA * n1x + dA * n2x) + dB * n3x, \
                                   dOmdB * (dOmdA * n1y + dA * n2y) + dB * n3y, \
                                   dOmdB * (dOmdA * n1z + dA * n2z) + dB * n3z]
                             
-                            dDaF = [dOmdB * (n1x - n2x), \
+                            dDaF = [dOmdB * (n2x - n1x), \
                                     dOmdB * (n2y - n1y), \
                                     dOmdB * (n2z - n1z)]
                             
-                            dDbF = [-dOmdA * n1x - dA * n2x  + n3x, \
-                                    -dOmdA * n1y - dA * n2y  + n3y, \
-                                    -dOmdA * n1z - dA * n2z  + n3z]
+                            dDbF = [-dOmdA * n1x - dA * n2x + n3x, \
+                                    -dOmdA * n1y - dA * n2y + n3y, \
+                                    -dOmdA * n1z - dA * n2z + n3z]
                             
                             dR = mt.sqrt(dF[0]**2 + dF[1]**2 + dF[2]**2)
                             
@@ -100,6 +115,7 @@ def computeAreaWeight(coords, connect):
                             
                             dDenomTerm = 1.0 / (dR**3)
                             
+                            # This happens to dDaG twice...
                             dDaG = dDenomTerm * np.matrix(dDaG)
                             dDbG = dDenomTerm * np.matrix(dDbG)
                             

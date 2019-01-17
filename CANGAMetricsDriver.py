@@ -10,7 +10,7 @@ REVISION HISTORY
     
 REFERENCES
 '''    
-
+#%%
 import sys, getopt
 import time
 import numpy as np
@@ -23,8 +23,10 @@ from computeGradient import computeGradient
 from computeCoordConSCRIP import computeCoordConSCRIP
 from computeAdjacencyStencil import computeAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
-from computeLocalityMetric import computeLocalityMetric
+#from computeLocalityMetric import computeLocalityMetric
 from computeAreaWeight import computeAreaWeight
+#from computeAreaWeightPlanarTriangles import computeAreaWeightPlanarTriangles
+#from computeAreaWeightSphericalTriangles import computeAreaWeightSphericalTriangles
 from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
@@ -130,7 +132,7 @@ def parseCommandLine(argv):
               ExodusSingleConn, SCRIPwithoutConn
 
 if __name__ == '__main__':
-       
+
        # Parse the commandline!
        #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
        #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
@@ -197,38 +199,14 @@ if __name__ == '__main__':
               varCoordT, varConT = computeCoordConSCRIP(lonT, latT)
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
-       """       
-       elif ExodusMultiConn:
-              # Look for multiple connectivity arrays in the .nc file
-              # Source Exodus .g file (only needed for global conservation)
-              exo_fileS = 'outCSne30.g'
-              # Target Exodus .g file
-              exo_fileT = 'outRLL1deg.g'
-              
-              # Open the .g mesh files for reading
-              g_fidS = Dataset(exo_fileS)
-              g_fidT = Dataset(exo_fileT)
-              
-              # Get the list of available variables
-              varListS = g_fidS.variables.keys()
-              varListT = g_fidT.variables.keys()
-              
-              # Search the variables for instances of "connect" comprehension
-              print('NOT IMPLEMENTED YET.')
-              
-       elif SCRIPwithConn:
-              
-              # Assuming mesh data files are available...
-              print('NOT IMPLEMENTED YET.')
-       """
-       
+       #%%
        start = time.time()
        # Compute adjacency maps for both meshes (source stencil NOT needed)
        #edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
        edgeMapT, sortedEdgeMapT, varConStenDexT = computeAdjacencyStencil(varConT)
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
-       
+       #%%
        start = time.time()
        # Precompute the area weights and then look them up in the integral below
        NEL = len(varConS)
@@ -244,7 +222,7 @@ if __name__ == '__main__':
        
        endt = time.time()
        print('Time to precompute mesh areas (sec): ', endt - start)
-       
+       #%%
        start = time.time()
        # Open the .nc data files for reading
        nc_fidSS = Dataset(nc_fileSS, 'r')
@@ -275,7 +253,7 @@ if __name__ == '__main__':
        
        endt = time.time()
        print('Time to read NC and Exodus data (sec): ', endt - start)
-       
+       #%%
        start = time.time()
        # Precompute the gradient operator on regridded and sampled target data
        varsOnTM = [varST, varS2T]
@@ -300,7 +278,7 @@ if __name__ == '__main__':
        H1, H1_2 = computeGradientPreserveMetrics(gradientsOnTM, varsOnTM, areaT)
        endt = time.time()
        print('Time to execute metrics (sec): ', endt - start)
-       
+       #%%
        # Make some plots here
        
        # Close original NetCDF file.
