@@ -19,7 +19,7 @@ def computeAreaWeight(coords, connect):
        # Order 4 Gauss quadrature nodes and weights
        # TO DO: Add order 6 as done in tempest remap
        def getGaussNodesWeights():
-              
+              """ 4th oder method for testing
               GN = [-0.8611363115940526, \
                     -0.3399810435848563, \
                     +0.3399810435848563, \
@@ -29,7 +29,8 @@ def computeAreaWeight(coords, connect):
                     0.6521451548625461, \
                     0.6521451548625461, \
                     0.3478548451374538]
-              """ 6th order method is slower
+              """
+              #""" 6th order method is slower
               GN = [-0.9324695142031521, \
                     -0.6612093864662645, \
                     -0.2386191860831969, \
@@ -43,9 +44,10 @@ def computeAreaWeight(coords, connect):
                     0.4679139345726910, \
                     0.3607615730481386, \
                     0.1713244923791704]
-              """
+              #"""
               # Scale the points/weights to [0 1]
-              GN = 1.0 + 0.5 * np.matrix(GN)
+              ovec = np.ones(np.size(GN))
+              GN = 0.5 * np.matrix(np.add(GN, ovec))
               GW = 0.5 * np.matrix(GW)
               
               return np.ravel(GN), \
