@@ -13,67 +13,16 @@ Created on Tue Jan  8 10:16:17 2019
 import numpy as np
 from scipy.spatial import cKDTree
 
-def computeKDtreeSearch(thisGrid, pointList, COINCIDENT_TOLERANCE):
-       
-       newPointList = pointList
-       # compute the KD tree object
-       pointTree = cKDTree(pointList, leafsize=20)
-       # compute a few (10) of the nearest neighbors 
-       NN = 10
-       dd, ndex = pointTree.query(thisGrid, k=range(1,NN), eps=0, p=2, \
-                                distance_upper_bound=np.Inf, n_jobs=1)
-       
-       # Get the minimum distance from the set of nearest neighbors
-       dmin = np.amin(dd)
-       
-       # If a coincident node is among the nearest neighbors, set the gridID
-       if dmin <= COINCIDENT_TOLERANCE:
-              gdex = np.argmin(dd)
-              gridID = ndex[gdex]
-       else:
-              # This is a new grid to the coordinate list, set the gridID
-              newPointList = np.append(pointList, [thisGrid.T], axis=0)
-              gridID = np.size(newPointList, axis=0)
-              
-       
-       return gridID, newPointList
-
-def computeLinearSearch(thisGrid, pointList, NS, NE, COINCIDENT_TOLERANCE):
-       gridID = 0
-       newGrid = False
-       newPointList = pointList
-              
-       # Check thisGrid to see if it is in the point list
-       for kk in range(NS, NE, 1):
-              
-              pDiff = np.subtract(thisGrid.T, pointList[kk,:])
-              
-              # Get out of this search if coincidence is met
-              if np.sum(np.power(pDiff, 2)) <= COINCIDENT_TOLERANCE:
-                     gridID = kk
-                     newGrid = False
-                     break;
-              else:
-                     newGrid = True
-                     gridID = kk + 1
-       
-       if newGrid:
-              newPointList = np.append(pointList, [thisGrid.T], axis=0)
-       
-       return gridID, newPointList
-       
-
-def computeCoordConSCRIP(lon, lat):
+def computeCoordConFastSCRIP(lon, lat):
        
        # Initialize and set tolerance for coincident grids
-       INITIAL_SEARCH = 100
        COINCIDENT_TOLERANCE = 1.0E-14
        NC = np.size(lon, axis=0)
        NG = np.size(lon, axis=1)
        # Coordinate array starts as two triplets (REMOVED AT THE END) 
-       varCoord = np.zeros((1,4))
+       gridCoord = np.zeros((1,6))
        # Connectivity array same size as the input
-       varCon = np.zeros((NC, NG))
+       cellCon = np.zeros((NC, NG))
        # Initialize gridID
        gridID = 0
        # Loop over the raw connectivity cells
@@ -86,17 +35,68 @@ def computeCoordConSCRIP(lon, lat):
                      gridID += 1
                      
                      # Get a grid at the current cell (unit radius)
-                     thisGrid = np.array([gridID, lon[ii,jj], lat[ii,jj], 1.0])
+                     thisGrid = np.array([gridID, ii+1, jj+1, lon[ii,jj], lat[ii,jj], 1.0])
                      
                      # Put the new grid into the raw coordinate array
-                     varCoord = np.append(varCoord, [thisGrid.T], axis=0)
+                     gridCoord = np.append(gridCoord, [thisGrid.T], axis=0)
                             
                      # Put this grid ID into the connectivity
-                     varCon[ii,jj] = int(gridID)
-                     
-              #print(ii, varCon[ii,:])
+                     cellCon[ii,jj] = int(gridID)
               
        # Remove the first triplet from the coordinate array
-       varCoord = np.delete(varCoord, 0, axis=0)
+       gridCoord = np.delete(gridCoord, 0, axis=0)
        
-       return varCoord, varCon
+       # Make a copy of the gridCoord to relabel coincidents
+       newGridCoord = gridCoord
+       
+       # Build the KDtree for the coordinate array (using lon/lat only)
+       pointList = gridCoord[:,3:5]
+       # Compute the KD tree object
+       pointTree = cKDTree(pointList, leafsize=100)
+       
+       # Find the coincident nodes for each query node
+       NV = np.size(gridCoord, axis=0)
+       for ii in range(NV):
+              # Get this gridID
+              gridID = gridCoord[ii,0]
+              # Compute the list of nodes that are coincident
+              thisGrid = pointList[ii,:]
+              ndex = pointTree.query_ball_point(thisGrid, COINCIDENT_TOLERANCE, p=2, eps=0)
+              
+              NN = len(ndex)
+              # Loop over the coincidents
+              for cc in range(NN):
+                     # Overwrite new grid array with gridID
+                     newGridCoord[ndex[cc],0] = gridID
+              
+       # Sort the new grid coordinate array
+       sortDex = np.argsort(newGridCoord[:,0])
+       sortedNewGridCoord = newGridCoord[sortDex,:]
+       
+       # Renumber column of gridIDs to be in ascending order
+       kk = 1
+       for ii in range(1,NV):
+              # Check for coincidence with previous node
+              if sortedNewGridCoord[ii,0] == sortedNewGridCoord[ii-1,0]:
+                     sortedNewGridCoord[ii,0] = sortedNewGridCoord[ii-1,0]
+              else:
+                     kk += 1
+                     sortedNewGridCoord[ii,0] = kk
+                     
+              # Fix the connectivity with sorted and renumbered nodes
+              rdex = int(sortedNewGridCoord[ii,1] - 1)
+              cdex = int(sortedNewGridCoord[ii,2] - 1)
+              cellCon[rdex, cdex] = sortedNewGridCoord[ii,0]
+              
+       # Trim the grid coordinate array of coincident nodes
+       cleanNewGridCoord = np.zeros((1,4))
+       # This index slice selects for [ID lon lat 1.0]
+       adex = [0, 3, 4, 5]
+       cleanNewGridCoord[0,:] = sortedNewGridCoord[0,adex]
+       for ii in range(1,NV):
+              # Check for coincidence with previous node
+              if sortedNewGridCoord[ii,0] != sortedNewGridCoord[ii-1,0]:
+                     thisGrid = sortedNewGridCoord[ii,adex]
+                     cleanNewGridCoord = np.append(cleanNewGridCoord, [thisGrid], axis=0)
+       
+       return cleanNewGridCoord, sortedNewGridCoord, cellCon

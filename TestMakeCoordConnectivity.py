@@ -9,7 +9,7 @@ Created on Tue Jan  8 15:50:24 2019
 """
 import time
 from netCDF4 import Dataset
-from computeCoordConSCRIP import computeCoordConSCRIP
+from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 
 # SCRIP netcdf file
 scp_file = 'Grids/ne30np4_pentagons.091226.nc'
@@ -28,6 +28,6 @@ lat = s_fid.variables['grid_corner_lat'][:]
 
 # 2D lat/lon grid on a circle
 start = time.time()
-varCoord, varCon = computeCoordConSCRIP(lon, lat)
+varCoord, sortedNewVarCoord, varCon = computeCoordConFastSCRIP(lon, lat)
 endt = time.time()
 print('Time to precompute SCRIP mesh info (sec): ', endt - start)
