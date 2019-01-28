@@ -49,6 +49,9 @@ def computeAdjacencyStencil(varCon):
               else:
                      edgeMap = np.append(edgeMap, edges, axis=0)
                      
+       # THE FOLLOWING IS A TERRIBLE IDEA. IMPLEMENT A KDTREE SEARCH TO FIND
+       # CELL THAT MATCHES THE GIVEN EDGE
+                     
        # Loop over the full edge map with coincident edges
        # Make the edges to cells map AND remove coincident edges
        NE = edgeMap.shape[0]

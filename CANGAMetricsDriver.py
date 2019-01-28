@@ -153,15 +153,18 @@ if __name__ == '__main__':
        # Field sampled at the source (SS)
        nc_fileSS = 'testdata_CSne30_np4_3.nc'
        # Field mapped from source to target (S2T)
-       nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
+       #nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
+       nc_fileS2T = 'testdata_CSne30_2_ICO64_np4_3.nc'
        # Field sampled at the target (ST)
-       nc_fileST = 'testdata_RLL1deg_np4_3.nc'
+       #nc_fileST = 'testdata_RLL1deg_np4_3.nc'
+       nc_fileST = 'testdata_ICO64_np4_3.nc'
        
        if ExodusSingleConn:
               # Source Exodus .g file
               exo_fileS = 'outCSne30.g'
               # Target Exodus .g file
-              exo_fileT = 'outRLL1deg.g'
+              #exo_fileT = 'outRLL1deg.g'
+              exo_fileT = 'outICO64.g'
               
               # Open the .g mesh files for reading
               g_fidS = Dataset(exo_fileS)
@@ -201,6 +204,7 @@ if __name__ == '__main__':
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
        #%%
        start = time.time()
+       print('Computing adjacency maps...')
        # Compute adjacency maps for both meshes (source stencil NOT needed)
        #edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
        edgeMapT, sortedEdgeMapT, varConStenDexT = computeAdjacencyStencil(varConT)
