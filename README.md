@@ -33,5 +33,6 @@ MAIN ASSUMPTIONS:
 5) Locality metric is NOT yet implemented since it requires the regridding operator explicitly
 
 TO DO:
-1) Grid array and connectivity generation from raw coordinate lists in the SCRIP format
+1) Speed up computation of adjacency stencil for gradient metric
 2) Support for fields on GLL grids
+3) Finish testing command line interface and update documentation
