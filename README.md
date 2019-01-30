@@ -7,11 +7,11 @@ TO TEST: Run the following command line with the included data
 
 1) Finite volume remap from cube-sphere to RLL grid, analytical test 3, using Exodus files
 
-# python CANGAMetricsDriver.py -v Psi --ss testdata_CSne30_np4_3.nc --s2t testdata_CSne30_2_RLL1deg_np4_3.nc --st testdata_RLL1deg_np4_3.nc --sm outCSne30.g --tm outRLL1deg.g --ExodusSingleConn
+python CANGAMetricsDriver.py -v Psi --ss testdata_CSne30_np4_3.nc --s2t testdata_CSne30_2_RLL1deg_np4_3.nc --st testdata_RLL1deg_np4_3.nc --sm outCSne30.g --tm outRLL1deg.g --ExodusSingleConn
 
 2) Finite volume remap from cube-sphere to icosahedral grid, analytical test 3, using Exodus files
 
-# python CANGAMetricsDriver.py -v Psi --ss testdata_CSne30_np4_3.nc --s2t testdata_CSne30_2_ICO64_np4_3.nc --st testdata_ICO64_np4_3.nc --sm outCSne30.g --tm outICO64.g --ExodusSingleConn
+python CANGAMetricsDriver.py -v Psi --ss testdata_CSne30_np4_3.nc --s2t testdata_CSne30_2_ICO64_np4_3.nc --st testdata_ICO64_np4_3.nc --sm outCSne30.g --tm outICO64.g --ExodusSingleConn
 
 NOTES:
 - variable name as given in data netcdf file
