@@ -16,6 +16,7 @@ from scipy.spatial import cKDTree
 def computeCoordConFastSCRIP(lon, lat):
        
        # Initialize and set tolerance for coincident grids
+       kdleafs = 100
        COINCIDENT_TOLERANCE = 1.0E-14
        NC = np.size(lon, axis=0)
        NG = np.size(lon, axis=1)
@@ -52,7 +53,7 @@ def computeCoordConFastSCRIP(lon, lat):
        # Build the KDtree for the coordinate array (using lon/lat only)
        pointList = gridCoord[:,3:5]
        # Compute the KD tree object
-       pointTree = cKDTree(pointList, leafsize=100)
+       pointTree = cKDTree(pointList, leafsize=kdleafs)
        
        # Find the coincident nodes for each query node
        NV = np.size(gridCoord, axis=0)

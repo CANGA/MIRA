@@ -20,9 +20,11 @@ import numpy as np
 from scipy.spatial import cKDTree
 from computeEdgesArray import computeEdgesArray
 
+COINCIDENT_TOLERANCE = 1.0E-14
+kdleafs = 100
+
 def computeFastAdjacencyStencil(varCon):
        
-       COINCIDENT_TOLERANCE = 1.0E-14
        NC = varCon.shape[0]
        NP = varCon.shape[1]
        
@@ -30,7 +32,6 @@ def computeFastAdjacencyStencil(varCon):
        
        # Make an array of edges based on grid pairs from connectivity and a cell id
        # This has coincident pairs of edges for each cell processed
-       edgeMap = np.zeros((NP, 3))
        for cc in range(NC):
               
               # Copy over the connectivity of the current cell
@@ -54,7 +55,7 @@ def computeFastAdjacencyStencil(varCon):
        sortedEdges = np.sort(edgeNodeMap[:,[0, 1]], axis=1)
                      
        # Build a KDtree around the edge map of cell - node pair
-       edgeTree = cKDTree(sortedEdges, leafsize=100)
+       edgeTree = cKDTree(sortedEdges, leafsize=kdleafs)
        
        # Compute the edges to cells map [c1 n1 n2 c2]
        NE = np.size(edgeNodeMap, axis=0)
@@ -85,9 +86,44 @@ def computeFastAdjacencyStencil(varCon):
        keepDex = np.unique(keepDex)
        cleanEdgeCellMap = edgeCellMap[keepDex,:]
                      
-       # Compute a KDtree from the smaller cleanEdgeCellMap
-       edgeTree = cKDTree(cleanEdgeCellMap, leafsize=100)
+       # Compute a KDtree from the smaller cleanEdgeCellMap (on edge coordinates)
+       edgeTree = cKDTree(cleanEdgeCellMap[:,[1, 2]], leafsize=kdleafs)
        
        # Loop over the node connectivity and construct the adjacency stencil
+       for ii in range(NC):
+              # Get the local node pair map for these edges
+              edges = computeEdgesArray(NP, varCon[ii,:])
+              
+              # Loop over the surrounding edges to this cell
+              for jj in range(NP):
+                     # Check for degenerate edge leaves a 0 in the stencil
+                     if edges[jj,0] == edges[jj,1]:
+                            continue
+                     
+                     # Fetch the current edge in both local directions
+                     thisEdge1 = edges[jj,:]
+                     thisEdge2 = thisEdge1[::-1]
+                     
+                     # Find the matching edge (should only give one result)
+                     cdex1  = edgeTree.query_ball_point(thisEdge1, COINCIDENT_TOLERANCE, p=2, eps=0)
+                     cdex2  = edgeTree.query_ball_point(thisEdge2, COINCIDENT_TOLERANCE, p=2, eps=0)
+                     
+                     # Fetch the edge map
+                     if not cdex1:
+                            thisEdgeMap = cleanEdgeCellMap[cdex2,:]
+                     elif not cdex2:
+                            thisEdgeMap = cleanEdgeCellMap[cdex1,:]
+                     else:
+                            print('Edge not found! Check cleanEdgeCellMap.')
+                            thisEdgeMap = np.array([0, 0, 0, 0])
+                            continue
+                     
+                     # Get the connected cell and set the stencil
+                     if (thisEdgeMap[0,0] - 1) == ii:
+                            varConStenDex[ii,NP+jj] = thisEdgeMap[0,3]
+                     elif (thisEdgeMap[0,3] - 1) == ii:
+                            varConStenDex[ii,NP+jj] = thisEdgeMap[0,0]
                             
-       return edgeNodeMap, edgeCellMap, cleanEdgeCellMap, coinDex, varConStenDex
+                     
+                            
+       return edgeNodeMap, edgeCellMap, cleanEdgeCellMap, varConStenDex

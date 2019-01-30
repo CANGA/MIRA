@@ -46,10 +46,10 @@ def computeGradient(varList, varCoords, varStenDex, areas):
               # Get the local node pair map for these edges (indices)
               edgeDex = computeEdgesArray(NP, (cdex + 1))
               
-              # Check for local degeneracy and fix connectivity
+              # Check for local degeneracy in stencil and fix connectivity
               for pp in range(NP):
-                     edgeCheck = edgeDex[pp,1] - edgeDex[pp,0]
-                     if abs(edgeCheck) <= 1.0E-10:
+                     # Look for 0 in the adjacency stencil
+                     if varStenDex[jj,NP + pp] == 0:
                             pdex = np.delete(pdex, pp)
                      else:
                             continue

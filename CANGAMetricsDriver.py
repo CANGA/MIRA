@@ -132,10 +132,13 @@ def parseCommandLine(argv):
               ExodusSingleConn, SCRIPwithoutConn
 
 if __name__ == '__main__':
+       # Global parameters
+       #kdleafs = 100
+       #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline!
-       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
        
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST
@@ -147,6 +150,7 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
+       """ SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
        
@@ -158,6 +162,7 @@ if __name__ == '__main__':
        # Field sampled at the target (ST)
        nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
+       """ 
        
        if ExodusSingleConn:
               # Source Exodus .g file
@@ -207,11 +212,12 @@ if __name__ == '__main__':
        print('Computing adjacency maps...')
        # Compute adjacency maps for both meshes (source stencil NOT needed)
        #edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
-       edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, coinDex, varConStenDexT = computeFastAdjacencyStencil(varConT)
+       edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
        #%%
        start = time.time()
+       print('Computing source and target mesh areas...')
        # Precompute the area weights and then look them up in the integral below
        NEL = len(varConS)
        areaS = np.zeros((NEL,1))
@@ -259,6 +265,7 @@ if __name__ == '__main__':
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
        start = time.time()
+       print('Computing scalar gradients for target sampled and regridded fields...')
        # Precompute the gradient operator on regridded and sampled target data
        varsOnTM = [varST, varS2T]
        gradientsOnTM = computeGradient(varsOnTM, varCoordT, varConStenDexT, areaT)
@@ -266,7 +273,9 @@ if __name__ == '__main__':
        endt = time.time()
        print('Time to compute gradients on target mesh (sec): ', endt - start)
        
+       #%%
        start = time.time()
+       print('Computing all metrics...')
        # Global conservation metric
        L_g = computeGlobalConservation(varSS, varS2T, varST, areaS, areaT)
        # Locality measure (returns an array for each target DOF)
