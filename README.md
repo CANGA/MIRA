@@ -3,22 +3,19 @@ Python driver for the CANGA-ROO project. Developed with Python 3.6 using Spyder 
 
 Main file: CANGAMetricsDriver.py
 
-TO TEST: User change the following lines in the main function of the file above
+TO TEST: Run the following command line with the included data
 
-       # Set the name of the field variable in question (scalar)
-       varName = 'Psi'
-       
-       # Field sampled at the source (SS)
-       nc_fileSS = 'testdata_CSne30_np4_3.nc'
-       # Field mapped from source to target (S2T)
-       nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
-       # Field sampled at the target (ST)
-       nc_fileST = 'testdata_RLL1deg_np4_3.nc'
-       
-       # Source Exodus .g file (only needed for global conservation)
-       exo_fileS = 'outCSne30.g'
-       # Target Exodus .g file
-       exo_fileT = 'outRLL1deg.g'
+1) Finite volume remap from cube-sphere to RLL grid, analytical test 3, using Exodus files
+
+# python CANGAMetricsDriver.py -v Psi --ss testdata_CSne30_np4_3.nc --s2t testdata_CSne30_2_RLL1deg_np4_3.nc --st testdata_RLL1deg_np4_3.nc --sm outCSne30.g --tm outRLL1deg.g --ExodusSingleConn
+
+2) Finite volume remap from cube-sphere to icosahedral grid, analytical test 3, using Exodus files
+
+# python CANGAMetricsDriver.py -v Psi --ss testdata_CSne30_np4_3.nc --s2t testdata_CSne30_2_ICO64_np4_3.nc --st testdata_ICO64_np4_3.nc --sm outCSne30.g --tm outICO64.g --ExodusSingleConn
+
+NOTES:
+- variable name as given in data netcdf file
+- last argument giving the configuration is necessary
 
 Initial development test data is provided with this repo in the form of 3 .nc files and 2 .g (mesh files).
 
@@ -33,6 +30,5 @@ MAIN ASSUMPTIONS:
 5) Locality metric is NOT yet implemented since it requires the regridding operator explicitly
 
 TO DO:
-1) Speed up computation of adjacency stencil for gradient metric
+1) Test support for SCRIP grid data
 2) Support for fields on GLL grids
-3) Finish testing command line interface and update documentation
