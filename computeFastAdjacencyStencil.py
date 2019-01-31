@@ -66,6 +66,9 @@ def computeFastAdjacencyStencil(varCon):
               # ndex will have 2 cellID's for non-degenerate edges
               ndex = edgeTree.query_ball_point(thisEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
               
+              if len(ndex) < 2:
+                     continue
+              
               # coinDex stores indices of coincident edges (and degenerate points)
               # keepDex stores indices for unique edges
               if ii == 0:

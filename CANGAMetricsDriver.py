@@ -132,16 +132,18 @@ def parseCommandLine(argv):
               ExodusSingleConn, SCRIPwithoutConn
 
 if __name__ == '__main__':
+       print('Welcome to CANGA remapping intercomparison metrics!')
+       print('When running in an IDE, comment out command line parsing: line 142.')
        # Global parameters
        #kdleafs = 100
        #COINCIDENT_TOLERANCE = 1.0E-14
 
-       # Parse the commandline!
+       # Parse the commandline! COMMENT OUT TO RUN IN IDE
        varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
        ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
        
        # Set the mesh configuration (mutually exclusive):
-       # ExodusSingleConn -> DEFAULT BEST
+       # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
        # SCRIPwithoutConn -> UNFORTUNATE SECOND
        # SCRIPwithConn -> NOT IMPLEMENTED (READING METIS MESH INFO PROBLEMATIC)
@@ -150,7 +152,7 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
-       """ SET INPUT HERE FOR DEVELOPMENT TESTING
+       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
        
@@ -162,7 +164,7 @@ if __name__ == '__main__':
        # Field sampled at the target (ST)
        nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
-       """ 
+       #""" 
        
        if ExodusSingleConn:
               # Source Exodus .g file
@@ -277,7 +279,7 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing all metrics...')
        # Global conservation metric
-       L_g = computeGlobalConservation(varSS, varS2T, varST, areaS, areaT)
+       massSS, massS2T, massST, L_g = computeGlobalConservation(varSS, varS2T, varST, areaS, areaT)
        # Locality measure (returns an array for each target DOF)
        #L_local = computeLocalityMetric(varS2T, varST, varConT, varCoordT)
        # Standard Error norms (L_1, L_2, L_inf)

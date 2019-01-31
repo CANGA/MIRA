@@ -28,7 +28,8 @@ def computeCentroid(NP, cell):
 
 def computeGradient(varList, varCoords, varStenDex, areas):
        
-       varGradient = varList
+       varGradient = [np.zeros(np.size(varList[0])), \
+                      np.zeros(np.size(varList[1]))]
        
        NV = len(varList)
        NC = varStenDex.shape[0]
@@ -133,6 +134,7 @@ def computeGradient(varList, varCoords, varStenDex, areas):
               # Compute the local gradient at this cell
               for vv in range(NV):
                      varGradient[vv][jj] = 1.0 / areas[jj] * fluxIntegral[vv]
+                     #print('Variable: ', varList[vv][jj])
                      #print('Gradient: ', varGradient[vv][jj])
               
        return varGradient
