@@ -31,6 +31,8 @@ def computeGradient(varList, varCoords, varStenDex, areas):
        varGradient = [np.zeros(np.size(varList[0])), \
                       np.zeros(np.size(varList[1]))]
        
+       cellCoords = np.zeros((3,areas.shape[0]))
+       
        NV = len(varList)
        NC = varStenDex.shape[0]
        NP = int(varStenDex.shape[1] / 2)
@@ -43,6 +45,9 @@ def computeGradient(varList, varCoords, varStenDex, areas):
               cell = varCoords[:,cdex]
               centroidC = computeCentroid(NP, cell)
               radiusC = np.linalg.norm(centroidC)
+              
+              # Set the centroid coordinates to the workspace
+              cellCoords[:,jj] = centroidC
               
               # Get the local node pair map for these edges (indices)
               edgeDex = computeEdgesArray(NP, (cdex + 1))
@@ -125,7 +130,8 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      for vv in range(NV):
                             # Compute the weighted average of the two cell values AT the shared edge location
                             vWeight = beta / Beta
-                            varAvg = vWeight * varList[vv][jj]
+                            varAvg = varList[vv][jj] + \
+                                     vWeight * (varList[vv][sid] - varList[vv][jj])
                             
                             # Compute the integral over this edge
                             fluxIntegral[vv] += RE * Alpha * varAvg
@@ -137,4 +143,4 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      #print('Variable: ', varList[vv][jj])
                      #print('Gradient: ', varGradient[vv][jj])
               
-       return varGradient
+       return varGradient, cellCoords

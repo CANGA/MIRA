@@ -15,8 +15,6 @@ import sys, getopt
 import time
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-import matplotlib.pyplot as plt
-import mpl_toolkits
 
 # Bring in all the different metric modules
 from computeGradient import computeGradient
@@ -139,8 +137,8 @@ if __name__ == '__main__':
        #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
        
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
@@ -267,10 +265,11 @@ if __name__ == '__main__':
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
        start = time.time()
+       from computeGradient import computeGradient
        print('Computing scalar gradients for target sampled and regridded fields...')
        # Precompute the gradient operator on regridded and sampled target data
        varsOnTM = [varST, varS2T]
-       gradientsOnTM = computeGradient(varsOnTM, varCoordT, varConStenDexT, areaT)
+       gradientsOnTM, cellCoordT = computeGradient(varsOnTM, varCoordT, varConStenDexT, areaT)
        
        endt = time.time()
        print('Time to compute gradients on target mesh (sec): ', endt - start)
