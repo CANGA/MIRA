@@ -35,8 +35,8 @@ plt.colorbar()
 #plt.colorbar(m, boundaries=np.arange(0,3.1,.5))
 
 # Make a nice 3D plot of the gradients
-vmin = 50.0
-vmax = 500.0
+vmin = 100.0
+vmax = 1000.0
 fig = plt.figure()
 cs = plt.contourf(gradS2T, 100, cmap='RdGy', vmin = vmin, vmax = vmax)
 m = plt.cm.ScalarMappable(cmap='RdGy')

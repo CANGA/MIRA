@@ -27,24 +27,15 @@ def computeCentroid(NP, cell):
        return centroid
 
 def computeGradient(varList, varCoords, varStenDex, areas):
-       SF = np.float64
        
-       # Gradients are 3 component vectors
-       nc = 3
-       gradShape1 = (nc, varList[0].shape[0])
-       gradShape2 = (nc, varList[1].shape[0])
+       varGradient = [np.zeros(np.size(varList[0])), \
+                      np.zeros(np.size(varList[1]))]
        
-       # Set the main return variable
-       varGradient = [np.zeros(gradShape1, dtype=SF), \
-                      np.zeros(gradShape2, dtype=SF)]
-       
-       cellCoords = np.zeros((nc, areas.shape[0]), dtype=SF)
+       cellCoords = np.zeros((3,areas.shape[0]))
        
        NV = len(varList)
        NC = varStenDex.shape[0]
        NP = int(varStenDex.shape[1] / 2)
-       fluxIntegral = np.zeros((nc, NV), dtype=SF)
-       
        # Loop over the cells
        for jj in range(NC):
               pdex = np.array(range(NP), dtype = int)
@@ -73,6 +64,7 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                             continue
               
               # Loop over the stencil of the gradient
+              fluxIntegral = np.zeros(NV)
               for pp in pdex:
                      # Get the ID and centroid of the connected cell
                      sid = varStenDex[jj, NP + pp] - 1
@@ -93,7 +85,7 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      
                      # Compute normals of the intersecting planes
                      cellCross = np.cross(centroidC, centroidS)
-                     nodeCross = np.cross(coord2, coord1)
+                     nodeCross = np.cross(coord1, coord2)
                      """
                      print(coord1)
                      print(' ')
@@ -114,7 +106,6 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      
                      # Compute unit vector that intersects the shared edge
                      unEdge = np.cross(unCell, unNode)
-                     unEdge = 1.0 / np.linalg.norm(unEdge) * unEdge
                      
                      # After all that geometric juggling...
                      
@@ -136,7 +127,7 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      Beta = mt.acos(vdot / radiusC / radiusS)
                      Beta = abs(Beta)
                      
-                     # Get the cosine of the angle between shared edge normal and centroid line
+                      # Get the cosine of the angle between shared edge normal and centroid line
                      diffCent = np.subtract(centroidC, centroidS)
                      unDiffCent = 1.0 / np.linalg.norm(diffCent) * diffCent
                      ndot = np.dot(unDiffCent, unNode)
@@ -152,13 +143,12 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                                      vWeight * (varList[vv][sid] - varList[vv][jj])
                             
                             # Compute the integral over this edge
-                            fluxIntegral[:,vv] = np.add(fluxIntegral[:,vv], \
-                                               RE * Alpha * varAvg * unNode)
+                            fluxIntegral[vv] += RE * Alpha * varAvg
                             
               
               # Compute the local gradient at this cell
               for vv in range(NV):
-                     varGradient[vv][:,jj] = 1.0 / areas[jj] * fluxIntegral[:,vv]
+                     varGradient[vv][jj] = 1.0 / areas[jj] * fluxIntegral[vv]
                      #print('Variable: ', varList[vv][jj])
                      #print('Gradient: ', varGradient[vv][jj])
               
