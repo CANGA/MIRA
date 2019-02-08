@@ -112,7 +112,7 @@ def computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, 
               lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
               
               # Compute the min and max difference arrays
-              minDiff[jj] = np.minimum(lPmin - varS2T[jj], 0.0)
+              minDiff[jj] = np.minimum(varS2T[jj] - lPmin, 0.0)
               maxDiff[jj] = np.maximum(lPmax - varS2T[jj], 0.0)
               
        # Compute standard norms on local extrema differences

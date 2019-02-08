@@ -22,7 +22,7 @@ def computeGradientPreserveMetrics(gradsOnTM, varsOnTM, areaT):
     NT = len(varsOnTM[0])
          
     # Compute the local errors in the field and gradient
-    eK = np.linalg.norm(np.subtract(varsOnTM[1], varsOnTM[0]), axis=0)
+    eK = np.absolute(np.subtract(varsOnTM[1], varsOnTM[0]))
     eGradK = np.linalg.norm(np.subtract(gradsOnTM[1], gradsOnTM[0]), axis=0)
     eK2 = np.multiply(eK, eK)
     eGradK2 = np.multiply(eGradK, eGradK)

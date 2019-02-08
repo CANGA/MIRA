@@ -129,14 +129,14 @@ def parseCommandLine(argv):
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
-       print('When running in an IDE, comment out command line parsing: line 142.')
+       print('When running in an IDE, comment out command line parsing: lines 138-139.')
        # Global parameters
        #kdleafs = 100
        #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
        
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
@@ -286,7 +286,8 @@ if __name__ == '__main__':
        Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
        # Local Extrema preservation
        Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
-       computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT)
+       computeLocalExtremaMetri+
+       cs(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT)
        # Gradient preservation
        H1, H1_2 = computeGradientPreserveMetrics(gradientsOnTM, varsOnTM, areaT)
        endt = time.time()
