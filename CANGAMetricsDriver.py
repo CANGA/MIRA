@@ -17,14 +17,12 @@ import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
-from computeGradient import computeGradient
+from computeGradient2 import computeGradient2
 from computeCoordConSCRIP import computeCoordConSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
 from computeAreaWeight import computeAreaWeight
-#from computeAreaWeightPlanarTriangles import computeAreaWeightPlanarTriangles
-#from computeAreaWeightSphericalTriangles import computeAreaWeightSphericalTriangles
 from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
@@ -265,11 +263,12 @@ if __name__ == '__main__':
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
        start = time.time()
-       from computeGradient import computeGradient
+       #from computeGradient2 import computeGradient2
        print('Computing scalar gradients for target sampled and regridded fields...')
        # Precompute the gradient operator on regridded and sampled target data
+
        varsOnTM = [varST, varS2T]
-       gradientsOnTM, cellCoordT = computeGradient(varsOnTM, varCoordT, varConStenDexT, areaT)
+       gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varCoordT, varConStenDexT, areaT)
        
        endt = time.time()
        print('Time to compute gradients on target mesh (sec): ', endt - start)

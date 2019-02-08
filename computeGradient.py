@@ -45,15 +45,23 @@ def computeGradient(varList, varCoords, varStenDex, areas):
        NP = int(varStenDex.shape[1] / 2)
        fluxIntegral = np.zeros((nc, NV), dtype=SF)
        
+       # Precompute the cell centroid map
+       cellCoords = np.zeros((nc,NC), dtype=SF)
+       radius = np.zeros((NC,1), dtype=SF)
+       for jj in range(NC):
+              pdex = np.array(range(NP), dtype = int)
+              cdex = (varStenDex[jj, pdex]) - 1
+              cdex = cdex.astype(int)
+              cell = varCoords[:,cdex]
+              cellCoords[:,jj] = computeCentroid(NP, cell)
+              radius[jj] = np.linalg.norm(cellCoords[:,jj])
+       
        # Loop over the cells
        for jj in range(NC):
               pdex = np.array(range(NP), dtype = int)
               # Compute the center cell centroid
-              cdex = (varStenDex[jj, pdex]) - 1
-              cdex = cdex.astype(int)
-              cell = varCoords[:,cdex]
-              centroidC = computeCentroid(NP, cell)
-              radiusC = np.linalg.norm(centroidC)
+              centroidC = cellCoords[:,jj]
+              radiusC = radius[jj]
               
               # Normalize this centroid position vector
               unCent = 1.0 / radiusC * centroidC
@@ -62,6 +70,8 @@ def computeGradient(varList, varCoords, varStenDex, areas):
               cellCoords[:,jj] = centroidC
               
               # Get the local node pair map for these edges (indices)
+              cdex = (varStenDex[jj, pdex]) - 1
+              cdex = cdex.astype(int)
               edgeDex = computeEdgesArray(NP, (cdex + 1))
               
               # Check for local degeneracy in stencil and fix connectivity
@@ -73,15 +83,13 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                             continue
               
               # Loop over the stencil of the gradient
+              fluxIntegral = np.zeros((nc, NV), dtype=SF)
               for pp in pdex:
                      # Get the ID and centroid of the connected cell
                      sid = varStenDex[jj, NP + pp] - 1
                      sid = sid.astype(int)
-                     cdex = (varStenDex[sid, range(NP)]) - 1
-                     cdex = cdex.astype(int)
-                     cell = varCoords[:,cdex]
-                     centroidS = computeCentroid(NP, cell)
-                     radiusS = np.linalg.norm(centroidS)
+                     centroidS = cellCoords[:,sid]
+                     radiusS = radius[sid]
                      
                      # Get coordinates of the shared edge nodes
                      nid1 = edgeDex[pp,0] - 1
@@ -94,20 +102,7 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      # Compute normals of the intersecting planes
                      cellCross = np.cross(centroidC, centroidS)
                      nodeCross = np.cross(coord2, coord1)
-                     """
-                     print(coord1)
-                     print(' ')
-                     print(coord2)
-                     print(' ')
-                     print(nodeCross)
-                     print('--------')
-                     print(centroidC)
-                     print(' ')
-                     print(centroidS)
-                     print(' ')
-                     print(cellCross)
-                     print('********')
-                     """
+
                      # Normalize the... normal vectors =)
                      unCell = 1.0 / np.linalg.norm(cellCross) * cellCross
                      unNode = 1.0 / np.linalg.norm(nodeCross) * nodeCross
@@ -120,8 +115,8 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      
                      # Get the angle spanned by going from coord1 to coord2 and average local radius
                      RE = 0.5 * (radius1 + radius2)
-                     unCoord1 = 1.0 / radius1 * coord1
-                     unCoord2 = 1.0 / radius2 * coord2
+                     unCoord1 = (1.0 / radius1) * coord1
+                     unCoord2 = (1.0 / radius2) * coord2
                      Alpha = mt.acos(np.dot(unCoord1, unCoord2))
                      Alpha = abs(Alpha)
                      
@@ -131,7 +126,6 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      beta = abs(beta)
                      
                      # Get the total angle separating the two cell centroids
-                     #print(jj, radiusC, radiusS)
                      vdot = np.dot(np.ravel(centroidC), np.ravel(centroidS))
                      Beta = mt.acos(vdot / radiusC / radiusS)
                      Beta = abs(Beta)
@@ -143,6 +137,8 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      
                      # Check alpha for zero or < zero, make positive definite
                      if abs(Alpha) < 1.0E-6:
+                            print(nid1, nid2)
+                            print(coord1, coord2)
                             print('Sliver cell detected! Check your mesh/code at cell: ', (jj + 1))
                             
                      for vv in range(NV):
@@ -159,7 +155,5 @@ def computeGradient(varList, varCoords, varStenDex, areas):
               # Compute the local gradient at this cell
               for vv in range(NV):
                      varGradient[vv][:,jj] = 1.0 / areas[jj] * fluxIntegral[:,vv]
-                     #print('Variable: ', varList[vv][jj])
-                     #print('Gradient: ', varGradient[vv][jj])
               
        return varGradient, cellCoords

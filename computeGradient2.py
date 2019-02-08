@@ -15,7 +15,7 @@ Parameterized flux integral assumes constant radius and field value.
 
 import numpy as np
 import math as mt
-from computeEdgesArray import computeEdgesArray
+from computeAreaWeight import computeAreaWeight
 
 def computeCentroid(NP, cell):
        centroid = np.mat([0.0, 0.0, 0.0])
@@ -26,34 +26,44 @@ def computeCentroid(NP, cell):
        
        return centroid
 
-def computeGradient(varList, varCoords, varStenDex, areas):
+def computeGradient2(varList, varCoords, varStenDex, areas):
+       SF = np.float64
        
-       varGradient = [np.zeros(np.size(varList[0])), \
-                      np.zeros(np.size(varList[1]))]
+       # Gradients are 3 component vectors
+       nc = 3
+       gradShape1 = (nc, varList[0].shape[0])
+       gradShape2 = (nc, varList[1].shape[0])
        
-       cellCoords = np.zeros((3,areas.shape[0]))
+       # Set the main return variable
+       varGradient = [np.zeros(gradShape1, dtype=SF), \
+                      np.zeros(gradShape2, dtype=SF)]
+       
+       cellCoords = np.zeros((nc, areas.shape[0]), dtype=SF)
        
        NV = len(varList)
        NC = varStenDex.shape[0]
        NP = int(varStenDex.shape[1] / 2)
+       fluxIntegral = np.zeros((nc, NV), dtype=SF)
+       
+       # Precompute the cell centroid map
+       cellCoords = np.zeros((nc,NC), dtype=SF)
+       radius = np.zeros((NC,1), dtype=SF)
+       for jj in range(NC):
+              pdex = np.array(range(NP), dtype = int)
+              cdex = (varStenDex[jj, pdex]) - 1
+              cdex = cdex.astype(int)
+              cell = varCoords[:,cdex]
+              cellCoords[:,jj] = computeCentroid(NP, cell)
+              radius[jj] = np.linalg.norm(cellCoords[:,jj])
+       
        # Loop over the cells
        for jj in range(NC):
               pdex = np.array(range(NP), dtype = int)
               # Compute the center cell centroid
-              cdex = (varStenDex[jj, pdex]) - 1
-              cdex = cdex.astype(int)
-              cell = varCoords[:,cdex]
-              centroidC = computeCentroid(NP, cell)
-              radiusC = np.linalg.norm(centroidC)
-              
-              # Normalize this centroid position vector
-              unCent = 1.0 / radiusC * centroidC
+              centroidC = cellCoords[:,jj]
               
               # Set the centroid coordinates to the workspace
               cellCoords[:,jj] = centroidC
-              
-              # Get the local node pair map for these edges (indices)
-              edgeDex = computeEdgesArray(NP, (cdex + 1))
               
               # Check for local degeneracy in stencil and fix connectivity
               for pp in range(NP):
@@ -63,93 +73,53 @@ def computeGradient(varList, varCoords, varStenDex, areas):
                      else:
                             continue
               
-              # Loop over the stencil of the gradient
-              fluxIntegral = np.zeros(NV)
+              # Loop over the stencil and get dual edges map
+              fluxIntegral = np.zeros((nc, NV), dtype=SF)
+              dualEdgeMap = np.zeros((nc,len(pdex)))
+              boundaryNorm = np.zeros((nc,len(pdex)))
+              boundaryAngles = np.zeros((len(pdex),1))
               for pp in pdex:
-                     # Get the ID and centroid of the connected cell
-                     sid = varStenDex[jj, NP + pp] - 1
-                     sid = sid.astype(int)
-                     cdex = (varStenDex[sid, range(NP)]) - 1
-                     cdex = cdex.astype(int)
-                     cell = varCoords[:,cdex]
-                     centroidS = computeCentroid(NP, cell)
-                     radiusS = np.linalg.norm(centroidS)
+                     # Fetch the dual edge and store
+                     sid1 = varStenDex[jj, NP + pp] - 1
+                     sid1 = sid1.astype(int)
+                     # Make the dual polygon convex
+                     if pp == len(pdex) - 1:
+                            sid2 = varStenDex[jj, NP] - 1
+                     else:
+                            sid2 = varStenDex[jj, NP + pp + 1] - 1
+                     sid2 = sid2.astype(int)
                      
-                     # Get coordinates of the shared edge nodes
-                     nid1 = edgeDex[pp,0] - 1
-                     nid2 = edgeDex[pp,1] - 1
-                     coord1 = varCoords[:, nid1]
-                     coord2 = varCoords[:, nid2]
-                     radius1 = np.linalg.norm(coord1)
-                     radius2 = np.linalg.norm(coord2)
+                     # Store the dual mesh polygon
+                     dualEdgeMap[:,pp] = cellCoords[:,sid1]
                      
-                     # Compute normals of the intersecting planes
-                     cellCross = np.cross(centroidC, centroidS)
-                     nodeCross = np.cross(coord1, coord2)
-                     """
-                     print(coord1)
-                     print(' ')
-                     print(coord2)
-                     print(' ')
-                     print(nodeCross)
-                     print('--------')
-                     print(centroidC)
-                     print(' ')
-                     print(centroidS)
-                     print(' ')
-                     print(cellCross)
-                     print('********')
-                     """
-                     # Normalize the... normal vectors =)
-                     unCell = 1.0 / np.linalg.norm(cellCross) * cellCross
-                     unNode = 1.0 / np.linalg.norm(nodeCross) * nodeCross
+                     # Compute angles spanned by each boundary segment
+                     RE = 0.5 * (radius[sid1] + radius[sid2])
+                     unCoord1 = 1.0 / radius[sid1] * cellCoords[:,sid1]
+                     unCoord2 = 1.0 / radius[sid2] * cellCoords[:,sid2]
+                     boundaryAngles[pp] = mt.acos(np.dot(unCoord1, unCoord2))
+                     boundaryAngles[pp] = abs(boundaryAngles[pp])
                      
-                     # Compute unit vector that intersects the shared edge
-                     unEdge = np.cross(unCell, unNode)
+                     # Compute the stencil boundary normals
+                     boundaryNorm[:,pp] = np.cross(cellCoords[:,sid2], \
+                                                   cellCoords[:,sid1])
+                     bnMag = np.linalg.norm(boundaryNorm[:,pp])
+                     boundaryNorm[:,pp] = 1.0 / bnMag * boundaryNorm[:,pp]
                      
-                     # After all that geometric juggling...
-                     
-                     # Get the angle spanned by going from coord1 to coord2 and average local radius
-                     RE = 0.5 * (radius1 + radius2)
-                     unCoord1 = 1.0 / radius1 * coord1
-                     unCoord2 = 1.0 / radius2 * coord2
-                     Alpha = mt.acos(np.dot(unCoord1, unCoord2))
-                     Alpha = abs(Alpha)
-                     
-                     # Get the angle spanned by going from target cell centroid to unEdge
-                     vdot = np.dot(np.ravel(unCent), np.ravel(unEdge))
-                     beta = mt.acos(vdot)
-                     beta = abs(beta)
-                     
-                     # Get the total angle separating the two cell centroids
-                     #print(jj, radiusC, radiusS)
-                     vdot = np.dot(np.ravel(centroidC), np.ravel(centroidS))
-                     Beta = mt.acos(vdot / radiusC / radiusS)
-                     Beta = abs(Beta)
-                     
-                      # Get the cosine of the angle between shared edge normal and centroid line
-                     diffCent = np.subtract(centroidC, centroidS)
-                     unDiffCent = 1.0 / np.linalg.norm(diffCent) * diffCent
-                     ndot = np.dot(unDiffCent, unNode)
-                     
-                     # Check alpha for zero or < zero, make positive definite
-                     if abs(Alpha) < 1.0E-6:
-                            print('Sliver cell detected! Check your mesh/code at cell: ', (jj + 1))
-                            
                      for vv in range(NV):
                             # Compute the weighted average of the two cell values AT the shared edge location
-                            vWeight = ndot * beta / Beta
-                            varAvg = varList[vv][jj] + \
-                                     vWeight * (varList[vv][sid] - varList[vv][jj])
+                            vWeight = 0.5 * boundaryAngles[pp] * RE
+                            varAvg = varList[vv][sid1] + varList[vv][sid2]
                             
                             # Compute the integral over this edge
-                            fluxIntegral[vv] += RE * Alpha * varAvg
+                            fluxIntegral[:,vv] = np.add(fluxIntegral[:,vv], \
+                                               vWeight * varAvg * \
+                                               boundaryNorm[:,pp])
                             
+              # Compute the dual polygon area
+              areaD = computeAreaWeight(dualEdgeMap, [])
               
               # Compute the local gradient at this cell
               for vv in range(NV):
-                     varGradient[vv][jj] = 1.0 / areas[jj] * fluxIntegral[vv]
-                     #print('Variable: ', varList[vv][jj])
-                     #print('Gradient: ', varGradient[vv][jj])
+                     varGradient[vv][:,jj] = 1.0 / areaD * fluxIntegral[:,vv]
               
        return varGradient, cellCoords
