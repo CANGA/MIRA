@@ -286,8 +286,7 @@ if __name__ == '__main__':
        Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
        # Local Extrema preservation
        Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
-       computeLocalExtremaMetri+
-       cs(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT)
+       computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT)
        # Gradient preservation
        H1, H1_2 = computeGradientPreserveMetrics(gradientsOnTM, varsOnTM, areaT)
        endt = time.time()
