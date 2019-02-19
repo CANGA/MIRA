@@ -13,6 +13,7 @@ REFERENCES
 #%%
 import sys, getopt
 import time
+import shelve
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
@@ -27,6 +28,12 @@ from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
+
+# Save grid variable (area, adjacency) back to mesh file
+def saveNewMeshInfo(gridFile, var2store):
+       # Put the two variables into netcdf file
+       
+       return
 
 # Parse the command line
 def parseCommandLine(argv):
@@ -135,9 +142,10 @@ if __name__ == '__main__':
        #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
        
+       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
@@ -148,7 +156,10 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
-       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
+       # Options to save computed grid data (areas, adjacency map)
+       saveAdjacency = False
+       saveAreas = False
+       
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
        
@@ -164,14 +175,14 @@ if __name__ == '__main__':
        
        if ExodusSingleConn:
               # Source Exodus .g file
-              exo_fileS = 'outCSne30.g'
+              mesh_fileS = 'outCSne30.g'
               # Target Exodus .g file
-              exo_fileT = 'outRLL1deg.g'
-              #exo_fileT = 'outICO64.g'
+              mesh_fileT = 'outRLL1deg.g'
+              #mesh_fileT = 'outICO64.g'
               
               # Open the .g mesh files for reading
-              g_fidS = Dataset(exo_fileS)
-              g_fidT = Dataset(exo_fileT)
+              g_fidS = Dataset(mesh_fileS)
+              g_fidT = Dataset(mesh_fileT)
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
               varConS = g_fidS.variables['connect1'][:]
@@ -181,13 +192,13 @@ if __name__ == '__main__':
               
        elif SCRIPwithoutConn:
               # Source SCRIP file
-              scp_fileS = 'Grids/ne30np4_pentagons.091226.nc'
+              mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
               # Target SCRIP file
-              scp_fileT = 'Grids/ne30np4_latlon.091226.nc'
+              mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
               
               # Open the .nc SCRIP files for reading
-              s_fidS = Dataset(scp_fileS)
-              s_fidT = Dataset(scp_fileT)
+              s_fidS = Dataset(mesh_fileS)
+              s_fidT = Dataset(mesh_fileT)
               
               # Get the list of available variables
               varListS = s_fidS.variables.keys()
@@ -209,8 +220,10 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing adjacency maps...')
        # Compute adjacency maps for both meshes (source stencil NOT needed)
-       #edgeMapS, sortedEdgeMapS, varConStenDexS = computeAdjacencyStencil(varConS) 
        edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
+       # Store the adjacency map in the original grid netcdf file (target mesh)
+       if saveAdjacency:
+              saveNewMeshInfo(mesh_fileT, varConStenDexT)
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
        #%%
@@ -229,6 +242,10 @@ if __name__ == '__main__':
               areaT[ii] = computeAreaWeight(varCoordT, varConT[ii, :])
        
        endt = time.time()
+       # Store the grid cell areas in the original netcdf file (source and target)
+       if saveAreas:
+              saveNewMeshInfo(mesh_fileS, areaS)
+              saveNewMeshInfo(mesh_fileT, areaT)
        print('Time to precompute mesh areas (sec): ', endt - start)
        #%%
        start = time.time()
@@ -246,7 +263,6 @@ if __name__ == '__main__':
        
        # Check the extracted variables for dimensionality
        # If the variables are 2D then reshape along the longitude (ASSUMED)
-       # TO DO: Check with Paul and tempestremap code on reshaping
        VS = varSS.shape
        if len(VS) > 1:
               varSS = np.reshape(varSS, VS[0] * VS[1])
@@ -263,7 +279,6 @@ if __name__ == '__main__':
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
        start = time.time()
-       #from computeGradient2 import computeGradient2
        print('Computing scalar gradients for target sampled and regridded fields...')
        # Precompute the gradient operator on regridded and sampled target data
 
