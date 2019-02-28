@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 '''
 NAME
     NetCDF reader and CANGA intercomparison with Python
@@ -13,7 +15,6 @@ REFERENCES
 #%%
 import sys, getopt
 import time
-import shelve
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
@@ -136,7 +137,7 @@ def parseCommandLine(argv):
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
-       print('When running in an IDE, comment out command line parsing: lines 138-139.')
+       print('When running in an IDE, comment out command line parsing: lines 146-147.')
        # Global parameters
        #kdleafs = 100
        #COINCIDENT_TOLERANCE = 1.0E-14
@@ -307,8 +308,21 @@ if __name__ == '__main__':
        endt = time.time()
        print('Time to execute metrics (sec): ', endt - start)
        #%%
-       # Make some plots here
-       
+       # Print out a table with metric results
+       print('Global conservation: ', L_g)
+       print('Global L1 error:     ', L_1)
+       print('Global L2 error:     ', L_2)
+       print('Global Li error:     ', L_inf)
+       print('Global max error:    ', Lmax)
+       print('Global min error:    ', Lmin)
+       print('Local max L1 error:  ', Lmax_1)
+       print('Local max L2 error:  ', Lmax_2)
+       print('Local max Lm error:  ', Lmax_inf)
+       print('Local min L1 error:  ', Lmin_1)
+       print('Local min L2 error:  ', Lmin_2)
+       print('Local min Lm error:  ', Lmin_inf)
+       print('Gradient semi-norm:  ', H1_2)
+       print('Gradient full-norm:  ', H1)       
        # Close original NetCDF file.
        nc_fidSS.close()
        nc_fidS2T.close()

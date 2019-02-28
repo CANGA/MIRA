@@ -16,15 +16,7 @@ Parameterized flux integral assumes constant radius and field value.
 import numpy as np
 import math as mt
 from computeAreaWeight import computeAreaWeight
-
-def computeCentroid(NP, cell):
-       centroid = np.mat([0.0, 0.0, 0.0])
-       for pp in range(NP):
-              centroid += cell[:,pp]
-              
-       centroid *= 1.0 / NP
-       
-       return centroid
+from computeCentroid import computeCentroid
 
 def computeGradient2(varList, varCoords, varStenDex, areas):
        SF = np.float64
