@@ -16,39 +16,87 @@ REFERENCES
 #%%
 import sys, getopt
 import time
+import pyshtools
+import math as mt
 import numpy as np
+import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 #%% Utility functions
 
-def computeSpectrumTPW():
-       PSD = 0.0
+def computeSpectrum(ND, lfPower, hfPower, degIntersect):
+       psd = np.zeros(ND)
+       # Compute power spectrum array from coefficients
+       degs = np.arange(ND, dtype=float)
+       #degs[0] = np.inf
+       degs[0] = 1.0E-6
+       for ii in range(ND):
+              if degs[ii] < degIntersect:
+                     psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
+              elif degs[ii] >= degIntersect:
+                     psd[ii] = hfPower[0] * np.power(degs[ii], hfPower[1]) + hfPower[2]
        
-       return PSD
-
-def computeSpectrumCFR():
-       PSD = 0.0
-       
-       return PSD
-
-def computeSpectrumTPO():
-       PSD = 0.0
-       
-       return PSD
+       return degs, psd
 
 def computeCentroids(varCon, varCoord):
        # Loop over cells and get centroid vectors
+       NC = np.size(varCon, axis=0)
+       NP = np.size(varCon, axis=1)
+       cellCoord = np.zeros((NC, 3))
+       for ii in range(NC):
+              # Centroid by averaging corner sphere-center vectors
+              centroid = np.mat([0.0, 0.0, 0.0])
+              for pp in range(NP):
+                     ndex = varCon[ii,pp] - 1
+                     centroid += varCoord[:,ndex]
+                     
+              centroid *= 1.0 / NP
        
-       return
+              # Renormalize the centroid vector
+              RO = np.linalg.norm(centroid)
+              centroid *= 1.0 / RO
+              
+              # Store this centroid
+              cellCoord[ii,:] = centroid 
+       
+       return cellCoord
 
-def computeCentroidsRLL(lon, lat):
+def computeCart2LL(cellCoord):
+       # Loop over each cell centroid, extract (lon, lat)
+       NC = np.size(cellCoord, axis=0)
+       varLonLat = np.zeros((NC, 2))
+       for ii in range(NC):
+              RO = np.linalg.norm(cellCoord[ii,:])
+              psi = mt.asin(1.0 / RO * cellCoord[ii,2])
+              lam = mt.atan(cellCoord[ii,0] / cellCoord[ii,1])
+              varLonLat[ii,:] = [lam, psi]
+              
+       return varLonLat
+
+def computeCentroidsLL(conLon, conLat):
        # Loop over rows of the corner array and get centroid
+       NC = np.size(conLon, axis=0)
+       NP = np.size(conLon, axis=1)
+       cellCoord = np.zeros((NC, 2))
+       for ii in range(NC):
+              # Centroid by averaging corner sphere-center vectors
+              centroid = np.mat([0.0, 0.0])
+              for pp in range(NP):
+                     centroid += [conLon[ii,pp], conLat[ii,pp]]
+                     
+              centroid *= 1.0 / NP
+              
+              # Store this centroid
+              cellCoord[ii,:] = centroid 
        
-       return
+       return cellCoord
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('When running in an IDE, comment out command line parsing: lines 146-147.')
+       
+       ND = 501
+       print('Number of SH degrees for sampling set to: ', ND)
 
        #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
@@ -89,8 +137,8 @@ if __name__ == '__main__':
               varCentT = computeCentroids(varConT, varCoordT)
               
               # Compute Lon/Lat coordinates from centroids
-              lonS, latS = computeCart2RLL(varCentS)
-              lonT, latT = computeCart2RLL(varCentT)
+              varLonLatS = computeCart2LL(varCentS)
+              varLonLatT = computeCart2LL(varCentT)
               
        elif SCRIPwithoutConn:
               # Source SCRIP file
@@ -107,22 +155,89 @@ if __name__ == '__main__':
               varListT = s_fidT.variables.keys()
               
               # Get RAW (no ID) connectivity and coordinate arrays
-              lonS = s_fidS.variables['grid_corner_lon'][:]
-              latS = s_fidS.variables['grid_corner_lat'][:]
-              lonT = s_fidT.variables['grid_corner_lon'][:]
-              latT = s_fidT.variables['grid_corner_lat'][:]
+              conLonS = s_fidS.variables['grid_corner_lon'][:]
+              conLatS = s_fidS.variables['grid_corner_lat'][:]
+              conLonT = s_fidT.variables['grid_corner_lon'][:]
+              conLatT = s_fidT.variables['grid_corner_lat'][:]
               
               # Compute centroids from Lat/Lon corners
-              lonS, latS = computeCentroidsRLL(lonS, latS)
-              lonT, latT = computeCentroidsRLL(lonT, latT)
+              varLonLatS = computeCentroidsLL(conLonS, conLatS)
+              varLonLatT = computeCentroidsLL(conLonT, conLatT)
               
        #%% Begin the SH reconstructions
        if EvaluateTPW or EvaluateAll:
               # Set the power spectrum coefficients
-              
+              lfPower = [5.84729561e+04, -2.91678103e-04, -5.83966265e+04]
+              hfPower = [2.17936330e+02, -1.99788552e+00, -7.94469251e-04]
+              degIntersect = 1.8161917668847762
+              # Compute the parent power spectrum for TPW
+              degsTPW, psdTPW = computeSpectrum(ND, lfPower, hfPower, degIntersect)
+              # "Fix" the end value
+              psdTPW[0] = 2.0 * psdTPW[1]              
+              # Compute a randomized realization of coefficients
+              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              # Expand the coefficients and check the field              
+              gridTPW = clmTPW.expand(grid='DH2')
+              minTPW = np.amin(gridTPW.data)
+              maxTPW = np.amax(gridTPW.data)
+              deltaTPW = abs(maxTPW - minTPW)
+              # Compute rescaled data from 0.0 to max
+              gridTPW.data = np.add(gridTPW.data, -minTPW)
+              gridTPW.data *= maxTPW / deltaTPW
+              fig, ax0 = gridTPW.plot(colorbar=True, cb_orientation='vertical', cb_label='Total Precipitable Water (mm)')
+                            
        if EvaluateCFR or EvaluateAll:
               # Set the power spectrum coefficients
+              lfPower = [8.38954430e+00, -1.85962382e-04, -8.38439294e+00]
+              hfPower = [1.25594628e-01, -1.99203168e+00,  1.91763519e-06]
+              degIntersect = 8.322269484619733
+              # Compute the parent power spectrum for CFR
+              degsCFR, psdCFR = computeSpectrum(ND, lfPower, hfPower, degIntersect)
+              # "Fix" the end value
+              psdCFR[0] = 2.0 * psdCFR[1]
+              # Compute a randomized realization of coefficients
+              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=512)
+              # Expand the coefficients and check the field              
+              gridCFR = clmCFR.expand(grid='DH2')
+              minCFR = np.amin(gridCFR.data)
+              maxCFR = np.amax(gridCFR.data)
+              deltaCFR = abs(maxCFR - minCFR)
+              # Compute rescaled data from 0.0 to max
+              gridCFR.data = np.add(gridCFR.data, -minCFR)
+              gridCFR.data *= maxCFR / deltaCFR
+              fig, ax1 = gridCFR.plot(colorbar=True, cb_orientation='vertical', cb_label='Cloud Fraction')
               
        if EvaluateTPO or EvaluateAll:
               # Set the power spectrum coefficients
+              lfPower = [1.79242815e+05, -4.28193211e+01,  7.68040558e+05]
+              hfPower = [9.56198160e+06, -1.85485966e+00, -2.63553217e+01]
+              degIntersect = 3.8942282772035255
+              # Compute the parent power spectrum for CFR
+              degsTPO, psdTPO = computeSpectrum(ND, lfPower, hfPower, degIntersect)
+              # "Fix" the end value
+              psdTPO[0] = 2.0 * psdTPO[1]              
+              # Compute a randomized realization of coefficients
+              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=512)
+              # Expand the coefficients and check the field              
+              gridTPO = clmTPO.expand(grid='DH2')
+              fig, ax2 = gridTPO.plot(colorbar=True, cb_orientation='vertical', cb_label='Terrain (m)')
+              
+       #%% Check the evaluated spectra
+       fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
+       # Plot the TPW spectrum
+       ax0.plot(degsTPW, psdTPW, 'k')
+       ax0.set_title('Total Precipitable Water - Evaluated PSD')
+       ax0.set(yscale='log', xscale='log', ylabel='Power')
+       ax0.grid(b=True, which='both', axis='both')
+       # Plot the Cloud Fraction spectrum
+       ax1.plot(degsCFR, psdCFR, 'k')
+       ax1.set_title('Global Cloud Fraction - Evaluated PSD')
+       ax1.set(yscale='log', xscale='log', ylabel='Power')
+       ax1.grid(b=True, which='both', axis='both')
+       # Plot the Topography spectrum
+       ax2.plot(degsTPO, psdTPO, 'k')
+       ax2.set_title('Global Topography Data - Evaluated PSD')
+       ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
+       ax2.grid(b=True, which='both', axis='both')
+       plt.show()
               
