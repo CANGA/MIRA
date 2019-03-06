@@ -140,6 +140,10 @@ if __name__ == '__main__':
               varLonLatS = computeCart2LL(varCentS)
               varLonLatT = computeCart2LL(varCentT)
               
+              # Convert to degrees from radians
+              varLonLatS_deg = 180.0 / mt.pi * varLonLatS
+              varLonLatT_deg = 180.0 / mt.pi * varLonLatT
+              
        elif SCRIPwithoutConn:
               # Source SCRIP file
               mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
@@ -164,6 +168,10 @@ if __name__ == '__main__':
               varLonLatS = computeCentroidsLL(conLonS, conLatS)
               varLonLatT = computeCentroidsLL(conLonT, conLatT)
               
+              # Convert to degrees from radians
+              varLonLatS_deg = 180.0 / mt.pi * varLonLatS
+              varLonLatT_deg = 180.0 / mt.pi * varLonLatT
+              
        #%% Begin the SH reconstructions
        if EvaluateTPW or EvaluateAll:
               # Set the power spectrum coefficients
@@ -177,14 +185,19 @@ if __name__ == '__main__':
               # Compute a randomized realization of coefficients
               clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
               # Expand the coefficients and check the field              
-              gridTPW = clmTPW.expand(grid='DH2')
-              minTPW = np.amin(gridTPW.data)
-              maxTPW = np.amax(gridTPW.data)
-              deltaTPW = abs(maxTPW - minTPW)
+              TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
+              TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
               # Compute rescaled data from 0.0 to max
-              gridTPW.data = np.add(gridTPW.data, -minTPW)
-              gridTPW.data *= maxTPW / deltaTPW
-              fig, ax0 = gridTPW.plot(colorbar=True, cb_orientation='vertical', cb_label='Total Precipitable Water (mm)')
+              minTPW = np.amin(TPWvarS)
+              maxTPW = np.amax(TPWvarS)
+              deltaTPW = abs(maxTPW - minTPW)
+              TPWvarS = np.add(TPWvarS, -minTPW)
+              TPWvarS *= maxTPW / deltaTPW
+              minTPW = np.amin(TPWvarT)
+              maxTPW = np.amax(TPWvarT)
+              deltaTPW = abs(maxTPW - minTPW)
+              TPWvarT = np.add(TPWvarT, -minTPW)
+              TPWvarT *= maxTPW / deltaTPW
                             
        if EvaluateCFR or EvaluateAll:
               # Set the power spectrum coefficients
@@ -198,14 +211,19 @@ if __name__ == '__main__':
               # Compute a randomized realization of coefficients
               clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=512)
               # Expand the coefficients and check the field              
-              gridCFR = clmCFR.expand(grid='DH2')
-              minCFR = np.amin(gridCFR.data)
-              maxCFR = np.amax(gridCFR.data)
-              deltaCFR = abs(maxCFR - minCFR)
+              CFRvarS = clmCFR.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
+              CFRvarT = clmCFR.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
               # Compute rescaled data from 0.0 to max
-              gridCFR.data = np.add(gridCFR.data, -minCFR)
-              gridCFR.data *= maxCFR / deltaCFR
-              fig, ax1 = gridCFR.plot(colorbar=True, cb_orientation='vertical', cb_label='Cloud Fraction')
+              minCFR = np.amin(CFRvarS)
+              maxCFR = np.amax(CFRvarS)
+              deltaCFR = abs(maxCFR - minCFR)
+              CFRvarS = np.add(CFRvarS, -minCFR)
+              CFRvarS *= maxCFR / deltaCFR
+              minCFR = np.amin(CFRvarT)
+              maxCFR = np.amax(CFRvarT)
+              deltaCFR = abs(maxCFR - minCFR)
+              CFRvarT = np.add(CFRvarT, -minCFR)
+              CFRvarT *= maxCFR / deltaCFR
               
        if EvaluateTPO or EvaluateAll:
               # Set the power spectrum coefficients
@@ -219,10 +237,25 @@ if __name__ == '__main__':
               # Compute a randomized realization of coefficients
               clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=512)
               # Expand the coefficients and check the field              
-              gridTPO = clmTPO.expand(grid='DH2')
-              fig, ax2 = gridTPO.plot(colorbar=True, cb_orientation='vertical', cb_label='Terrain (m)')
+              TPOvarS = clmTPO.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
+              TPOvarT = clmTPO.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+              # Compute rescaled data from 0.0 to max
+              minTPO = np.amin(TPOvarS)
+              maxTPO = np.amax(TPOvarS)
+              deltaTPO = abs(maxTPO - minTPO)
+              TPOvarS = np.add(TPOvarS.data, -minTPO)
+              TPOvarS *= maxTPO / deltaTPO
+              minTPO = np.amin(TPOvarT)
+              maxTPO = np.amax(TPOvarT)
+              deltaTPO = abs(maxTPO - minTPO)
+              TPOvarT = np.add(TPOvarT, -minTPO)
+              TPOvarT *= maxTPO / deltaTPO
+              
+       #%% Copy grid files and store the new test data (source and target)
+       #fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
               
        #%% Check the evaluated spectra
+       '''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
        ax0.plot(degsTPW, psdTPW, 'k')
@@ -240,4 +273,5 @@ if __name__ == '__main__':
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
+       '''
               
