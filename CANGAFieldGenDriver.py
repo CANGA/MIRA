@@ -14,12 +14,15 @@ REVISION HISTORY
 REFERENCES
 '''    
 #%%
-import sys, getopt
+import shutil
 import time
 import pyshtools
 import math as mt
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly as py
+import plotly.figure_factory as FF
+import plotly.graph_objs as go
+from scipy.spatial import Delaunay
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 #%% Utility functions
@@ -68,7 +71,7 @@ def computeCart2LL(cellCoord):
        for ii in range(NC):
               RO = np.linalg.norm(cellCoord[ii,:])
               psi = mt.asin(1.0 / RO * cellCoord[ii,2])
-              lam = mt.atan(cellCoord[ii,0] / cellCoord[ii,1])
+              lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
               varLonLat[ii,:] = [lam, psi]
               
        return varLonLat
@@ -122,6 +125,10 @@ if __name__ == '__main__':
               mesh_fileT = 'outRLL1deg.g'
               #mesh_fileT = 'outICO64.g'
               
+              # Set a file name for new test data
+              data_fileS = 'testdata_' + (mesh_fileS.split('.'))[0]
+              data_fileT = 'testdata_' + (mesh_fileT.split('.'))[0]
+              
               # Open the .g mesh files for reading
               g_fidS = Dataset(mesh_fileS)
               g_fidT = Dataset(mesh_fileT)
@@ -144,11 +151,18 @@ if __name__ == '__main__':
               varLonLatS_deg = 180.0 / mt.pi * varLonLatS
               varLonLatT_deg = 180.0 / mt.pi * varLonLatT
               
+              g_fidS.close()
+              g_fidT.close()
+              
        elif SCRIPwithoutConn:
               # Source SCRIP file
               mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
               # Target SCRIP file
               mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
+              
+              # Set a file name for new test data
+              data_fileS = 'testdata_' + (mesh_fileS.split('.'))[0]
+              data_fileT = 'testdata_' + (mesh_fileT.split('.'))[0]
               
               # Open the .nc SCRIP files for reading
               s_fidS = Dataset(mesh_fileS)
@@ -172,6 +186,9 @@ if __name__ == '__main__':
               varLonLatS_deg = 180.0 / mt.pi * varLonLatS
               varLonLatT_deg = 180.0 / mt.pi * varLonLatT
               
+              s_fidS.close()
+              s_fidT.close()
+              
        #%% Begin the SH reconstructions
        if EvaluateTPW or EvaluateAll:
               # Set the power spectrum coefficients
@@ -184,6 +201,7 @@ if __name__ == '__main__':
               psdTPW[0] = 2.0 * psdTPW[1]              
               # Compute a randomized realization of coefficients
               clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              
               # Expand the coefficients and check the field              
               TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
               TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
@@ -210,6 +228,7 @@ if __name__ == '__main__':
               psdCFR[0] = 2.0 * psdCFR[1]
               # Compute a randomized realization of coefficients
               clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=512)
+              
               # Expand the coefficients and check the field              
               CFRvarS = clmCFR.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
               CFRvarT = clmCFR.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
@@ -236,24 +255,82 @@ if __name__ == '__main__':
               psdTPO[0] = 2.0 * psdTPO[1]              
               # Compute a randomized realization of coefficients
               clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=512)
+              
               # Expand the coefficients and check the field              
               TPOvarS = clmTPO.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
               TPOvarT = clmTPO.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
-              # Compute rescaled data from 0.0 to max
-              minTPO = np.amin(TPOvarS)
-              maxTPO = np.amax(TPOvarS)
-              deltaTPO = abs(maxTPO - minTPO)
-              TPOvarS = np.add(TPOvarS.data, -minTPO)
-              TPOvarS *= maxTPO / deltaTPO
-              minTPO = np.amin(TPOvarT)
-              maxTPO = np.amax(TPOvarT)
-              deltaTPO = abs(maxTPO - minTPO)
-              TPOvarT = np.add(TPOvarT, -minTPO)
-              TPOvarT *= maxTPO / deltaTPO
+              # DO NOT rescale the topography
               
        #%% Copy grid files and store the new test data (source and target)
-       #fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
+       outFileNameS = data_fileS
+       outFileNameT = data_fileT
+       if EvaluateAll:
+              outFileNameS = outFileNameS + '_TPW_CFR_TPO.nc'
+              outFileNameT = outFileNameT + '_TPW_CFR_TPO.nc'
+       elif EvaluateTPW:
+              outFileNameS = outFileNameS + '_TPW.nc'
+              outFileNameT = outFileNameT + '_TPW.nc'
+       elif EvaluateCFR:
+              outFileNameS = outFileNameS + '_CFR.nc'
+              outFileNameT = outFileNameT + '_CFR.nc'
+       elif EvaluateTPO:
+              outFileNameS = outFileNameS + '_TPO.nc'
+              outFileNameT = outFileNameT + '_TPO.nc'
+       else:
+              outFileNameS = outFileNameS + '.nc'
+              outFileNameT = outFileNameT + '.nc'
               
+       shutil.copy(mesh_fileS, outFileNameS)
+       shutil.copy(mesh_fileT, outFileNameT)
+       
+       # write lon, lat, and test data variables
+       data_fidS = Dataset(outFileNameS, 'a')
+       data_fidT = Dataset(outFileNameT, 'a')
+       
+       # Set the dimension name depending on the mesh file format
+       if ExodusSingleConn:
+              numCells = 'num_el_in_blk1'
+       elif SCRIPwithoutConn:
+              numCells = 'grid_size'
+              
+       # Process the source file
+       lonNC = data_fidS.createVariable('lon', 'f8', (numCells,))
+       lonNC[:] = varLonLatS_deg[:,0]
+       latNC = data_fidS.createVariable('lat', 'f8', (numCells,))
+       latNC[:] = varLonLatS_deg[:,1]
+       TPWNC = data_fidS.createVariable('TotalPrecipWater', 'f8', (numCells,))
+       TPWNC[:] = TPWvarS
+       CFRNC = data_fidS.createVariable('CloudFraction', 'f8', (numCells,))
+       CFRNC[:] = CFRvarS
+       TPONC = data_fidS.createVariable('Topography', 'f8', (numCells,))
+       TPONC[:] = TPOvarS
+       
+       # Process the target file
+       lonNC = data_fidT.createVariable('lon', 'f8', (numCells,))
+       lonNC[:] = varLonLatT_deg[:,0]
+       latNC = data_fidT.createVariable('lat', 'f8', (numCells,))
+       latNC[:] = varLonLatT_deg[:,1]
+       TPWNC = data_fidT.createVariable('TotalPrecipWater', 'f8', (numCells,))
+       TPWNC[:] = TPWvarT
+       CFRNC = data_fidT.createVariable('CloudFraction', 'f8', (numCells,))
+       CFRNC[:] = CFRvarT
+       TPONC = data_fidT.createVariable('Topography', 'f8', (numCells,))
+       TPONC[:] = TPOvarT
+       
+       # Close the files out.
+       data_fidS.close()
+       data_fidT.close()
+
+       #%% Check the data with triangular surface plot
+       points2D = varLonLatT
+       tri = Delaunay(points2D)
+       simplices = tri.simplices
+       
+       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=CFRvarT, \
+                                simplices=simplices, \
+                                title="Cloud Fraction Check", aspectratio=dict(x=1, y=1, z=0.3))
+       py.offline.plot(fig1, filename='CFR' + (mesh_fileT.split('.'))[0])
+       
        #%% Check the evaluated spectra
        '''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)

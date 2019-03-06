@@ -129,7 +129,7 @@ def parseCommandLine(argv):
                      sys.exit(2)
        
        print('Welcome to CANGA remapping intercomparison metrics!')              
-       print('Mesh data must be in NETCDF format.')
+       print('Mesh and Variable data must be in NETCDF format.')
        
        return varName, sourceSampledFile, targetSampledFile, \
               remappedFile, sourceMesh, targetMesh, \
@@ -217,6 +217,7 @@ if __name__ == '__main__':
               varCoordT, varConT = computeCoordConSCRIP(lonT, latT)
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+       
        #%%
        start = time.time()
        print('Computing adjacency maps...')
@@ -275,6 +276,11 @@ if __name__ == '__main__':
        VS = varST.shape
        if len(VS) > 1:
               varST = np.reshape(varST, VS[0] * VS[1])
+              
+       #%% Close original NetCDF file.
+       nc_fidSS.close()
+       nc_fidS2T.close()
+       nc_fidST.close()
        
        endt = time.time()
        print('Time to read NC and Exodus data (sec): ', endt - start)
@@ -323,7 +329,3 @@ if __name__ == '__main__':
        print('Local min Lm error:  ', Lmin_inf)
        print('Gradient semi-norm:  ', H1_2)
        print('Gradient full-norm:  ', H1)       
-       # Close original NetCDF file.
-       nc_fidSS.close()
-       nc_fidS2T.close()
-       nc_fidST.close()
