@@ -192,6 +192,8 @@ if __name__ == '__main__':
               
        #%% Begin the SH reconstructions
        if EvaluateTPW or EvaluateAll:
+              start = time.time()
+              print('Computing Total Precipitable Water on source and target...')
               # Set the power spectrum coefficients
               lfPower = [5.84729561e+04, -2.91678103e-04, -5.83966265e+04]
               hfPower = [2.17936330e+02, -1.99788552e+00, -7.94469251e-04]
@@ -200,14 +202,18 @@ if __name__ == '__main__':
               degsTPW, psdTPW = computeSpectrum(ND, lfPower, hfPower, degIntersect)
               # "Fix" the end value
               psdTPW[0] = 4.0 * psdTPW[1]              
+       
+              coeffFile = np.load('SHCoefficientsRaw_TPW_CFR_TOPO.npz')
+              clmTPW1 = pyshtools.SHCoeffs.from_array(coeffFile['avgCoeffsTPW'])
               # Compute a randomized realization of coefficients
-              #clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
-              coeffFile = np.load('../CANGA/SHCoefficientsRaw_TPW_CFR_TOPO.npz')
-              clmTPW = pyshtools.SHCoeffs.from_array(coeffFile['avgCoeffsTPW'])
+              clmTPW2 = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              
+              # Combine the coefficients, low degree from data and high degree randomized
+              # Cut-off degree set at intersection int(degIntersect)
               
               # Expand the coefficients and check the field              
-              TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
-              TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+              TPWvarS = clmTPW1.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
+              TPWvarT = clmTPW1.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvarS)
               maxTPW = np.amax(TPWvarS)
@@ -219,8 +225,12 @@ if __name__ == '__main__':
               deltaTPW = abs(maxTPW - minTPW)
               TPWvarT = np.add(TPWvarT, -minTPW)
               TPWvarT *= maxTPW / deltaTPW
+              endt = time.time()
+              print('Time to compute TPW (mm): ', endt - start)
                             
        if EvaluateCFR or EvaluateAll:
+              start = time.time()
+              print('Computing Cloud Fraction on source and target...')
               # Set the power spectrum coefficients
               lfPower = [8.38954430e+00, -1.85962382e-04, -8.38439294e+00]
               hfPower = [1.25594628e-01, -1.99203168e+00,  1.91763519e-06]
@@ -246,8 +256,12 @@ if __name__ == '__main__':
               deltaCFR = abs(maxCFR - minCFR)
               CFRvarT = np.add(CFRvarT, -minCFR)
               CFRvarT *= maxCFR / deltaCFR
+              endt = time.time()
+              print('Time to compute CFR (0.0 to 1.0): ', endt - start)
               
        if EvaluateTPO or EvaluateAll:
+              start = time.time()
+              print('Computing Terrain on source and target...')
               # Set the power spectrum coefficients
               lfPower = [1.79242815e+05, -4.28193211e+01,  7.68040558e+05]
               hfPower = [9.56198160e+06, -1.85485966e+00, -2.63553217e+01]
@@ -263,6 +277,8 @@ if __name__ == '__main__':
               TPOvarS = clmTPO.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
               TPOvarT = clmTPO.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
               # DO NOT rescale the topography
+              endt = time.time()
+              print('Time to compute TPO (m): ', endt - start)
               
        #%% Copy grid files and store the new test data (source and target)
        outFileNameS = data_fileS
