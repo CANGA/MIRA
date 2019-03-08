@@ -23,6 +23,7 @@ import plotly as py
 import plotly.figure_factory as FF
 import plotly.graph_objs as go
 from scipy.spatial import Delaunay
+import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 #%% Utility functions
@@ -198,9 +199,11 @@ if __name__ == '__main__':
               # Compute the parent power spectrum for TPW
               degsTPW, psdTPW = computeSpectrum(ND, lfPower, hfPower, degIntersect)
               # "Fix" the end value
-              psdTPW[0] = 2.0 * psdTPW[1]              
+              psdTPW[0] = 4.0 * psdTPW[1]              
               # Compute a randomized realization of coefficients
-              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              #clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              coeffFile = np.load('../CANGA/SHCoefficientsRaw_TPW_CFR_TOPO.npz')
+              clmTPW = pyshtools.SHCoeffs.from_array(coeffFile['avgCoeffsTPW'])
               
               # Expand the coefficients and check the field              
               TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
@@ -225,7 +228,7 @@ if __name__ == '__main__':
               # Compute the parent power spectrum for CFR
               degsCFR, psdCFR = computeSpectrum(ND, lfPower, hfPower, degIntersect)
               # "Fix" the end value
-              psdCFR[0] = 2.0 * psdCFR[1]
+              psdCFR[0] = 4.0 * psdCFR[1]
               # Compute a randomized realization of coefficients
               clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=512)
               
@@ -252,7 +255,7 @@ if __name__ == '__main__':
               # Compute the parent power spectrum for CFR
               degsTPO, psdTPO = computeSpectrum(ND, lfPower, hfPower, degIntersect)
               # "Fix" the end value
-              psdTPO[0] = 2.0 * psdTPO[1]              
+              psdTPO[0] = 4.0 * psdTPO[1]              
               # Compute a randomized realization of coefficients
               clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=512)
               
@@ -326,29 +329,37 @@ if __name__ == '__main__':
        tri = Delaunay(points2D)
        simplices = tri.simplices
        
-       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=CFRvarT, \
-                                simplices=simplices, \
-                                title="Cloud Fraction Check", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='CFR' + (mesh_fileT.split('.'))[0])
+       layout = go.Layout(autosize=False, width=1080, height=720, margin=dict(l=65, r=50, b=65, t=90))
+       
+       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPWvarT, height=800, width=1200, \
+                                simplices=simplices, colormap="Portland", plot_edges=False, \
+                                title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
+       py.offline.plot(fig1, filename='TPW' + (mesh_fileT.split('.'))[0] + '.html')
        
        #%% Check the evaluated spectra
-       '''
+       #'''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
+       newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
        ax0.plot(degsTPW, psdTPW, 'k')
+       ax0.plot(degsTPW, newPSD, 'r--')
        ax0.set_title('Total Precipitable Water - Evaluated PSD')
        ax0.set(yscale='log', xscale='log', ylabel='Power')
        ax0.grid(b=True, which='both', axis='both')
        # Plot the Cloud Fraction spectrum
+       newPSD = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, unit='per_l')
        ax1.plot(degsCFR, psdCFR, 'k')
+       ax1.plot(degsCFR, newPSD, 'r--')
        ax1.set_title('Global Cloud Fraction - Evaluated PSD')
        ax1.set(yscale='log', xscale='log', ylabel='Power')
        ax1.grid(b=True, which='both', axis='both')
        # Plot the Topography spectrum
+       newPSD = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, unit='per_l')
        ax2.plot(degsTPO, psdTPO, 'k')
+       ax2.plot(degsTPO, newPSD, 'r--')
        ax2.set_title('Global Topography Data - Evaluated PSD')
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
-       '''
+       #'''
               
