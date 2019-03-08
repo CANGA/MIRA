@@ -200,20 +200,22 @@ if __name__ == '__main__':
               degIntersect = 1.8161917668847762
               # Compute the parent power spectrum for TPW
               degsTPW, psdTPW = computeSpectrum(ND, lfPower, hfPower, degIntersect)
-              # "Fix" the end value
-              psdTPW[0] = 4.0 * psdTPW[1]              
+
+              # Set the low degree coefficients (large scale structures)
+              coeffsLD_TPW = np.array([[2.45709150e+01, 0.0, 0.0, 0.0], \
+                              [4.00222122e+00, 2.39412571e+00, 0.0, 0.0], \
+                              [-1.36433589e+01, 3.90520866e-03, 4.70350344e-01, 0.0], \
+                              [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
        
-              coeffFile = np.load('SHCoefficientsRaw_TPW_CFR_TOPO.npz')
-              clmTPW1 = pyshtools.SHCoeffs.from_array(coeffFile['avgCoeffsTPW'])
               # Compute a randomized realization of coefficients
-              clmTPW2 = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
               
               # Combine the coefficients, low degree from data and high degree randomized
-              # Cut-off degree set at intersection int(degIntersect)
+              clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
               
               # Expand the coefficients and check the field              
-              TPWvarS = clmTPW1.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
-              TPWvarT = clmTPW1.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+              TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
+              TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvarS)
               maxTPW = np.amax(TPWvarS)
@@ -237,10 +239,18 @@ if __name__ == '__main__':
               degIntersect = 8.322269484619733
               # Compute the parent power spectrum for CFR
               degsCFR, psdCFR = computeSpectrum(ND, lfPower, hfPower, degIntersect)
-              # "Fix" the end value
-              psdCFR[0] = 4.0 * psdCFR[1]
+              
+              # Set the low degree coefficients (large scale structures)
+              coeffsLD_CFR = np.array([[6.65795054e-01, 0.0, 0.0, 0.0], \
+                              [-2.45480409e-02, 2.24697424e-02, 0.0, 0.0], \
+                              [5.72322008e-02, 3.41184683e-02, -7.71082815e-03, 0.0], \
+                              [1.86562455e-02, 4.34697733e-04, 8.91735978e-03, -5.53756958e-03]])
+       
               # Compute a randomized realization of coefficients
               clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=512)
+              
+              # Combine the coefficients, low degree from data and high degree randomized
+              clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
               
               # Expand the coefficients and check the field              
               CFRvarS = clmCFR.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
@@ -250,12 +260,12 @@ if __name__ == '__main__':
               maxCFR = np.amax(CFRvarS)
               deltaCFR = abs(maxCFR - minCFR)
               CFRvarS = np.add(CFRvarS, -minCFR)
-              CFRvarS *= maxCFR / deltaCFR
+              CFRvarS *= 1.0 / deltaCFR
               minCFR = np.amin(CFRvarT)
               maxCFR = np.amax(CFRvarT)
               deltaCFR = abs(maxCFR - minCFR)
               CFRvarT = np.add(CFRvarT, -minCFR)
-              CFRvarT *= maxCFR / deltaCFR
+              CFRvarT *= 1.0 / deltaCFR
               endt = time.time()
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
               
@@ -268,10 +278,18 @@ if __name__ == '__main__':
               degIntersect = 3.8942282772035255
               # Compute the parent power spectrum for CFR
               degsTPO, psdTPO = computeSpectrum(ND, lfPower, hfPower, degIntersect)
-              # "Fix" the end value
-              psdTPO[0] = 4.0 * psdTPO[1]              
+              
+              # Set the low degree coefficients (large scale structures)
+              coeffsLD_TPO = np.array([[-2.38452711e+03, 0.0, 0.0, 0.0], \
+                              [-6.47223253e+02, -6.06453097e+02, 0.0, 0.0], \
+                              [5.67394318e+02, 3.32672611e+02, -4.17639577e+02, 0.0], \
+                              [1.57403492e+02, 1.52896988e+02, 4.47106726e+02, -1.40553447e+02]])
+                         
               # Compute a randomized realization of coefficients
               clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=512)
+              
+              # Combine the coefficients, low degree from data and high degree randomized
+              clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
               
               # Expand the coefficients and check the field              
               TPOvarS = clmTPO.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
@@ -317,24 +335,27 @@ if __name__ == '__main__':
        lonNC[:] = varLonLatS_deg[:,0]
        latNC = data_fidS.createVariable('lat', 'f8', (numCells,))
        latNC[:] = varLonLatS_deg[:,1]
-       TPWNC = data_fidS.createVariable('TotalPrecipWater', 'f8', (numCells,))
-       TPWNC[:] = TPWvarS
-       CFRNC = data_fidS.createVariable('CloudFraction', 'f8', (numCells,))
-       CFRNC[:] = CFRvarS
-       TPONC = data_fidS.createVariable('Topography', 'f8', (numCells,))
-       TPONC[:] = TPOvarS
-       
        # Process the target file
        lonNC = data_fidT.createVariable('lon', 'f8', (numCells,))
        lonNC[:] = varLonLatT_deg[:,0]
        latNC = data_fidT.createVariable('lat', 'f8', (numCells,))
        latNC[:] = varLonLatT_deg[:,1]
-       TPWNC = data_fidT.createVariable('TotalPrecipWater', 'f8', (numCells,))
-       TPWNC[:] = TPWvarT
-       CFRNC = data_fidT.createVariable('CloudFraction', 'f8', (numCells,))
-       CFRNC[:] = CFRvarT
-       TPONC = data_fidT.createVariable('Topography', 'f8', (numCells,))
-       TPONC[:] = TPOvarT
+       
+       if EvaluateTPW or EvaluateAll:
+              TPWNC = data_fidS.createVariable('TotalPrecipWater', 'f8', (numCells,))
+              TPWNC[:] = TPWvarS
+              TPWNC = data_fidT.createVariable('TotalPrecipWater', 'f8', (numCells,))
+              TPWNC[:] = TPWvarT
+       if EvaluateCFR or EvaluateAll:
+              CFRNC = data_fidS.createVariable('CloudFraction', 'f8', (numCells,))
+              CFRNC[:] = CFRvarS
+              CFRNC = data_fidT.createVariable('CloudFraction', 'f8', (numCells,))
+              CFRNC[:] = CFRvarT
+       if EvaluateTPO or EvaluateAll:
+              TPONC = data_fidS.createVariable('Topography', 'f8', (numCells,))
+              TPONC[:] = TPOvarS
+              TPONC = data_fidT.createVariable('Topography', 'f8', (numCells,))
+              TPONC[:] = TPOvarT
        
        # Close the files out.
        data_fidS.close()
@@ -343,17 +364,23 @@ if __name__ == '__main__':
        #%% Check the data with triangular surface plot
        points2D = varLonLatT
        tri = Delaunay(points2D)
-       simplices = tri.simplices
-       
-       layout = go.Layout(autosize=False, width=1080, height=720, margin=dict(l=65, r=50, b=65, t=90))
+       simplices = tri.simplices       
        
        fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPWvarT, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
        py.offline.plot(fig1, filename='TPW' + (mesh_fileT.split('.'))[0] + '.html')
+       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=CFRvarT, height=800, width=1200, \
+                                simplices=simplices, colormap="Portland", plot_edges=False, \
+                                title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
+       py.offline.plot(fig1, filename='CFR' + (mesh_fileT.split('.'))[0] + '.html')
+       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPOvarT, height=800, width=1200, \
+                                simplices=simplices, colormap="Portland", plot_edges=False, \
+                                title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
+       py.offline.plot(fig1, filename='TPO' + (mesh_fileT.split('.'))[0] + '.html')
        
        #%% Check the evaluated spectra
-       #'''
+       '''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
        newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
@@ -377,5 +404,5 @@ if __name__ == '__main__':
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
-       #'''
+       '''
               
