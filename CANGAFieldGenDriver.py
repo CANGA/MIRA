@@ -99,7 +99,7 @@ if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('When running in an IDE, comment out command line parsing: lines 146-147.')
        
-       ND = 501
+       ND = 256
        print('Number of SH degrees for sampling set to: ', ND)
 
        #""" SET INPUT HERE FOR DEVELOPMENT TESTING
@@ -260,12 +260,16 @@ if __name__ == '__main__':
               maxCFR = np.amax(CFRvarS)
               deltaCFR = abs(maxCFR - minCFR)
               CFRvarS = np.add(CFRvarS, -minCFR)
-              CFRvarS *= 1.0 / deltaCFR
+              CFRvarS *= maxCFR / deltaCFR
               minCFR = np.amin(CFRvarT)
               maxCFR = np.amax(CFRvarT)
               deltaCFR = abs(maxCFR - minCFR)
               CFRvarT = np.add(CFRvarT, -minCFR)
-              CFRvarT *= 1.0 / deltaCFR
+              CFRvarT *= maxCFR / deltaCFR
+              #  Set all values greater than 1.0 to 1.0 (creates discontinuities)
+              CFRvarS[CFRvarS >= 1.0] = 1.0
+              CFRvarT[CFRvarT >= 1.0] = 1.0
+              
               endt = time.time()
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
               
