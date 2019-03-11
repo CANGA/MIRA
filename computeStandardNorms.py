@@ -28,7 +28,7 @@ def computeStandardNorms(varS2T, varST, areaT):
        L2Num = computeGlobalWeightedIntegral(NT, varDiff2, areaT)
        LinfNum = np.amax(abs(varDiff))
        
-       L_1 = L1Num[0] / L1Den[0]
+       L_1 = L1Num / L1Den
        L_2 = mt.sqrt(L2Num / L2Den)
        L_inf = LinfNum / LinfDen
        

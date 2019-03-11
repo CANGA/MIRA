@@ -35,7 +35,7 @@ def computeGradientPreserveMetrics(gradsOnTM, varsOnTM, areaT):
     H1num = computeGlobalWeightedIntegral(NT, H1num, areaT)
     H1_2num = computeGlobalWeightedIntegral(NT, eGradK2, areaT)
     
-    H1 = mt.sqrt(H1num[0] / denom[0])
-    H1_2 = mt.sqrt(H1_2num[0] / denom[0])
+    H1 = mt.sqrt(H1num / denom)
+    H1_2 = mt.sqrt(H1_2num / denom)
 
     return H1, H1_2

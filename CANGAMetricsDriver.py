@@ -52,6 +52,7 @@ def parseCommandLine(argv):
        
        ExodusSingleConn = False
        SCRIPwithoutConn = False
+       AreaAdjacentyPrecomp = False
        
        # Mesh data configuration
        meshConfig = ''
@@ -59,7 +60,7 @@ def parseCommandLine(argv):
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['ss=','s2t=','st=','sm=','tm=', \
-                                         'ExodusSingleConn', 'SCRIPwithoutConn'])
+                                         'ExodusSingleConn', 'SCRIPwithoutConn', 'AreaAdjacentyPrecomp'])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAMEtricsDriver.py', \
@@ -67,7 +68,8 @@ def parseCommandLine(argv):
                     '-s2t <remappedFile>', \
                     '-st <targetSampledFile>', \
                     '-sm <sourceMesh>', \
-                    '-tm <targetMesh>', '--meshConfiguration')
+                    '-tm <targetMesh>', \
+                    '--<meshConfiguration>', '--<doPrecompute>')
               sys.exit(2)
               
        for opt, arg in opts:
@@ -79,7 +81,8 @@ def parseCommandLine(argv):
                            '-s2t <remappedFile>', \
                            '-st <targetSampledFile>', \
                            '-sm <sourceMesh>', \
-                           '-tm <targetMesh>', '--meshConfiguration')
+                           '-tm <targetMesh>', \
+                           '--<meshConfiguration>', '--<doPrecompute>')
                      sys.exit()
               elif opt == '-v':
                      varName = arg
@@ -99,6 +102,9 @@ def parseCommandLine(argv):
               elif opt == '--SCRIPwithoutConn':
                      meshConfig = 'SCRIPwithoutConn'
                      SCRIPwithoutConn = True
+              elif opt == '--AreaAdjacentyPrecomp':
+                     AreaAdjacentyPrecomp = True
+                     print('WARNING: Will carry out EXPENSIVE Area and Adjacency map computations.')
                      
        # Check that mesh files are consistent
        if sourceMesh[len(sourceMesh) - 1] != targetMesh[len(targetMesh) - 1]:
@@ -157,12 +163,15 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
-       # Options to save computed grid data (areas, adjacency map)
-       saveAdjacency = False
-       saveAreas = False
+       # Set flag for precomputations
+       AreaAdjacentyPrecomp = False
        
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
+       
+       # Set the names for the auxiliary area and adjacency maps
+       varAreaName = 'cell_area'
+       varAdjaName = 'cell_edge_adjacency'
        
        # Field sampled at the source (SS)
        nc_fileSS = 'testdata_CSne30_np4_3.nc'
@@ -175,6 +184,8 @@ if __name__ == '__main__':
        #""" 
        
        if ExodusSingleConn:
+              numEdges = 'num_nod_per_el1'
+              numCells = 'num_el_in_blk1'
               # Source Exodus .g file
               mesh_fileS = 'outCSne30.g'
               # Target Exodus .g file
@@ -182,73 +193,108 @@ if __name__ == '__main__':
               #mesh_fileT = 'outICO64.g'
               
               # Open the .g mesh files for reading
-              g_fidS = Dataset(mesh_fileS)
-              g_fidT = Dataset(mesh_fileT)
+              m_fidS = Dataset(mesh_fileS, 'r')
+              m_fidT = Dataset(mesh_fileT, 'r')
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varConS = g_fidS.variables['connect1'][:]
-              varCoordS = g_fidS.variables['coord'][:]
-              varConT = g_fidT.variables['connect1'][:]
-              varCoordT = g_fidT.variables['coord'][:]
+              varConS = m_fidS.variables['connect1'][:]
+              varCoordS = m_fidS.variables['coord'][:]
+              varConT = m_fidT.variables['connect1'][:]
+              varCoordT = m_fidT.variables['coord'][:]
               
        elif SCRIPwithoutConn:
+              numEdges = 'grid_corners'
+              numCells = 'grid_size'
               # Source SCRIP file
               mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
               # Target SCRIP file
               mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
               
               # Open the .nc SCRIP files for reading
-              s_fidS = Dataset(mesh_fileS)
-              s_fidT = Dataset(mesh_fileT)
+              m_fidS = Dataset(mesh_fileS, 'r')
+              m_fidT = Dataset(mesh_fileT, 'r')
               
               # Get the list of available variables
-              varListS = s_fidS.variables.keys()
-              varListT = s_fidT.variables.keys()
+              varListS = m_fidS.variables.keys()
+              varListT = m_fidT.variables.keys()
               
               # Get RAW (no ID) connectivity and coordinate arrays
-              lonS = s_fidS.variables['grid_corner_lon'][:]
-              latS = s_fidS.variables['grid_corner_lat'][:]
-              lonT = s_fidT.variables['grid_corner_lon'][:]
-              latT = s_fidT.variables['grid_corner_lat'][:]
+              lonS = m_fidS.variables['grid_corner_lon'][:]
+              latS = m_fidS.variables['grid_corner_lat'][:]
+              lonT = m_fidT.variables['grid_corner_lon'][:]
+              latT = m_fidT.variables['grid_corner_lat'][:]
               
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
               varCoordS, varConS = computeCoordConSCRIP(lonS, latS)
               varCoordT, varConT = computeCoordConSCRIP(lonT, latT)
+              
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
-       
-       #%%
-       start = time.time()
-       print('Computing adjacency maps...')
-       # Compute adjacency maps for both meshes (source stencil NOT needed)
-       edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
-       # Store the adjacency map in the original grid netcdf file (target mesh)
-       if saveAdjacency:
-              saveNewMeshInfo(mesh_fileT, varConStenDexT)
-       endt = time.time()
-       print('Time to precompute adjacency maps (sec): ', endt - start)
-       #%%
-       start = time.time()
-       print('Computing source and target mesh areas...')
-       # Precompute the area weights and then look them up in the integral below
-       NEL = len(varConS)
-       areaS = np.zeros((NEL,1))
-       for ii in range(NEL):
-              areaS[ii] = computeAreaWeight(varCoordS, varConS[ii, :])
               
-       # Precompute the area weights and then look them up in the integrals below
-       NEL = len(varConT)
-       areaT = np.zeros((NEL,1))
-       for ii in range(NEL):
-              areaT[ii] = computeAreaWeight(varCoordT, varConT[ii, :])
+       m_fidS.close()
+       m_fidT.close()
        
-       endt = time.time()
-       # Store the grid cell areas in the original netcdf file (source and target)
-       if saveAreas:
-              saveNewMeshInfo(mesh_fileS, areaS)
-              saveNewMeshInfo(mesh_fileT, areaT)
-       print('Time to precompute mesh areas (sec): ', endt - start)
+       if AreaAdjacentyPrecomp:
+              #%%
+              start = time.time()
+              print('Computing adjacency maps...')
+              # Compute adjacency maps for both meshes (source stencil NOT needed)
+              edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
+              # Store the adjacency map in the original grid netcdf file (target mesh)
+              m_fidT = Dataset(mesh_fileT, 'a')
+              meshFileOut = m_fidT.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
+              meshFileOut[:] = varConStenDexT[:,4:]
+              m_fidT.close()
+                     
+              endt = time.time()
+              print('Time to precompute adjacency maps (sec): ', endt - start)
+              #%%
+              start = time.time()
+              print('Computing source and target mesh areas...')
+              # Precompute the area weights and then look them up in the integral below
+              NEL = len(varConS)
+              areaS = np.zeros((NEL,1))
+              for ii in range(NEL):
+                     areaS[ii] = computeAreaWeight(varCoordS, varConS[ii, :])
+                     
+              # Precompute the area weights and then look them up in the integrals below
+              NEL = len(varConT)
+              areaT = np.zeros((NEL,1))
+              for ii in range(NEL):
+                     areaT[ii] = computeAreaWeight(varCoordT, varConT[ii, :])
+                     
+              areaS = np.ravel(areaS)
+              areaT = np.ravel(areaT)
+              
+              # Store the grid cell areas in the original netcdf file (source and target)
+              m_fidS = Dataset(mesh_fileS, 'a')
+              meshFileOut = m_fidS.createVariable(varAreaName, 'f8', (numCells, ))
+              meshFileOut[:] = areaS
+              m_fidS.close()
+              m_fidT = Dataset(mesh_fileT, 'a')
+              meshFileOut = m_fidT.createVariable(varAreaName, 'f8', (numCells, ))
+              meshFileOut[:] = areaT
+              m_fidT.close()
+              
+              endt = time.time()
+              print('Time to precompute mesh areas (sec): ', endt - start)
+       else:
+              start = time.time()
+              print('Reading cell areas and adjacency maps...')
+              
+              m_fidS = Dataset(mesh_fileS, 'r')
+              m_fidT = Dataset(mesh_fileT, 'r')
+              
+              # Read in stored areas
+              areaS = m_fidS.variables[varAreaName][:]
+              areaT = m_fidT.variables[varAreaName][:]
+              
+              # Read in stored adjacency
+              varConStenDexT = np.concatenate((varConT, m_fidT.variables[varAdjaName][:]), axis=1)
+              
+              endt = time.time()
+              print('Time to read areas and adjacencies (sec): ', endt - start)
        #%%
        start = time.time()
        # Open the .nc data files for reading
@@ -318,7 +364,7 @@ if __name__ == '__main__':
        print('Global conservation: ', L_g)
        print('Global L1 error:     ', L_1)
        print('Global L2 error:     ', L_2)
-       print('Global Li error:     ', L_inf)
+       print('Global Linf error:   ', L_inf)
        print('Global max error:    ', Lmax)
        print('Global min error:    ', Lmin)
        print('Local max L1 error:  ', Lmax_1)

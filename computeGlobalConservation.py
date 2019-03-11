@@ -28,4 +28,4 @@ def computeGlobalConservation(varSS, varS2T, varST, areaS, areaT):
        # Compute the global conservation metric
        L_g = (L_S2T - L_SS) / L_ST
        
-       return L_SS[0], L_S2T[0], L_ST[0], L_g[0]
+       return L_SS, L_S2T, L_ST, L_g
