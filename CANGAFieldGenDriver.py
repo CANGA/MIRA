@@ -114,11 +114,15 @@ def computeRandomizedCoefficients(ND):
        # Initialize the coefficients array
        coeffs = np.zeros((2,ND,ND))
        
+       # Set the random integer seed
+       seed = 384
+       
        # Loop over ND (number of degrees)
        for kk in range(ND):
               nrand = np.ones((2, kk+1))
               # Initialize random numbers with number of coefficients at this degree 
-              rand = (1103515245 * (kk+1) + 25214903917 + 12345) % 2147483647
+              if kk == 0:
+                     rand = (1103515245 * seed + 25214903917 + 12345) % 2147483647
               # Loop over the coefficients at this degree
               for ll in range(0, kk+1):
                      nrand[0,ll] = rand
@@ -138,7 +142,7 @@ if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('When running in an IDE, comment out command line parsing: lines 146-147.')
        
-       ND = 256
+       ND = 128
        print('Number of SH degrees for sampling set to: ', ND)
        
        sampleCentroid = True
