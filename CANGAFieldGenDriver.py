@@ -133,8 +133,8 @@ if __name__ == '__main__':
        #SCRIPwithConn = False
        
        # SET WHICH FIELDS TO EVALUATE ON BOTH MESHES
-       EvaluateAll = True
-       EvaluateTPW = False # Total Precipitable Water
+       EvaluateAll = False
+       EvaluateTPW = True # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
        
@@ -412,6 +412,7 @@ if __name__ == '__main__':
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
        py.offline.plot(fig1, filename='TPW' + (mesh_fileT.split('.'))[0] + '.html')
+       '''
        fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=CFRvarT, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
@@ -420,9 +421,9 @@ if __name__ == '__main__':
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
        py.offline.plot(fig1, filename='TPO' + (mesh_fileT.split('.'))[0] + '.html')
-       
+       '''
        #%% Check the evaluated spectra
-       #'''
+       '''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
        newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
@@ -446,5 +447,4 @@ if __name__ == '__main__':
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
-       #'''
-              
+       '''      
