@@ -15,33 +15,36 @@ import math as mt
 import numpy as np
 
 # Order 4 Gauss quadrature nodes and weights
-def getGaussNodesWeights():
-       """ 4th oder method for testing
-       GN = [-0.8611363115940526, \
-             -0.3399810435848563, \
-             +0.3399810435848563, \
-             +0.8611363115940526]
-       
-       GW = [0.3478548451374538, \
-             0.6521451548625461, \
-             0.6521451548625461, \
-             0.3478548451374538]
-       """
-       #""" 6th order method is slower
-       GN = [-0.9324695142031521, \
-             -0.6612093864662645, \
-             -0.2386191860831969, \
-             +0.2386191860831969, \
-             +0.6612093864662645, \
-             +0.9324695142031521]
-       
-       GW = [0.1713244923791704, \
-             0.3607615730481386, \
-             0.4679139345726910, \
-             0.4679139345726910, \
-             0.3607615730481386, \
-             0.1713244923791704]
+def getGaussNodesWeights(order):
+       #""" 4th oder method for testing
+       if order == 4:
+              GN = [-0.8611363115940526, \
+                    -0.3399810435848563, \
+                    +0.3399810435848563, \
+                    +0.8611363115940526]
+              
+              GW = [0.3478548451374538, \
+                    0.6521451548625461, \
+                    0.6521451548625461, \
+                    0.3478548451374538]
        #"""
+       #""" 6th order method is slower
+       if order == 6:
+              GN = [-0.9324695142031521, \
+                    -0.6612093864662645, \
+                    -0.2386191860831969, \
+                    +0.2386191860831969, \
+                    +0.6612093864662645, \
+                    +0.9324695142031521]
+              
+              GW = [0.1713244923791704, \
+                    0.3607615730481386, \
+                    0.4679139345726910, \
+                    0.4679139345726910, \
+                    0.3607615730481386, \
+                    0.1713244923791704]
+       #"""
+       
        # Scale the points/weights to [0 1]
        ovec = np.ones(np.size(GN))
        GN = 0.5 * np.matrix(np.add(GN, ovec))
@@ -50,23 +53,15 @@ def getGaussNodesWeights():
        return np.ravel(GN), \
               np.ravel(GW)
 
-def computeAreaWeight(coords, connect):
+def computeAreaWeight(nodes):
        # Initialize the area
        dFaceArea = 0.0
-       
-       # Get the coordinates of the patch
-       if len(connect) == 0:
-              nodes = coords
-       else:
-              # Change connect to 0-based
-              cdex = connect - 1
-              nodes = coords[:, cdex]
        
        # Set the number of subtriangles
        NST = np.size(nodes, axis=1) - 2
        
        # Loop over the subtriangles and add up the areas
-       GN, GW = getGaussNodesWeights()
+       GN, GW = getGaussNodesWeights(6)
        NP = len(GW)
        for ii in range(NST):
               # Gather the coordinate components

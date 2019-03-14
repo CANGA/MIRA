@@ -108,7 +108,7 @@ def computeGradient2(varList, varCoords, varStenDex, areas):
                                                boundaryNorm[:,pp])
                             
               # Compute the dual polygon area
-              areaD = computeAreaWeight(dualEdgeMap, [])
+              areaD = computeAreaWeight(dualEdgeMap)
               
               # Compute the local gradient at this cell
               for vv in range(NV):
