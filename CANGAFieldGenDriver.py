@@ -25,6 +25,7 @@ import plotly.graph_objs as go
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
+from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 
 #%% Utility functions
 
@@ -33,7 +34,7 @@ def computeSpectrum(ND, lfPower, hfPower, degIntersect):
        # Compute power spectrum array from coefficients
        degs = np.arange(ND, dtype=float)
        #degs[0] = np.inf
-       degs[0] = 1.0E-6
+       degs[0] = 1.0E-8
        for ii in range(ND):
               if degs[ii] < degIntersect:
                      psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
@@ -95,12 +96,30 @@ def computeCentroidsLL(conLon, conLat):
        
        return cellCoord
 
+def computeCellAverage(clm, varCon, varCoord, order):
+       # Compute the number of cells and initialize
+       NEL = np.size(varCon, 0)
+       varSample = np.zeros(NEL,)
+       
+       # Loop over each cell and get cell average
+       for ii in range(NEL):
+              cdex = varCon[ii,:] - 1
+              thisCell = varCoord[:,cdex]
+              varSample[ii] = computeAreaAverage(clm, thisCell)
+       
+       return varSample
+
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('When running in an IDE, comment out command line parsing: lines 146-147.')
        
-       ND = 256
+       ND = 128
        print('Number of SH degrees for sampling set to: ', ND)
+       
+       sampleCentroid = True
+       sampleOrder2 = False
+       sampleOrder4 = False
+       sampleOrder6 = False
 
        #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
@@ -187,6 +206,14 @@ if __name__ == '__main__':
               varLonLatS_deg = 180.0 / mt.pi * varLonLatS
               varLonLatT_deg = 180.0 / mt.pi * varLonLatT
               
+              # Make coordinate and connectivity from raw SCRIP data
+              start = time.time()
+              varCoordS, varConS = computeCoordConFastSCRIP(conLonS, conLatS)
+              varCoordT, varConT = computeCoordConFastSCRIP(conLonT, conLatT)
+              
+              endt = time.time()
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              
               s_fidS.close()
               s_fidT.close()
               
@@ -208,14 +235,25 @@ if __name__ == '__main__':
                               [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
        
               # Compute a randomized realization of coefficients
-              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=512)
+              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=384)
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
               
-              # Expand the coefficients and check the field              
-              TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
-              TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+              # Expand the coefficients and check the field
+              if sampleCentroid:              
+                     TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
+                     TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+              elif sampleOrder2:
+                     TPWvarS = computeCellAverage(clmTPW, varConS, varCoordS, 2)
+                     TPWvarT = computeCellAverage(clmTPW, varConT, varCoordT, 2)
+              elif sampleOrder4:
+                     TPWvarS = computeCellAverage(clmTPW, varConS, varCoordS, 4)
+                     TPWvarT = computeCellAverage(clmTPW, varConT, varCoordT, 4)
+              elif sampleOrder6:
+                     TPWvarS = computeCellAverage(clmTPW, varConS, varCoordS, 6)
+                     TPWvarT = computeCellAverage(clmTPW, varConT, varCoordT, 6)
+              
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvarS)
               maxTPW = np.amax(TPWvarS)
@@ -247,7 +285,7 @@ if __name__ == '__main__':
                               [1.86562455e-02, 4.34697733e-04, 8.91735978e-03, -5.53756958e-03]])
        
               # Compute a randomized realization of coefficients
-              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=512)
+              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=384)
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
@@ -290,7 +328,7 @@ if __name__ == '__main__':
                               [1.57403492e+02, 1.52896988e+02, 4.47106726e+02, -1.40553447e+02]])
                          
               # Compute a randomized realization of coefficients
-              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=512)
+              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=384)
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
@@ -384,7 +422,7 @@ if __name__ == '__main__':
        py.offline.plot(fig1, filename='TPO' + (mesh_fileT.split('.'))[0] + '.html')
        
        #%% Check the evaluated spectra
-       '''
+       #'''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
        newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
@@ -408,5 +446,5 @@ if __name__ == '__main__':
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
-       '''
+       #'''
               

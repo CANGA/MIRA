@@ -20,7 +20,7 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
 from computeGradient2 import computeGradient2
-from computeCoordConSCRIP import computeCoordConSCRIP
+from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
@@ -164,7 +164,7 @@ if __name__ == '__main__':
        #SCRIPwithConn = False
        
        # Set flag for precomputations
-       AreaAdjacentyPrecomp = False
+       AreaAdjacentyPrecomp = True
        
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
@@ -226,8 +226,8 @@ if __name__ == '__main__':
               
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
-              varCoordS, varConS = computeCoordConSCRIP(lonS, latS)
-              varCoordT, varConT = computeCoordConSCRIP(lonT, latT)
+              varCoordS, varConS = computeCoordConFastSCRIP(lonS, latS)
+              varCoordT, varConT = computeCoordConFastSCRIP(lonT, latT)
               
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
@@ -243,8 +243,12 @@ if __name__ == '__main__':
               edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
               # Store the adjacency map in the original grid netcdf file (target mesh)
               m_fidT = Dataset(mesh_fileT, 'a')
-              meshFileOut = m_fidT.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
-              meshFileOut[:] = varConStenDexT[:,4:]
+              # Check for existing variable data
+              if m_fidT.variables[varAdjaName].name == varAdjaName:
+                     m_fidT.variables[varAdjaName][:] = varConStenDexT[:,4:]
+              else:
+                     meshFileOut = m_fidT.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
+                     meshFileOut[:] = varConStenDexT[:,4:]
               m_fidT.close()
                      
               endt = time.time()
@@ -256,25 +260,38 @@ if __name__ == '__main__':
               NEL = len(varConS)
               areaS = np.zeros((NEL,1))
               for ii in range(NEL):
-                     areaS[ii] = computeAreaWeight(varCoordS, varConS[ii, :])
+                     cdex = varConS[ii,:] - 1
+                     thisCell = varCoordS[:,cdex]
+                     areaS[ii] = computeAreaWeight(thisCell)
                      
               # Precompute the area weights and then look them up in the integrals below
               NEL = len(varConT)
               areaT = np.zeros((NEL,1))
               for ii in range(NEL):
-                     areaT[ii] = computeAreaWeight(varCoordT, varConT[ii, :])
+                     cdex = varConT[ii,:] - 1
+                     thisCell = varCoordT[:,cdex]
+                     areaT[ii] = computeAreaWeight(thisCell)
                      
               areaS = np.ravel(areaS)
               areaT = np.ravel(areaT)
               
               # Store the grid cell areas in the original netcdf file (source and target)
               m_fidS = Dataset(mesh_fileS, 'a')
-              meshFileOut = m_fidS.createVariable(varAreaName, 'f8', (numCells, ))
-              meshFileOut[:] = areaS
+              # Check for existing variable data
+              if m_fidS.variables[varAreaName].name == varAreaName:
+                     m_fidS.variables[varAreaName][:] = areaS
+              else:
+                     meshFileOut = m_fidS.createVariable(varAreaName, 'f8', (numCells, ))
+                     meshFileOut[:] = areaS
               m_fidS.close()
+                     
               m_fidT = Dataset(mesh_fileT, 'a')
-              meshFileOut = m_fidT.createVariable(varAreaName, 'f8', (numCells, ))
-              meshFileOut[:] = areaT
+              # Check for existing variable data
+              if m_fidT.variables[varAreaName].name == varAreaName:
+                     m_fidT.variables[varAreaName][:] = areaT
+              else:
+                     meshFileOut = m_fidT.createVariable(varAreaName, 'f8', (numCells, ))
+                     meshFileOut[:] = areaT
               m_fidT.close()
               
               endt = time.time()
