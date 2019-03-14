@@ -26,6 +26,7 @@ from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
+from computeAreaAverage import computeAreaAverage
 
 #%% Utility functions
 
@@ -109,11 +110,35 @@ def computeCellAverage(clm, varCon, varCoord, order):
        
        return varSample
 
+def computeRandomizedCoefficients(ND):
+       # Initialize the coefficients array
+       coeffs = np.zeros((2,ND,ND))
+       
+       # Loop over ND (number of degrees)
+       for kk in range(ND):
+              nrand = np.ones((2, kk+1))
+              # Initialize random numbers with number of coefficients at this degree 
+              rand = (1103515245 * (kk+1) + 25214903917 + 12345) % 2147483647
+              # Loop over the coefficients at this degree
+              for ll in range(0, kk+1):
+                     nrand[0,ll] = rand
+                     rand = (1103515245 * rand + 25214903917 + 12345) % 2147483647
+                     nrand[1,ll] = rand
+                     rand = (1103515245 * rand + 25214903917 + 12345) % 2147483647
+         
+              # Turn the random set into double
+              nrand = np.multiply(nrand, 1.0 / 2147483647.0)
+              
+              # Set the coefficients at degree kk+1
+              coeffs[:2,kk,:kk+1] = 2.0 * np.add(2.0 * nrand[:2,:], -1.0)
+              
+       return coeffs
+
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('When running in an IDE, comment out command line parsing: lines 146-147.')
        
-       ND = 128
+       ND = 256
        print('Number of SH degrees for sampling set to: ', ND)
        
        sampleCentroid = True
@@ -133,8 +158,8 @@ if __name__ == '__main__':
        #SCRIPwithConn = False
        
        # SET WHICH FIELDS TO EVALUATE ON BOTH MESHES
-       EvaluateAll = False
-       EvaluateTPW = True # Total Precipitable Water
+       EvaluateAll = True
+       EvaluateTPW = False # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
        
@@ -234,8 +259,15 @@ if __name__ == '__main__':
                               [-1.36433589e+01, 3.90520866e-03, 4.70350344e-01, 0.0], \
                               [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
        
-              # Compute a randomized realization of coefficients
-              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, exact_power=True, seed=384)
+              # Initialize SHCoeffs with a randomized realization of coefficients
+              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, seed=384)
+
+              # Compute the randomized coefficients and update instance of SHCoeffs
+              clmTPW.coeffs = computeRandomizedCoefficients(ND)
+              
+              # Force the coefficients to have the same power as the given spectrum
+              power_per_l = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, normalization='4pi', unit='per_l')
+              clmTPW.coeffs *= np.sqrt(psdTPW[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
@@ -284,8 +316,15 @@ if __name__ == '__main__':
                               [5.72322008e-02, 3.41184683e-02, -7.71082815e-03, 0.0], \
                               [1.86562455e-02, 4.34697733e-04, 8.91735978e-03, -5.53756958e-03]])
        
-              # Compute a randomized realization of coefficients
-              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, exact_power=True, seed=384)
+              # Initialize SHCoeffs with a randomized realization of coefficients
+              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, seed=384)
+              
+              # Compute the randomized coefficients and update instance of SHCoeffs
+              clmCFR.coeffs = computeRandomizedCoefficients(ND)
+              
+              # Force the coefficients to have the same power as the given spectrum
+              power_per_l = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, normalization='4pi', unit='per_l')
+              clmCFR.coeffs *= np.sqrt(psdCFR[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
@@ -327,8 +366,15 @@ if __name__ == '__main__':
                               [5.67394318e+02, 3.32672611e+02, -4.17639577e+02, 0.0], \
                               [1.57403492e+02, 1.52896988e+02, 4.47106726e+02, -1.40553447e+02]])
                          
-              # Compute a randomized realization of coefficients
-              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, exact_power=True, seed=384)
+              # Initialize SHCoeffs with a randomized realization of coefficients
+              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, seed=384)
+              
+              # Compute the randomized coefficients and update instance of SHCoeffs
+              clmTPO.coeffs = computeRandomizedCoefficients(ND)
+              
+              # Force the coefficients to have the same power as the given spectrum
+              power_per_l = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, normalization='4pi', unit='per_l')
+              clmTPO.coeffs *= np.sqrt(psdTPO[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
@@ -407,23 +453,24 @@ if __name__ == '__main__':
        points2D = varLonLatT
        tri = Delaunay(points2D)
        simplices = tri.simplices       
-       
+       # Plot Total Precipitable Water
        fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPWvarT, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
        py.offline.plot(fig1, filename='TPW' + (mesh_fileT.split('.'))[0] + '.html')
-       '''
+       # Plot Cloud Fraction
        fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=CFRvarT, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
        py.offline.plot(fig1, filename='CFR' + (mesh_fileT.split('.'))[0] + '.html')
+       # Plot Topography
        fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPOvarT, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
        py.offline.plot(fig1, filename='TPO' + (mesh_fileT.split('.'))[0] + '.html')
-       '''
+       
        #%% Check the evaluated spectra
-       '''
+       #'''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
        newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
@@ -447,4 +494,4 @@ if __name__ == '__main__':
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
-       '''      
+       #'''      
