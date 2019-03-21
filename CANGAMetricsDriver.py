@@ -139,20 +139,26 @@ def parseCommandLine(argv):
        
        return varName, sourceSampledFile, targetSampledFile, \
               remappedFile, sourceMesh, targetMesh, \
-              ExodusSingleConn, SCRIPwithoutConn
+              ExodusSingleConn, SCRIPwithoutConn, AreaAdjacentyPrecomp
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
-       print('When running in an IDE, comment out command line parsing: lines 146-147.')
+       print('When running in an IDE, comment out command line parsing: lines 152-154.')
+       print('Also, comment in lines 157-186 for development testing.')
        # Global parameters
        #kdleafs = 100
        #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       #ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       ExodusSingleConn, SCRIPwithoutConn, AreaAdjacentyPrecomp = \
+       parseCommandLine(sys.argv[1:])
        
-       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
+       # Set the names for the auxiliary area and adjacency maps (NOT USER)
+       varAreaName = 'cell_area'
+       varAdjaName = 'cell_edge_adjacency'
+       
+       """ SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
@@ -169,10 +175,6 @@ if __name__ == '__main__':
        # Set the name of the field variable in question (scalar)
        varName = 'Psi'
        
-       # Set the names for the auxiliary area and adjacency maps
-       varAreaName = 'cell_area'
-       varAdjaName = 'cell_edge_adjacency'
-       
        # Field sampled at the source (SS)
        nc_fileSS = 'testdata_CSne30_np4_3.nc'
        # Field mapped from source to target (S2T)
@@ -181,7 +183,7 @@ if __name__ == '__main__':
        # Field sampled at the target (ST)
        nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
-       #""" 
+       """ 
        
        if ExodusSingleConn:
               numEdges = 'num_nod_per_el1'
