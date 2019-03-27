@@ -54,18 +54,15 @@ def getGaussNodesWeights(order):
               np.ravel(GW)
               
 def computeCart2LL(cellCoord):
-       # Loop over each cell centroid, extract (lon, lat)
-       NC = np.size(cellCoord, axis=0)
-       pointLonLat = np.zeros((NC, 2))
-       for ii in range(NC):
-              RO = np.linalg.norm(cellCoord[ii,:])
-              psi = mt.asin(1.0 / RO * cellCoord[ii,2])
-              lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
-              pointLonLat[ii,:] = [lam, psi]
+
+       RO = np.linalg.norm(cellCoord)
+       psi = mt.asin(1.0 / RO * cellCoord[2])
+       lam = mt.atan2(-cellCoord[0], -cellCoord[1]) + mt.pi
+       pointLonLat = [360.0 * lam / (2.0 * mt.pi), 180.0 * psi / mt.pi]
               
        return pointLonLat
 
-def computeAreaAverage(clm, nodes):
+def computeAreaAverage(clm, nodes, order):
        # Initialize the area
        dFaceArea = 0.0
        
@@ -76,7 +73,7 @@ def computeAreaAverage(clm, nodes):
        NST = np.size(nodes, axis=1) - 2
        
        # Loop over the subtriangles and add up the areas
-       GN, GW = getGaussNodesWeights(6)
+       GN, GW = getGaussNodesWeights(order)
        NP = len(GW)
        for ii in range(NST):
               # Gather the coordinate components

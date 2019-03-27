@@ -12,7 +12,7 @@ import numpy as np
 
 def computeGlobalExtremaMetrics(varS2T, varST):
        
-       L_min = (np.amin(varST) - np.amin(varS2T)) / np.min(abs(varST))
+       L_min = (np.amin(varST) - np.amin(varS2T)) / np.max(abs(varST))
        L_max = (np.amax(varS2T) - np.amax(varST)) / np.max(abs(varST))
        
        return L_min, L_max
