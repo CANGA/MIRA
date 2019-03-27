@@ -150,15 +150,15 @@ if __name__ == '__main__':
        #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn, AreaAdjacentyPrecomp = \
-       parseCommandLine(sys.argv[1:])
+       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       #ExodusSingleConn, SCRIPwithoutConn, AreaAdjacentyPrecomp = \
+       #parseCommandLine(sys.argv[1:])
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
        varAdjaName = 'cell_edge_adjacency'
        
-       """ SET INPUT HERE FOR DEVELOPMENT TESTING
+       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
@@ -169,25 +169,31 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
-       # Set flag for precomputations
-       AreaAdjacentyPrecomp = True
+       # Set flag for precomputations of areas and adjacencies
+       # Check the mesh files for added variables if this has already been done
+       AreaAdjacentyPrecomp = False
        
        # Set the name of the field variable in question (scalar)
-       varName = 'Psi'
+       varName = 'TotalPrecipWater'
+       #varName = 'CloudFraction'
+       #varName = 'Topography'
        
        # Field sampled at the source (SS)
-       nc_fileSS = 'testdata_CSne30_np4_3.nc'
+       nc_fileSS = 'testdata_outCSne30_TPW_CFR_TPO.nc'
        # Field mapped from source to target (S2T)
-       nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
+       nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPW.nc'
+       #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_CFR.nc'
+       #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPO.nc'
        #nc_fileS2T = 'testdata_CSne30_2_ICO64_np4_3.nc'
        # Field sampled at the target (ST)
-       nc_fileST = 'testdata_RLL1deg_np4_3.nc'
+       nc_fileST = 'testdata_outRLL1deg_TPW_CFR_TPO.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
-       """ 
+       #""" 
        
        if ExodusSingleConn:
               numEdges = 'num_nod_per_el1'
               numCells = 'num_el_in_blk1'
+              numDims = 'cart_dims'
               # Source Exodus .g file
               mesh_fileS = 'outCSne30.g'
               # Target Exodus .g file
@@ -207,6 +213,7 @@ if __name__ == '__main__':
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
               numCells = 'grid_size'
+              numDims = 'cart_dims'
               # Source SCRIP file
               mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
               # Target SCRIP file
@@ -243,14 +250,22 @@ if __name__ == '__main__':
               print('Computing adjacency maps...')
               # Compute adjacency maps for both meshes (source stencil NOT needed)
               edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
+              # Get the starting index for the adjecency information in varConStenDexT
+              adex = np.size(varConStenDexT,1) - np.size(varConT,1) 
               # Store the adjacency map in the original grid netcdf file (target mesh)
               m_fidT = Dataset(mesh_fileT, 'a')
               # Check for existing variable data
-              if m_fidT.variables[varAdjaName].name == varAdjaName:
-                     m_fidT.variables[varAdjaName][:] = varConStenDexT[:,4:]
-              else:
+              try:
+                     if m_fidT.variables[varAdjaName].name == varAdjaName:
+                            m_fidT.variables[varAdjaName][:] = varConStenDexT[:,adex:]
+                     else:
+                            meshFileOut = m_fidT.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
+                            meshFileOut[:] = varConStenDexT[:,adex:]
+              except KeyError:
+                     print('Adjacency data written to mesh file for the first time...')
                      meshFileOut = m_fidT.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
-                     meshFileOut[:] = varConStenDexT[:,4:]
+                     meshFileOut[:] = varConStenDexT[:,adex:]
+                     
               m_fidT.close()
                      
               endt = time.time()
@@ -280,20 +295,32 @@ if __name__ == '__main__':
               # Store the grid cell areas in the original netcdf file (source and target)
               m_fidS = Dataset(mesh_fileS, 'a')
               # Check for existing variable data
-              if m_fidS.variables[varAreaName].name == varAreaName:
-                     m_fidS.variables[varAreaName][:] = areaS
-              else:
+              try:
+                     if m_fidS.variables[varAreaName].name == varAreaName:
+                            m_fidS.variables[varAreaName][:] = areaS
+                     else:
+                            meshFileOut = m_fidS.createVariable(varAreaName, 'f8', (numCells, ))
+                            meshFileOut[:] = areaS
+              except KeyError:
+                     print('Source areas written to mesh file for the first time...')
                      meshFileOut = m_fidS.createVariable(varAreaName, 'f8', (numCells, ))
                      meshFileOut[:] = areaS
+                     
               m_fidS.close()
                      
               m_fidT = Dataset(mesh_fileT, 'a')
               # Check for existing variable data
-              if m_fidT.variables[varAreaName].name == varAreaName:
-                     m_fidT.variables[varAreaName][:] = areaT
-              else:
+              try:
+                     if m_fidT.variables[varAreaName].name == varAreaName:
+                            m_fidT.variables[varAreaName][:] = areaT
+                     else:
+                            meshFileOut = m_fidT.createVariable(varAreaName, 'f8', (numCells, ))
+                            meshFileOut[:] = areaT
+              except KeyError:
+                     print('Target areas written to mesh file for the first time...')
                      meshFileOut = m_fidT.createVariable(varAreaName, 'f8', (numCells, ))
                      meshFileOut[:] = areaT
+                     
               m_fidT.close()
               
               endt = time.time()
@@ -351,14 +378,65 @@ if __name__ == '__main__':
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
        start = time.time()
-       print('Computing scalar gradients for target sampled and regridded fields...')
-       # Precompute the gradient operator on regridded and sampled target data
-
-       varsOnTM = [varST, varS2T]
-       gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varCoordT, varConStenDexT, areaT)
+       print('Computing or reading gradients for target sampled and regridded fields...')
        
+       # Open data files for storage of gradient data
+       nc_fidS2T = Dataset(nc_fileS2T, 'a')
+       nc_fidST = Dataset(nc_fileST, 'a')
+       
+       varGradientName = 'FieldGradient'
+       try:
+              # Read in previously stored data if it exists
+              if nc_fidST.variables[varGradientName].name == varGradientName:
+                     gradST = nc_fidST.variables[varGradientName][:]
+                     
+              if nc_fidS2T.variables[varGradientName].name == varGradientName:
+                     gradS2T = nc_fidS2T.variables[varGradientName][:]
+                     
+              gradientsOnTM = [gradST, gradS2T]
+       except KeyError:
+              # Precompute the gradients on target mesh ONLY once
+              varsOnTM = [varST, varS2T]
+              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varCoordT, varConStenDexT, areaT)
+              
+              # Create new Cartesian Earth centered vector dimensions
+              try:
+                     nc_fidST.createDimension(numDims, 3)
+              except RuntimeError:
+                     print('Dimensions for gradient variable already exist in field data file.')
+              try:
+                     nc_fidS2T.createDimension(numDims, 3)
+              except RuntimeError:
+                     print('Dimensions for gradient variable already exist in field data file.')
+              
+              # Create new dimension for the number of cells
+              try:
+                     nc_fidST.createDimension(numCells, np.size(varST, axis=0))
+              except RuntimeError:
+                     print('Dimensions for gradient variable already exist in field data file.')
+              try:
+                     nc_fidS2T.createDimension(numCells, np.size(varS2T, axis=0))
+              except RuntimeError:
+                     print('Dimensions for gradient variable already exist in field data file.')
+              
+              # Store the gradients on target mesh
+              try:
+                     gradFileOut = nc_fidST.createVariable(varGradientName, 'f8', (numDims, numCells))
+                     gradFileOut[:] = gradientsOnTM[0]
+              except RuntimeError:
+                     print('Gradient variable already exists in ST field data file.')
+              
+              try:
+                     gradFileOut = nc_fidS2T.createVariable(varGradientName, 'f8', (numDims, numCells))
+                     gradFileOut[:] = gradientsOnTM[1]
+              except RuntimeError:
+                     print('Gradient variable already exists in S2T field data file.')
+                     
+       
+       nc_fidS2T.close()
+       nc_fidST.close()
        endt = time.time()
-       print('Time to compute gradients on target mesh (sec): ', endt - start)
+       print('Time to compute/read gradients on target mesh (sec): ', endt - start)
        
        #%%
        start = time.time()
@@ -380,17 +458,17 @@ if __name__ == '__main__':
        print('Time to execute metrics (sec): ', endt - start)
        #%%
        # Print out a table with metric results
-       print('Global conservation: ', L_g)
-       print('Global L1 error:     ', L_1)
-       print('Global L2 error:     ', L_2)
-       print('Global Linf error:   ', L_inf)
-       print('Global max error:    ', Lmax)
-       print('Global min error:    ', Lmin)
-       print('Local max L1 error:  ', Lmax_1)
-       print('Local max L2 error:  ', Lmax_2)
-       print('Local max Lm error:  ', Lmax_inf)
-       print('Local min L1 error:  ', Lmin_1)
-       print('Local min L2 error:  ', Lmin_2)
-       print('Local min Lm error:  ', Lmin_inf)
-       print('Gradient semi-norm:  ', H1_2)
-       print('Gradient full-norm:  ', H1)       
+       print('Global conservation: %16.15e' % np.ravel(L_g))
+       print('Global L1 error:     %16.15e' % np.ravel(L_1))
+       print('Global L2 error:     %16.15e' % np.ravel(L_2))
+       print('Global Linf error:   %16.15e' % np.ravel(L_inf))
+       print('Global max error:    %16.15e' % np.ravel(Lmax))
+       print('Global min error:    %16.15e' % np.ravel(Lmin))
+       print('Local max L1 error:  %16.15e' % np.ravel(Lmax_1))
+       print('Local max L2 error:  %16.15e' % np.ravel(Lmax_2))
+       print('Local max Lm error:  %16.15e' % np.ravel(Lmax_inf))
+       print('Local min L1 error:  %16.15e' % np.ravel(Lmin_1))
+       print('Local min L2 error:  %16.15e' % np.ravel(Lmin_2))
+       print('Local min Lm error:  %16.15e' % np.ravel(Lmin_inf))
+       print('Gradient semi-norm:  %16.15e' % np.ravel(H1_2))
+       print('Gradient full-norm:  %16.15e' % np.ravel(H1))       

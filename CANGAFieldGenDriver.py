@@ -106,7 +106,7 @@ def computeCellAverage(clm, varCon, varCoord, order):
        for ii in range(NEL):
               cdex = varCon[ii,:] - 1
               thisCell = varCoord[:,cdex]
-              varSample[ii] = computeAreaAverage(clm, thisCell)
+              varSample[ii] = computeAreaAverage(clm, thisCell, order)
        
        return varSample
 
@@ -142,13 +142,13 @@ if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('When running in an IDE, comment out command line parsing: lines 146-147.')
        
-       ND = 128
+       ND = 256
        print('Number of SH degrees for sampling set to: ', ND)
        
-       sampleCentroid = True
+       sampleCentroid = False
        sampleOrder2 = False
        sampleOrder4 = False
-       sampleOrder6 = False
+       sampleOrder6 = True
 
        #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
@@ -168,88 +168,70 @@ if __name__ == '__main__':
        EvaluateTPO = False # Global topography
        
        if ExodusSingleConn:
-              # Source Exodus .g file
-              mesh_fileS = 'outCSne30.g'
-              # Target Exodus .g file
-              mesh_fileT = 'outRLL1deg.g'
-              #mesh_fileT = 'outICO64.g'
+              # Sampling Exodus .g file
+              #mesh_file = 'outCSne30.g'
+              mesh_file = 'outRLL1deg.g'
+              #mesh_file = 'outICO64.g'
               
               # Set a file name for new test data
-              data_fileS = 'testdata_' + (mesh_fileS.split('.'))[0]
-              data_fileT = 'testdata_' + (mesh_fileT.split('.'))[0]
+              data_file = 'testdata_' + (mesh_file.split('.'))[0]
               
               # Open the .g mesh files for reading
-              g_fidS = Dataset(mesh_fileS)
-              g_fidT = Dataset(mesh_fileT)
+              g_fid = Dataset(mesh_file)
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varConS = g_fidS.variables['connect1'][:]
-              varCoordS = g_fidS.variables['coord'][:]
-              varConT = g_fidT.variables['connect1'][:]
-              varCoordT = g_fidT.variables['coord'][:]
+              varCon = g_fid.variables['connect1'][:]
+              varCoord = g_fid.variables['coord'][:]
               
               # Compute Centroids
-              varCentS = computeCentroids(varConS, varCoordS)
-              varCentT = computeCentroids(varConT, varCoordT)
+              varCent = computeCentroids(varCon, varCoord)
               
               # Compute Lon/Lat coordinates from centroids
-              varLonLatS = computeCart2LL(varCentS)
-              varLonLatT = computeCart2LL(varCentT)
+              varLonLat = computeCart2LL(varCent)
               
               # Convert to degrees from radians
-              varLonLatS_deg = 180.0 / mt.pi * varLonLatS
-              varLonLatT_deg = 180.0 / mt.pi * varLonLatT
+              varLonLat_deg = 180.0 / mt.pi * varLonLat
+              varLonLat_deg = 180.0 / mt.pi * varLonLat
               
-              g_fidS.close()
-              g_fidT.close()
+              g_fid.close()
               
        elif SCRIPwithoutConn:
-              # Source SCRIP file
-              mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
-              # Target SCRIP file
-              mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
+              # Sampling SCRIP file
+              mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
+              #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
               
               # Set a file name for new test data
-              data_fileS = 'testdata_' + (mesh_fileS.split('.'))[0]
-              data_fileT = 'testdata_' + (mesh_fileT.split('.'))[0]
+              data_file = 'testdata_' + (mesh_file.split('.'))[0]
               
               # Open the .nc SCRIP files for reading
-              s_fidS = Dataset(mesh_fileS)
-              s_fidT = Dataset(mesh_fileT)
+              s_fid = Dataset(mesh_file)
               
               # Get the list of available variables
-              varListS = s_fidS.variables.keys()
-              varListT = s_fidT.variables.keys()
+              varList = s_fid.variables.keys()
               
               # Get RAW (no ID) connectivity and coordinate arrays
-              conLonS = s_fidS.variables['grid_corner_lon'][:]
-              conLatS = s_fidS.variables['grid_corner_lat'][:]
-              conLonT = s_fidT.variables['grid_corner_lon'][:]
-              conLatT = s_fidT.variables['grid_corner_lat'][:]
+              conLon = s_fid.variables['grid_corner_lon'][:]
+              conLat = s_fid.variables['grid_corner_lat'][:]
               
               # Compute centroids from Lat/Lon corners
-              varLonLatS = computeCentroidsLL(conLonS, conLatS)
-              varLonLatT = computeCentroidsLL(conLonT, conLatT)
+              varLonLat = computeCentroidsLL(conLon, conLat)
               
               # Convert to degrees from radians
-              varLonLatS_deg = 180.0 / mt.pi * varLonLatS
-              varLonLatT_deg = 180.0 / mt.pi * varLonLatT
+              varLonLat_deg = 180.0 / mt.pi * varLonLat
               
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
-              varCoordS, varConS = computeCoordConFastSCRIP(conLonS, conLatS)
-              varCoordT, varConT = computeCoordConFastSCRIP(conLonT, conLatT)
+              varCoord, varCon = computeCoordConFastSCRIP(conLon, conLat)
               
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
-              s_fidS.close()
-              s_fidT.close()
+              s_fid.close()
               
        #%% Begin the SH reconstructions
        if EvaluateTPW or EvaluateAll:
               start = time.time()
-              print('Computing Total Precipitable Water on source and target...')
+              print('Computing Total Precipitable Water on sampling mesh...')
               # Set the power spectrum coefficients
               lfPower = [5.84729561e+04, -2.91678103e-04, -5.83966265e+04]
               hfPower = [2.17936330e+02, -1.99788552e+00, -7.94469251e-04]
@@ -278,35 +260,26 @@ if __name__ == '__main__':
               
               # Expand the coefficients and check the field
               if sampleCentroid:              
-                     TPWvarS = clmTPW.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
-                     TPWvarT = clmTPW.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+                     TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               elif sampleOrder2:
-                     TPWvarS = computeCellAverage(clmTPW, varConS, varCoordS, 2)
-                     TPWvarT = computeCellAverage(clmTPW, varConT, varCoordT, 2)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 2)
               elif sampleOrder4:
-                     TPWvarS = computeCellAverage(clmTPW, varConS, varCoordS, 4)
-                     TPWvarT = computeCellAverage(clmTPW, varConT, varCoordT, 4)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 4)
               elif sampleOrder6:
-                     TPWvarS = computeCellAverage(clmTPW, varConS, varCoordS, 6)
-                     TPWvarT = computeCellAverage(clmTPW, varConT, varCoordT, 6)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 6)
               
               # Compute rescaled data from 0.0 to max
-              minTPW = np.amin(TPWvarS)
-              maxTPW = np.amax(TPWvarS)
+              minTPW = np.amin(TPWvar)
+              maxTPW = np.amax(TPWvar)
               deltaTPW = abs(maxTPW - minTPW)
-              TPWvarS = np.add(TPWvarS, -minTPW)
-              TPWvarS *= maxTPW / deltaTPW
-              minTPW = np.amin(TPWvarT)
-              maxTPW = np.amax(TPWvarT)
-              deltaTPW = abs(maxTPW - minTPW)
-              TPWvarT = np.add(TPWvarT, -minTPW)
-              TPWvarT *= maxTPW / deltaTPW
+              TPWvar = np.add(TPWvar, -minTPW)
+              TPWvar *= maxTPW / deltaTPW
               endt = time.time()
               print('Time to compute TPW (mm): ', endt - start)
                             
        if EvaluateCFR or EvaluateAll:
               start = time.time()
-              print('Computing Cloud Fraction on source and target...')
+              print('Computing Cloud Fraction on sampling mesh...')
               # Set the power spectrum coefficients
               lfPower = [8.38954430e+00, -1.85962382e-04, -8.38439294e+00]
               hfPower = [1.25594628e-01, -1.99203168e+00,  1.91763519e-06]
@@ -333,30 +306,31 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
               
-              # Expand the coefficients and check the field              
-              CFRvarS = clmCFR.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
-              CFRvarT = clmCFR.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
+              # Expand the coefficients and check the field
+              if sampleCentroid:              
+                     CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+              elif sampleOrder2:
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 2)
+              elif sampleOrder4:
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 4)
+              elif sampleOrder6:
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 6)
+                     
               # Compute rescaled data from 0.0 to max
-              minCFR = np.amin(CFRvarS)
-              maxCFR = np.amax(CFRvarS)
+              minCFR = np.amin(CFRvar)
+              maxCFR = np.amax(CFRvar)
               deltaCFR = abs(maxCFR - minCFR)
-              CFRvarS = np.add(CFRvarS, -minCFR)
-              CFRvarS *= maxCFR / deltaCFR
-              minCFR = np.amin(CFRvarT)
-              maxCFR = np.amax(CFRvarT)
-              deltaCFR = abs(maxCFR - minCFR)
-              CFRvarT = np.add(CFRvarT, -minCFR)
-              CFRvarT *= maxCFR / deltaCFR
+              CFRvar = np.add(CFRvar, -minCFR)
+              CFRvar *= maxCFR / deltaCFR
               #  Set all values greater than 1.0 to 1.0 (creates discontinuities)
-              CFRvarS[CFRvarS >= 1.0] = 1.0
-              CFRvarT[CFRvarT >= 1.0] = 1.0
+              CFRvar[CFRvar >= 1.0] = 1.0
               
               endt = time.time()
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
               
        if EvaluateTPO or EvaluateAll:
               start = time.time()
-              print('Computing Terrain on source and target...')
+              print('Computing Terrain on sampling mesh...')
               # Set the power spectrum coefficients
               lfPower = [1.79242815e+05, -4.28193211e+01,  7.68040558e+05]
               hfPower = [9.56198160e+06, -1.85485966e+00, -2.63553217e+01]
@@ -383,38 +357,50 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
               
-              # Expand the coefficients and check the field              
-              TPOvarS = clmTPO.expand(lon=varLonLatS_deg[:,0], lat=varLonLatS_deg[:,1])
-              TPOvarT = clmTPO.expand(lon=varLonLatT_deg[:,0], lat=varLonLatT_deg[:,1])
-              # DO NOT rescale the topography
+              # Expand the coefficients and check the field
+              if sampleCentroid:              
+                     TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+              elif sampleOrder2:
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 2)
+              elif sampleOrder4:
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 4)
+              elif sampleOrder6:
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 6)
+              
+              # Rescale to -1.0 to 1.0
+              minTPO = np.amin(TPOvar)
+              maxTPO = np.amax(TPOvar)
+              deltaTPO = abs(maxTPO - minTPO)
+              TPOvar = np.add(TPOvar, -0.5 * (maxTPO + minTPO))
+              TPOvar *= 2.0 / deltaTPO
+              
+              # Rescale topography to real Earth max/min
+              minTPO = -10994.0 # Depth at Challenger Deep
+              maxTPO = 8848.0 # Elevation of Mt. Everest ASL
+              deltaTPO = abs(maxTPO - minTPO)
+              TPOvar *= (0.5 * deltaTPO)
+              TPOvar += 0.5 * (maxTPO + minTPO)
+              
               endt = time.time()
               print('Time to compute TPO (m): ', endt - start)
               
        #%% Copy grid files and store the new test data (source and target)
-       outFileNameS = data_fileS
-       outFileNameT = data_fileT
+       outFileName = data_file
        if EvaluateAll:
-              outFileNameS = outFileNameS + '_TPW_CFR_TPO.nc'
-              outFileNameT = outFileNameT + '_TPW_CFR_TPO.nc'
+              outFileName = outFileName + '_TPW_CFR_TPO.nc'
        elif EvaluateTPW:
-              outFileNameS = outFileNameS + '_TPW.nc'
-              outFileNameT = outFileNameT + '_TPW.nc'
+              outFileName = outFileName + '_TPW.nc'
        elif EvaluateCFR:
-              outFileNameS = outFileNameS + '_CFR.nc'
-              outFileNameT = outFileNameT + '_CFR.nc'
+              outFileName = outFileName + '_CFR.nc'
        elif EvaluateTPO:
-              outFileNameS = outFileNameS + '_TPO.nc'
-              outFileNameT = outFileNameT + '_TPO.nc'
+              outFileName = outFileName + '_TPO.nc'
        else:
-              outFileNameS = outFileNameS + '.nc'
-              outFileNameT = outFileNameT + '.nc'
+              outFileName = outFileName + '.nc'
               
-       shutil.copy(mesh_fileS, outFileNameS)
-       shutil.copy(mesh_fileT, outFileNameT)
+       shutil.copy(mesh_file, outFileName)
        
        # write lon, lat, and test data variables
-       data_fidS = Dataset(outFileNameS, 'a')
-       data_fidT = Dataset(outFileNameT, 'a')
+       data_fid = Dataset(outFileName, 'a')
        
        # Set the dimension name depending on the mesh file format
        if ExodusSingleConn:
@@ -422,56 +408,44 @@ if __name__ == '__main__':
        elif SCRIPwithoutConn:
               numCells = 'grid_size'
               
-       # Process the source file
-       lonNC = data_fidS.createVariable('lon', 'f8', (numCells,))
-       lonNC[:] = varLonLatS_deg[:,0]
-       latNC = data_fidS.createVariable('lat', 'f8', (numCells,))
-       latNC[:] = varLonLatS_deg[:,1]
-       # Process the target file
-       lonNC = data_fidT.createVariable('lon', 'f8', (numCells,))
-       lonNC[:] = varLonLatT_deg[:,0]
-       latNC = data_fidT.createVariable('lat', 'f8', (numCells,))
-       latNC[:] = varLonLatT_deg[:,1]
+       # Process the sampling file
+       lonNC = data_fid.createVariable('lon', 'f8', (numCells,))
+       lonNC[:] = varLonLat_deg[:,0]
+       latNC = data_fid.createVariable('lat', 'f8', (numCells,))
+       latNC[:] = varLonLat_deg[:,1]
        
        if EvaluateTPW or EvaluateAll:
-              TPWNC = data_fidS.createVariable('TotalPrecipWater', 'f8', (numCells,))
-              TPWNC[:] = TPWvarS
-              TPWNC = data_fidT.createVariable('TotalPrecipWater', 'f8', (numCells,))
-              TPWNC[:] = TPWvarT
+              TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
+              TPWNC[:] = TPWvar
        if EvaluateCFR or EvaluateAll:
-              CFRNC = data_fidS.createVariable('CloudFraction', 'f8', (numCells,))
-              CFRNC[:] = CFRvarS
-              CFRNC = data_fidT.createVariable('CloudFraction', 'f8', (numCells,))
-              CFRNC[:] = CFRvarT
+              CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
+              CFRNC[:] = CFRvar
        if EvaluateTPO or EvaluateAll:
-              TPONC = data_fidS.createVariable('Topography', 'f8', (numCells,))
-              TPONC[:] = TPOvarS
-              TPONC = data_fidT.createVariable('Topography', 'f8', (numCells,))
-              TPONC[:] = TPOvarT
+              TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
+              TPONC[:] = TPOvar
        
        # Close the files out.
-       data_fidS.close()
-       data_fidT.close()
+       data_fid.close()
 
        #%% Check the data with triangular surface plot
-       points2D = varLonLatT
+       points2D = varLonLat
        tri = Delaunay(points2D)
        simplices = tri.simplices       
        # Plot Total Precipitable Water
-       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPWvarT, height=800, width=1200, \
+       fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='TPW' + (mesh_fileT.split('.'))[0] + '.html')
+       py.offline.plot(fig1, filename='TPW' + (mesh_file.split('.'))[0] + '.html')
        # Plot Cloud Fraction
-       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=CFRvarT, height=800, width=1200, \
+       fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='CFR' + (mesh_fileT.split('.'))[0] + '.html')
+       py.offline.plot(fig1, filename='CFR' + (mesh_file.split('.'))[0] + '.html')
        # Plot Topography
-       fig1 = FF.create_trisurf(x=varLonLatT[:,0], y=varLonLatT[:,1], z=TPOvarT, height=800, width=1200, \
+       fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='TPO' + (mesh_fileT.split('.'))[0] + '.html')
+       py.offline.plot(fig1, filename='TPO' + (mesh_file.split('.'))[0] + '.html')
        
        #%% Check the evaluated spectra
        #'''
