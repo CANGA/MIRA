@@ -4,3 +4,5 @@ __pycache__/
 Grids/
 
 SHCoefficientsRaw_TPW_CFR_TOPO\.npz
+
+*.html
