@@ -6,3 +6,7 @@ Grids/
 SHCoefficientsRaw_TPW_CFR_TOPO\.npz
 
 *.html
+
+CSne30_2_RLL1deg\.g
+
+CSne30_2_RLL1deg_np4_TPW_CFR_TPO\.nc

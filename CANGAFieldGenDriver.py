@@ -170,8 +170,8 @@ if __name__ == '__main__':
        if ExodusSingleConn:
               # Sampling Exodus .g file
               #mesh_file = 'outCSne30.g'
-              mesh_file = 'outRLL1deg.g'
-              #mesh_file = 'outICO64.g'
+              #mesh_file = 'outRLL1deg.g'
+              mesh_file = 'outICO64.g'
               
               # Set a file name for new test data
               data_file = 'testdata_' + (mesh_file.split('.'))[0]
