@@ -10,3 +10,15 @@ SHCoefficientsRaw_TPW_CFR_TOPO\.npz
 CSne30_2_RLL1deg\.g
 
 CSne30_2_RLL1deg_np4_TPW_CFR_TPO\.nc
+
+testdata_outRLL1deg_TPW_CFR_TPO\.nc
+
+testdata_outICO64_TPW_CFR_TPO\.nc
+
+testdata_outCSne30_2_ICO64_TPW\.nc
+
+CSne30_2_ICO64_np4_TPW_CFR_TPO\.nc
+
+testdata_outCSne30_2_ICO64_CFR\.nc
+
+testdata_outCSne30_2_ICO64_TPO\.nc
