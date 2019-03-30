@@ -137,8 +137,9 @@ def parseCommandLine(argv):
        print('Welcome to CANGA remapping intercomparison metrics!')              
        print('Mesh and Variable data must be in NETCDF format.')
        
-       return varName, sourceSampledFile, targetSampledFile, \
-              remappedFile, sourceMesh, targetMesh, \
+       return varName, \
+              sourceSampledFile, remappedFile, targetSampledFile, \
+              sourceMesh, targetMesh, \
               ExodusSingleConn, SCRIPwithoutConn, AreaAdjacentyPrecomp
 
 if __name__ == '__main__':
@@ -169,9 +170,22 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
+       if ExodusSingleConn:
+              # Source Exodus .g file
+              mesh_fileS = 'outCSne30.g'
+              # Target Exodus .g file
+              mesh_fileT = 'outRLL1deg.g'
+              #mesh_fileT = 'outICO64.g'
+              
+       if SCRIPwithoutConn:
+              # Source SCRIP file
+              mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
+              # Target SCRIP file
+              mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
+       
        # Set flag for precomputations of areas and adjacencies
        # Check the mesh files for added variables if this has already been done
-       AreaAdjacentyPrecomp = True
+       AreaAdjacentyPrecomp = False
        
        # Set the name of the field variable in question (scalar)
        varName = 'TotalPrecipWater'
@@ -183,15 +197,15 @@ if __name__ == '__main__':
        # Field mapped from source to target (S2T)
        #nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
        #nc_fileS2T = 'testdata_CSne30_2_ICO64_np4_3.nc'
-       #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPW.nc'
+       nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPW.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_CFR.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPO.nc'
-       nc_fileS2T = 'testdata_outCSne30_2_ICO64_TPW.nc'
+       #nc_fileS2T = 'testdata_outCSne30_2_ICO64_TPW.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_ICO64_CFR.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_ICO64_TPO.nc'
        # Field sampled at the target (ST)
-       #nc_fileST = 'testdata_outRLL1deg_TPW_CFR_TPO.nc'
-       nc_fileST = 'testdata_outICO64_TPW_CFR_TPO.nc'
+       nc_fileST = 'testdata_outRLL1deg_TPW_CFR_TPO.nc'
+       #nc_fileST = 'testdata_outICO64_TPW_CFR_TPO.nc'
        #nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
        """ 
@@ -200,11 +214,6 @@ if __name__ == '__main__':
               numEdges = 'num_nod_per_el1'
               numCells = 'num_el_in_blk1'
               numDims = 'cart_dims'
-              # Source Exodus .g file
-              mesh_fileS = 'outCSne30.g'
-              # Target Exodus .g file
-              #mesh_fileT = 'outRLL1deg.g'
-              mesh_fileT = 'outICO64.g'
               
               # Open the .g mesh files for reading
               m_fidS = Dataset(mesh_fileS, 'r')
@@ -220,10 +229,6 @@ if __name__ == '__main__':
               numEdges = 'grid_corners'
               numCells = 'grid_size'
               numDims = 'cart_dims'
-              # Source SCRIP file
-              mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
-              # Target SCRIP file
-              mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
               
               # Open the .nc SCRIP files for reading
               m_fidS = Dataset(mesh_fileS, 'r')
