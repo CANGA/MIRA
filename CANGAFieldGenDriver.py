@@ -16,12 +16,12 @@ REFERENCES
 #%%
 import shutil
 import time
+import sys, getopt
 import pyshtools
 import math as mt
 import numpy as np
 import plotly as py
 import plotly.figure_factory as FF
-import plotly.graph_objs as go
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
@@ -138,19 +138,125 @@ def computeRandomizedCoefficients(ND):
               
        return coeffs
 
-if __name__ == '__main__':
-       print('Welcome to CANGA remapping intercomparison field generator!')
-       print('When running in an IDE, comment out command line parsing: lines 146-147.')
+# Parse the command line
+def parseCommandLine(argv):
        
-       ND = 256
-       print('Number of SH degrees for sampling set to: ', ND)
+       # Mesh information files
+       sampleMesh = ''
+       ExodusSingleConn = False
+       SCRIPwithoutConn = False
        
+       # Sampling order
        sampleCentroid = False
        sampleOrder2 = False
        sampleOrder4 = False
-       sampleOrder6 = True
+       sampleOrder6 = False
+       
+       # SET WHICH FIELDS TO EVALUATE
+       EvaluateAll = False
+       EvaluateTPW = False # Total Precipitable Water
+       EvaluateCFR = False # Global Cloud Fraction
+       EvaluateTPO = False # Global topography
+       
+       # Number of modes used up to 768
+       numModes = 128
+       
+       try:
+              opts, args = getopt.getopt(argv, 'hv:', \
+                                        ['pm=', 'so=', 'nm=', 'EvaluateAll', \
+                                         'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
+                                         'ExodusSingleConn', 'SCRIPwithoutConn'])
+       except getopt.GetoptError:
+              print('Command line not properly set:', \
+                    'CANGAFieldGenDriver.py', \
+                    '--pm <sampleMeshFile>', \
+                    '--so <sampleOrderInteger>', \
+                    '--nm <numberSHModesMax768>', \
+                    '--<evaluateAllFields>', \
+                    '--<evaluateTotalPrecipWater>', \
+                    '--<evaluateCloudFraction>', \
+                    '--<evaluateGlobalTerrain>', \
+                    '--<meshConfiguration>')
+              sys.exit(2)
+              
+       for opt, arg in opts:
+              # Request for usage help
+              if opt == '-h':
+                     print('Command line not properly set:', \
+                           'CANGAFieldGenDriver.py', \
+                           '--pm <sampleMeshFile>', \
+                           '--so <sampleOrderInteger>', \
+                           '--nm <numberSHModesMax768>', \
+                           '--<evaluateAllFields>', \
+                           '--<evaluateTotalPrecipWater>', \
+                           '--<evaluateCloudFraction>', \
+                           '--<evaluateGlobalTerrain>', \
+                           '--<meshConfiguration>')
+                     sys.exit()
+              elif opt == '--pm':
+                     sampleMesh = arg
+              elif opt == '--so':
+                     if int(arg) == 1:
+                            sampleCentroid = True
+                     elif int(arg) == 2:
+                            sampleOrder2 = True
+                     elif int(arg) == 4:
+                            sampleOrder4 = True
+                     elif int(arg) == 6:
+                            sampleOrder6 = True
+                     else:
+                            print('Invalid order... proceeding with order 4.')
+                            sampleOrder4 = True
+              elif opt == '--nm':
+                     numModes = int(arg)
+              elif opt == '--EvaluateAll':
+                     EvaluateAll = True
+              elif opt == '--EvaluateTPW':
+                     EvaluateTPW = True
+              elif opt == '--EvaluateCFR':
+                     EvaluateCFR = True
+              elif opt == '--EvaluateTPO':
+                     EvaluateTPO = True
+              elif opt == '--ExodusSingleConn':
+                     ExodusSingleConn = True
+              elif opt == '--SCRIPwithoutConn':
+                     SCRIPwithoutConn = True
+                     
+       # Check that the number of modes requested doesn't exceed 768
+       if numModes > 768:
+              print('Setting maximum number of expansion modes: 768.')
+              numModes = 768
+                     
+       # Check that only one configuration is chosen
+       if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
+              print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False):
+              print('Expecting only ONE mesh configuration option!')
+              print('None of the options are set.')
+              sys.exit(2)
+       
+       print('Welcome to CANGA remapping intercomparison metrics!')              
+       print('Mesh and Variable data must be in NETCDF format.')
+       
+       return sampleMesh, numModes, \
+              sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
+              EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+              ExodusSingleConn, SCRIPwithoutConn
 
-       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
+if __name__ == '__main__':
+       print('Welcome to CANGA remapping intercomparison field generator!')
+       print('Authors: Jorge Guerra, Paul Ullrich, 2019')
+       
+       # Parse the commandline! COMMENT OUT TO RUN IN IDE
+       mesh_file, ND, sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
+       EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+
+       print('Number of SH degrees for sampling set to: ', ND)
+
+       """ SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
@@ -161,18 +267,28 @@ if __name__ == '__main__':
        SCRIPwithoutConn = False
        #SCRIPwithConn = False
        
-       # SET WHICH FIELDS TO EVALUATE ON BOTH MESHES
+       # Sampling Exodus .g file
+       #mesh_file = 'outCSne30.g'
+       #mesh_file = 'outRLL1deg.g'
+       mesh_file = 'outICO64.g'
+       
+       # Sampling SCRIP file
+       mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
+       #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
+       
+       sampleCentroid = False
+       sampleOrder2 = False
+       sampleOrder4 = False
+       sampleOrder6 = True
+       
+       # SET WHICH FIELDS TO EVALUATE
        EvaluateAll = True
        EvaluateTPW = False # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
+       """
        
        if ExodusSingleConn:
-              # Sampling Exodus .g file
-              #mesh_file = 'outCSne30.g'
-              #mesh_file = 'outRLL1deg.g'
-              mesh_file = 'outICO64.g'
-              
               # Set a file name for new test data
               data_file = 'testdata_' + (mesh_file.split('.'))[0]
               
@@ -196,10 +312,6 @@ if __name__ == '__main__':
               g_fid.close()
               
        elif SCRIPwithoutConn:
-              # Sampling SCRIP file
-              mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
-              #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
-              
               # Set a file name for new test data
               data_file = 'testdata_' + (mesh_file.split('.'))[0]
               

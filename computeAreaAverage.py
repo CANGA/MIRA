@@ -16,6 +16,12 @@ import numpy as np
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
+       if order == 2:
+              GN = [-0.5773502691896257, \
+                    +0.5773502691896257]
+              
+              GW = [+1.0, \
+                    +1.0]
        #""" 4th oder method for testing
        if order == 4:
               GN = [-0.8611363115940526, \

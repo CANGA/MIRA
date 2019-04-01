@@ -124,9 +124,6 @@ def parseCommandLine(argv):
                      print('SCRIP files MUST have .nc extension')
                      sys.exit(2)
        
-       print('Welcome to CANGA remapping intercomparison metrics!')              
-       print('Mesh and Variable data must be in NETCDF format.')
-       
        return varName, \
               sourceSampledFile, remappedFile, targetSampledFile, \
               sourceMesh, targetMesh, \
@@ -134,8 +131,7 @@ def parseCommandLine(argv):
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
-       print('When running in an IDE, comment out command line parsing: lines 152-154.')
-       print('Also, comment in lines 157-186 for development testing.')
+       print('Authors: Jorge Guerra, Paul Ullrich, 2019')
        # Global parameters
        #kdleafs = 100
        #COINCIDENT_TOLERANCE = 1.0E-14
