@@ -36,29 +36,53 @@ TESTING SEQUENCE *EXAMPLE*:
 5) Output for TPW (AFTER precomputations) should look like this (on a 2015 MacBook Pro...):
 
 Welcome to CANGA remapping intercomparison metrics!
+
 Authors: Jorge Guerra, Paul Ullrich, 2019
+
 Computing/reading adjacency maps...
+
 Time to precompute adjacency maps (sec):  0.002249002456665039
+
 Computing source and target mesh areas...
+
 Time to precompute/read mesh areas (sec):  0.0022902488708496094
+
 Time to read NC and Exodus data (sec):  0.0025649070739746094
+
 Computing or reading gradients for target sampled and regridded fields...
+
 Time to compute/read gradients on target mesh (sec):  0.0046977996826171875
+
 Computing all metrics...
+
 Time to execute metrics (sec):  41.048941135406494
+
 Global conservation: -1.342620427744820e-11
+
 Global L1 error:     -5.375076262147747e-02
+
 Global L2 error:     5.818910116017171e-02
+
 Global Linf error:   9.500633281658483e-02
+
 Global max error:    -2.221532280056399e-02
+
 Global min error:    8.323725405955121e-03
+
 Local max L1 error:  1.422438389080596e-02
+
 Local max L2 error:  3.435138652959414e-02
+
 Local max Lm error:  1.506976424475193e-01
+
 Local min L1 error:  -9.498159999055940e-05
+
 Local min L2 error:  1.239117251460247e-03
+
 Local min Lm error:  2.771707334760692e-02
+
 Gradient semi-norm:  1.891627764536130e+00
+
 Gradient full-norm:  1.892522541756834e+00
 
 NOTES:
