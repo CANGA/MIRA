@@ -15,6 +15,7 @@ REFERENCES
 #%%
 import sys, getopt
 import time
+import math as mt
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
@@ -29,6 +30,23 @@ from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
+
+def computeLL2Cart(cellCoord):
+       # Loop over the Lon/Lat coordinate array, extract Cartesian coords
+       # Input array is [lon, lat, radius] (radians)
+       NC = np.size(cellCoord, axis=0)
+       varCart = np.zeros((NC, 3))
+       for ii in range(NC):
+              RO = cellCoord[ii,2]
+              lon = cellCoord[ii,0]
+              lat = cellCoord[ii,1]
+              X = RO * mt.cos(lat) * mt.sin(lon)
+              Y = RO * mt.cos(lat) * mt.cos(lon)
+              Z = RO * mt.sin(lat)
+              varCart[ii,:] = [X, Y, Z]
+       
+       # INPUT IS IN RADIANS
+       return varCart
 
 # Parse the command line
 def parseCommandLine(argv):
@@ -231,8 +249,27 @@ if __name__ == '__main__':
               
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
-              varCoordS, varConS = computeCoordConFastSCRIP(lonS, latS)
-              varCoordT, varConT = computeCoordConFastSCRIP(lonT, latT)
+              varCoordLLS, varConS = computeCoordConFastSCRIP(lonS, latS)
+              varCoordLLT, varConT = computeCoordConFastSCRIP(lonT, latT)
+              
+              # Convert to radians if necessary
+              if m_fidS.variables['grid_corner_lon'].units == 'degrees':
+                     lonS *= mt.pi / 180.0
+                     
+              if m_fidS.variables['grid_corner_lat'].units == 'degrees':
+                     latS *= mt.pi / 180.0
+                     
+              if m_fidT.variables['grid_corner_lon'].units == 'degrees':
+                     lonT *= mt.pi / 180.0
+                     
+              if m_fidT.variables['grid_corner_lat'].units == 'degrees':
+                     latT *= mt.pi / 180.0
+                     
+              # Convert coordinates from lat/lon to Cartesian
+              varCoordS = computeLL2Cart(varCoordLLS[:,1:4])
+              varCoordS = varCoordS.T
+              varCoordT = computeLL2Cart(varCoordLLT[:,1:4])
+              varCoordT = varCoordT.T
               
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)

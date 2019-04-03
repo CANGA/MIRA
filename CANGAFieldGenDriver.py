@@ -76,7 +76,8 @@ def computeCart2LL(cellCoord):
               psi = mt.asin(1.0 / RO * cellCoord[ii,2])
               lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
               varLonLat[ii,:] = [lam, psi]
-              
+       
+       # OUTPUT IS IN RADIANS       
        return varLonLat
 
 def computeLL2Cart(cellCoord):
@@ -93,6 +94,7 @@ def computeLL2Cart(cellCoord):
               Z = RO * mt.sin(lat)
               varCart[ii,:] = [X, Y, Z]
        
+       # INPUT IS IN RADIANS
        return varCart
 
 def computeCentroidsLL(conLon, conLat):
@@ -332,6 +334,13 @@ if __name__ == '__main__':
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
               varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
+              
+              # Convert to radians if necessary
+              if m_fid.variables['grid_corner_lon'].units == 'degrees':
+                     conLon *= mt.pi / 180.0
+                     
+              if m_fid.variables['grid_corner_lat'].units == 'degrees':
+                     conLat *= mt.pi / 180.0
               
               # Convert coordinates from lat/lon to Cartesian
               varCoord = computeLL2Cart(varCoordLL[:,1:4])
