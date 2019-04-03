@@ -92,8 +92,8 @@ NOTES:
   for this work.
 
 REQUIRES: 
-1) http://code.google.com/p/netcdf4-python/ Python NetCDF IO modules
-2) https://shtools.oca.eu/shtools/ Python spherical harmonic tools package
+1) http://code.google.com/p/netcdf4-python/ Python NetCDF IO modules: "pip install netcdf4"
+2) https://shtools.oca.eu/shtools/ Python spherical harmonic tools package: "pip install pyshtools"
 3) Numpy
 4) Scipy (KDTree search)
 5) https://plot.ly/python/ Plotly (Fancy, web-based plotting)
