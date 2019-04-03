@@ -100,4 +100,4 @@ def computeCoordConFastSCRIP(lon, lat):
                      thisGrid = sortedNewGridCoord[ii,adex]
                      cleanNewGridCoord = np.append(cleanNewGridCoord, [thisGrid], axis=0)
        
-       return cleanNewGridCoord, sortedNewGridCoord, cellCon
+       return cleanNewGridCoord, cellCon.astype(int)

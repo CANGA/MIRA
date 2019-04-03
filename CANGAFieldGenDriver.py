@@ -79,6 +79,22 @@ def computeCart2LL(cellCoord):
               
        return varLonLat
 
+def computeLL2Cart(cellCoord):
+       # Loop over the Lon/Lat coordinate array, extract Cartesian coords
+       # Input array is [lon, lat, radius]
+       NC = np.size(cellCoord, axis=0)
+       varCart = np.zeros((NC, 3))
+       for ii in range(NC):
+              RO = cellCoord[ii,2]
+              lon = cellCoord[ii,0]
+              lat = cellCoord[ii,1]
+              X = RO * mt.cos(lat) * mt.sin(lon)
+              Y = RO * mt.cos(lat) * mt.cos(lon)
+              Z = RO * mt.sin(lat)
+              varCart[ii,:] = [X, Y, Z]
+       
+       return varCart
+
 def computeCentroidsLL(conLon, conLat):
        # Loop over rows of the corner array and get centroid
        NC = np.size(conLon, axis=0)
@@ -288,57 +304,53 @@ if __name__ == '__main__':
        EvaluateTPO = False # Global topography
        """
        
+       # Set the name for the new data file
+       stripDir = mesh_file.split('/')
+       onlyFilename = stripDir[len(stripDir)-1]
+       data_file = 'testdata_' + (onlyFilename.split('.'))[0]
+       print('New data will be stored in (prefix): ', data_file)
+       
        if ExodusSingleConn:
-              # Set a file name for new test data
-              data_file = 'testdata_' + (mesh_file.split('.'))[0]
-              
               # Open the .g mesh files for reading
-              g_fid = Dataset(mesh_file)
+              m_fid = Dataset(mesh_file)
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varCon = g_fid.variables['connect1'][:]
-              varCoord = g_fid.variables['coord'][:]
-              
-              # Compute Centroids
-              varCent = computeCentroids(varCon, varCoord)
-              
-              # Compute Lon/Lat coordinates from centroids
-              varLonLat = computeCart2LL(varCent)
-              
-              # Convert to degrees from radians
-              varLonLat_deg = 180.0 / mt.pi * varLonLat
-              varLonLat_deg = 180.0 / mt.pi * varLonLat
-              
-              g_fid.close()
+              varCon = m_fid.variables['connect1'][:]
+              varCoord = m_fid.variables['coord'][:]
               
        elif SCRIPwithoutConn:
-              # Set a file name for new test data
-              data_file = 'testdata_' + (mesh_file.split('.'))[0]
-              
               # Open the .nc SCRIP files for reading
-              s_fid = Dataset(mesh_file)
+              m_fid = Dataset(mesh_file)
               
               # Get the list of available variables
-              varList = s_fid.variables.keys()
+              varList = m_fid.variables.keys()
               
               # Get RAW (no ID) connectivity and coordinate arrays
-              conLon = s_fid.variables['grid_corner_lon'][:]
-              conLat = s_fid.variables['grid_corner_lat'][:]
-              
-              # Compute centroids from Lat/Lon corners
-              varLonLat = computeCentroidsLL(conLon, conLat)
-              
-              # Convert to degrees from radians
-              varLonLat_deg = 180.0 / mt.pi * varLonLat
+              conLon = m_fid.variables['grid_corner_lon'][:]
+              conLat = m_fid.variables['grid_corner_lat'][:]
               
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
-              varCoord, varCon = computeCoordConFastSCRIP(conLon, conLat)
+              varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
+              
+              # Convert coordinates from lat/lon to Cartesian
+              varCoord = computeLL2Cart(varCoordLL[:,1:4])
+              varCoord = varCoord.T
               
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
-              
-              s_fid.close()
+                            
+       # Compute Centroids
+       varCent = computeCentroids(varCon, varCoord)
+       
+       # Compute Lon/Lat coordinates from centroids
+       varLonLat = computeCart2LL(varCent)
+       
+       # Convert to degrees from radians
+       varLonLat_deg = 180.0 / mt.pi * varLonLat
+       varLonLat_deg = 180.0 / mt.pi * varLonLat
+       
+       m_fid.close()
               
        #%% Begin the SH reconstructions
        if EvaluateTPW or EvaluateAll:
@@ -547,17 +559,17 @@ if __name__ == '__main__':
        fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='TPW' + (mesh_file.split('.'))[0] + '.html')
+       py.offline.plot(fig1, filename='TPW' + data_file + '.html')
        # Plot Cloud Fraction
        fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='CFR' + (mesh_file.split('.'))[0] + '.html')
+       py.offline.plot(fig1, filename='CFR' + data_file + '.html')
        # Plot Topography
        fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
                                 simplices=simplices, colormap="Portland", plot_edges=False, \
                                 title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='TPO' + (mesh_file.split('.'))[0] + '.html')
+       py.offline.plot(fig1, filename='TPO' + data_file + '.html')
        
        #%% Check the evaluated spectra
        #'''
