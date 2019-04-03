@@ -93,7 +93,8 @@ def computeLL2Cart(cellCoord):
               Y = RO * mt.cos(lat) * mt.cos(lon)
               Z = RO * mt.sin(lat)
               RC = mt.sqrt(X**2 + Y**2 + Z**2)
-              varCart[ii,:] = 1.0 / RC * [X, Y, Z]
+              varCart[ii,:] = [X, Y, Z]
+              varCart[ii,:] *= 1.0 / RC
        
        # INPUT IS IN RADIANS
        return varCart
