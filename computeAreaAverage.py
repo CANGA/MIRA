@@ -81,6 +81,7 @@ def computeAreaAverage(clm, nodes, order):
        # Loop over the subtriangles and add up the areas
        GN, GW = getGaussNodesWeights(order)
        NP = len(GW)
+       
        for ii in range(NST):
               # Gather the coordinate components
               node1 = nodes[:,0]

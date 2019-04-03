@@ -92,7 +92,8 @@ def computeLL2Cart(cellCoord):
               X = RO * mt.cos(lat) * mt.sin(lon)
               Y = RO * mt.cos(lat) * mt.cos(lon)
               Z = RO * mt.sin(lat)
-              varCart[ii,:] = [X, Y, Z]
+              RC = mt.sqrt(X**2 + Y**2 + Z**2)
+              varCart[ii,:] = 1.0 / RC * [X, Y, Z]
        
        # INPUT IS IN RADIANS
        return varCart
@@ -122,17 +123,9 @@ def computeCellAverage(clm, varCon, varCoord, order):
        
        # Loop over each cell and get cell average
        for ii in range(NEL):
-              cdex = varCon[ii,:] - 1
+              # Handle degeneracies with numpy.unique on connectivity
+              cdex = np.unique(varCon[ii,:]) - 1
               thisCell = varCoord[:,cdex]
-              
-              # Check for degenerates here (remove coincidents)
-              outDex = []
-              for jj in range(1, len(cdex)):
-                     if np.linalg.norm(thisCell[:,jj] - thisCell[:,jj-1]) <= 1.0E-14:
-                            outDex.append(jj)
-              # Remove any coincidents found              
-              if len(outDex) > 0:
-                     thisCell = np.delete(thisCell, outDex, axis=1)
                             
               varSample[ii] = computeAreaAverage(clm, thisCell, order)
        
@@ -419,7 +412,7 @@ if __name__ == '__main__':
               TPWvar *= maxTPW / deltaTPW
               endt = time.time()
               print('Time to compute TPW (mm): ', endt - start)
-                            
+       #%%                     
        if EvaluateCFR or EvaluateAll:
               start = time.time()
               print('Computing Cloud Fraction on sampling mesh...')
@@ -470,7 +463,7 @@ if __name__ == '__main__':
               
               endt = time.time()
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
-              
+       #%%       
        if EvaluateTPO or EvaluateAll:
               start = time.time()
               print('Computing Terrain on sampling mesh...')
@@ -574,21 +567,25 @@ if __name__ == '__main__':
        points2D = varLonLat
        tri = Delaunay(points2D)
        simplices = tri.simplices       
-       # Plot Total Precipitable Water
-       fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
-                                simplices=simplices, colormap="Portland", plot_edges=False, \
-                                title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='TPW' + data_file + '.html')
-       # Plot Cloud Fraction
-       fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
-                                simplices=simplices, colormap="Portland", plot_edges=False, \
-                                title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='CFR' + data_file + '.html')
-       # Plot Topography
-       fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
-                                simplices=simplices, colormap="Portland", plot_edges=False, \
-                                title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
-       py.offline.plot(fig1, filename='TPO' + data_file + '.html')
+       
+       #%% Plot Total Precipitable Water
+       if EvaluateTPW or EvaluateAll:
+              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
+                                       simplices=simplices, colormap="Portland", plot_edges=False, \
+                                       title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
+              py.offline.plot(fig1, filename='TPW' + data_file + '.html')
+       #%% Plot Cloud Fraction
+       if EvaluateCFR or EvaluateAll:
+              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
+                                       simplices=simplices, colormap="Portland", plot_edges=False, \
+                                       title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
+              py.offline.plot(fig1, filename='CFR' + data_file + '.html')
+       #%% Plot Topography
+       if EvaluateTPO or EvaluateAll:
+              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
+                                       simplices=simplices, colormap="Portland", plot_edges=False, \
+                                       title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
+              py.offline.plot(fig1, filename='TPO' + data_file + '.html')
        
        #%% Check the evaluated spectra
        #'''
