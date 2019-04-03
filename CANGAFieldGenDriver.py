@@ -124,6 +124,16 @@ def computeCellAverage(clm, varCon, varCoord, order):
        for ii in range(NEL):
               cdex = varCon[ii,:] - 1
               thisCell = varCoord[:,cdex]
+              
+              # Check for degenerates here (remove coincidents)
+              outDex = []
+              for jj in range(1, len(cdex)):
+                     if np.linalg.norm(thisCell[:,jj] - thisCell[:,jj-1]) <= 1.0E-14:
+                            outDex.append(jj)
+              # Remove any coincidents found              
+              if len(outDex) > 0:
+                     thisCell = np.delete(thisCell, outDex, axis=1)
+                            
               varSample[ii] = computeAreaAverage(clm, thisCell, order)
        
        return varSample
