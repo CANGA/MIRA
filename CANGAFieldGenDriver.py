@@ -187,7 +187,8 @@ def parseCommandLine(argv):
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['pm=', 'so=', 'nm=', 'EvaluateAll', \
                                          'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
-                                         'ExodusSingleConn', 'SCRIPwithoutConn'])
+                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
+                                         'SCRIPwithConn'])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAFieldGenDriver.py', \
@@ -243,6 +244,8 @@ def parseCommandLine(argv):
                      ExodusSingleConn = True
               elif opt == '--SCRIPwithoutConn':
                      SCRIPwithoutConn = True
+              elif opt == '--SCRIPwithConn':
+                     SCRIPwithConn = True
                      
        # Check that the number of modes requested doesn't exceed 768
        if numModes > 768:
@@ -265,7 +268,7 @@ def parseCommandLine(argv):
        return sampleMesh, numModes, \
               sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
               EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
-              ExodusSingleConn, SCRIPwithoutConn
+              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
@@ -274,38 +277,37 @@ if __name__ == '__main__':
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ND, sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
        EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
-       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
-
-       print('Number of SH degrees for sampling set to: ', ND)
+       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
 
        """ SET INPUT HERE FOR DEVELOPMENT TESTING
+       ND = 48
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
        # SCRIPwithoutConn -> UNFORTUNATE SECOND
        # SCRIPwithConn -> NOT IMPLEMENTED (READING METIS MESH INFO PROBLEMATIC)
-       ExodusSingleConn = True
+       ExodusSingleConn = False
        #ExodusMultiConn = False
-       SCRIPwithoutConn = False
+       SCRIPwithoutConn = True
        #SCRIPwithConn = False
        
        # Sampling Exodus .g file
        #mesh_file = 'outCSne30.g'
        #mesh_file = 'outRLL1deg.g'
-       mesh_file = 'outICO64.g'
+       #mesh_file = 'outICO64.g'
        
        # Sampling SCRIP file
        mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
        #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
        
        sampleCentroid = False
-       sampleOrder2 = False
+       sampleOrder2 = True
        sampleOrder4 = False
-       sampleOrder6 = True
+       sampleOrder6 = False
        
        # SET WHICH FIELDS TO EVALUATE
-       EvaluateAll = True
-       EvaluateTPW = False # Total Precipitable Water
+       EvaluateAll = False
+       EvaluateTPW = True # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
        """
@@ -315,6 +317,8 @@ if __name__ == '__main__':
        onlyFilename = stripDir[len(stripDir)-1]
        data_file = 'testdata_' + (onlyFilename.split('.'))[0]
        print('New data will be stored in (prefix): ', data_file)
+       
+       print('Number of SH degrees for sampling set to: ', ND)
        
        if ExodusSingleConn:
               # Open the .g mesh files for reading
@@ -335,10 +339,6 @@ if __name__ == '__main__':
               conLon = m_fid.variables['grid_corner_lon'][:]
               conLat = m_fid.variables['grid_corner_lat'][:]
               
-              # Make coordinate and connectivity from raw SCRIP data
-              start = time.time()
-              varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
-              
               # Convert to radians if necessary
               if m_fid.variables['grid_corner_lon'].units == 'degrees':
                      conLon *= mt.pi / 180.0
@@ -346,8 +346,43 @@ if __name__ == '__main__':
               if m_fid.variables['grid_corner_lat'].units == 'degrees':
                      conLat *= mt.pi / 180.0
               
+              # Make coordinate and connectivity from raw SCRIP data
+              start = time.time()
+              varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
+              
               # Convert coordinates from lat/lon to Cartesian
               varCoord = computeLL2Cart(varCoordLL[:,1:4])
+              varCoord = varCoord.T
+              
+              endt = time.time()
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              
+       elif SCRIPwithConn:
+              # Open the .nc SCRIP files for reading
+              m_fid = Dataset(mesh_file)
+              
+              # Get the list of available variables
+              varList = m_fid.variables.keys()
+              
+              # Get RAW (no ID) connectivity and coordinate arrays
+              conLon = m_fid.variables['lon'][:]
+              conLat = m_fid.variables['lat'][:]
+              varCon = m_fid.variables['element_corners'][:]
+              
+              # Convert to radians if necessary
+              if m_fid.variables['grid_corner_lon'].units == 'degrees_east':
+                     conLon *= mt.pi / 180.0
+                     
+              if m_fid.variables['grid_corner_lat'].units == 'degrees_north':
+                     conLat *= mt.pi / 180.0
+                     
+              # Make coordinate and connectivity from raw SCRIP data
+              start = time.time()
+              varCoordLL = np.concatenate(conLon, conLat, axis=1)
+              varCoordLL = np.concatenate(varCoordLL, np.ones(np.size(conLon)), axis=1)
+              
+              # Convert coordinates from lat/lon to Cartesian
+              varCoord = computeLL2Cart(varCoordLL)
               varCoord = varCoord.T
               
               endt = time.time()

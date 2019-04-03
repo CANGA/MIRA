@@ -249,11 +249,6 @@ if __name__ == '__main__':
               lonT = m_fidT.variables['grid_corner_lon'][:]
               latT = m_fidT.variables['grid_corner_lat'][:]
               
-              # Make coordinate and connectivity from raw SCRIP data
-              start = time.time()
-              varCoordLLS, varConS = computeCoordConFastSCRIP(lonS, latS)
-              varCoordLLT, varConT = computeCoordConFastSCRIP(lonT, latT)
-              
               # Convert to radians if necessary
               if m_fidS.variables['grid_corner_lon'].units == 'degrees':
                      lonS *= mt.pi / 180.0
@@ -266,6 +261,11 @@ if __name__ == '__main__':
                      
               if m_fidT.variables['grid_corner_lat'].units == 'degrees':
                      latT *= mt.pi / 180.0
+              
+              # Make coordinate and connectivity from raw SCRIP data
+              start = time.time()
+              varCoordLLS, varConS = computeCoordConFastSCRIP(lonS, latS)
+              varCoordLLT, varConT = computeCoordConFastSCRIP(lonT, latT)
                      
               # Convert coordinates from lat/lon to Cartesian
               varCoordS = computeLL2Cart(varCoordLLS[:,1:4])
