@@ -66,6 +66,7 @@ def parseCommandLine(argv):
        
        ExodusSingleConn = False
        SCRIPwithoutConn = False
+       SCRIPwithConn = False
        
        # Mesh data configuration
        meshConfig = ''
@@ -73,7 +74,8 @@ def parseCommandLine(argv):
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['ss=','s2t=','st=','sm=','tm=', \
-                                         'ExodusSingleConn', 'SCRIPwithoutConn'])
+                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
+                                         'SCRIPwithConn'])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAMEtricsDriver.py', \
@@ -115,6 +117,9 @@ def parseCommandLine(argv):
               elif opt == '--SCRIPwithoutConn':
                      meshConfig = 'SCRIPwithoutConn'
                      SCRIPwithoutConn = True
+              elif opt == '--SCRIPwithConn':
+                     meshConfig = 'SCRIPwithConn'
+                     SCRIPwithConn = True
                      
        # Check that mesh files are consistent
        if sourceMesh[len(sourceMesh) - 1] != targetMesh[len(targetMesh) - 1]:
@@ -127,8 +132,20 @@ def parseCommandLine(argv):
               print('Expecting only ONE mesh configuration option!')
               print('Multiple options are set.')
               sys.exit(2)
-       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False):
+       elif (ExodusSingleConn == True) & (SCRIPwithConn == True):
               print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
+              print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (ExodusSingleConn == True) & (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
+              print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False) & (SCRIPwithConn == False):
+              print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
                      
@@ -147,7 +164,7 @@ def parseCommandLine(argv):
        return varName, \
               sourceSampledFile, remappedFile, targetSampledFile, \
               sourceMesh, targetMesh, \
-              ExodusSingleConn, SCRIPwithoutConn
+              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
@@ -158,7 +175,8 @@ if __name__ == '__main__':
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn = parseCommandLine(sys.argv[1:])
+       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = \
+       parseCommandLine(sys.argv[1:])
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
@@ -271,6 +289,66 @@ if __name__ == '__main__':
               varCoordS = computeLL2Cart(varCoordLLS[:,1:4])
               varCoordS = varCoordS.T
               varCoordT = computeLL2Cart(varCoordLLT[:,1:4])
+              varCoordT = varCoordT.T
+              
+              endt = time.time()
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+       elif SCRIPwithConn:
+              numEdges = 'ncorners'
+              numCells = 'ncells'
+              numDims = 'cart_dims'
+              
+              # Open the .nc SCRIP files for reading
+              m_fidS = Dataset(mesh_fileS, 'r')
+              m_fidT = Dataset(mesh_fileT, 'r')
+              
+              # Get the list of available variables
+              varListS = m_fidS.variables.keys()
+              varListT = m_fidT.variables.keys()
+              
+              # Get connectivity and coordinate arrays
+              lonS = m_fidS.variables['lon'][:]
+              lstS = m_fidS.variables['lat'][:]
+              varConS = m_fidS.variables['element_corners'][:]
+              varConS = varConS.T
+              lonT = m_fidT.variables['lon'][:]
+              lstT = m_fidT.variables['lat'][:]
+              varConT = m_fidT.variables['element_corners'][:]
+              varConT = varConT.T
+              
+              # Convert to radians if necessary
+              if m_fidS.variables['lon'].units == 'degrees_east':
+                     lonS *= mt.pi / 180.0
+                     
+              if m_fidS.variables['lat'].units == 'degrees_north':
+                     latS *= mt.pi / 180.0
+                     
+              if m_fidT.variables['lon'].units == 'degrees_east':
+                     lonT *= mt.pi / 180.0
+                     
+              if m_fidT.variables['lat'].units == 'degrees_north':
+                     latT *= mt.pi / 180.0
+                     
+              # Make coordinate from SCRIP data (source)
+              start = time.time()
+              varCoordLL = np.zeros((len(lonS), 3))
+              varCoordLL[:,0] = lonS
+              varCoordLL[:,1] = latS
+              varCoordLL[:,2] = np.ones(len(lonS))
+              
+              # Convert coordinates from lat/lon to Cartesian
+              varCoordS = computeLL2Cart(varCoordLL)
+              varCoordS = varCoordS.T
+              
+              # Make coordinate from SCRIP data (target)
+              start = time.time()
+              varCoordLL = np.zeros((len(lonT), 3))
+              varCoordLL[:,0] = lonT
+              varCoordLL[:,1] = latT
+              varCoordLL[:,2] = np.ones(len(lonT))
+              
+              # Convert coordinates from lat/lon to Cartesian
+              varCoordT = computeLL2Cart(varCoordLL)
               varCoordT = varCoordT.T
               
               endt = time.time()
