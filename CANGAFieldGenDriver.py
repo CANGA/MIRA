@@ -167,6 +167,7 @@ def parseCommandLine(argv):
        sampleMesh = ''
        ExodusSingleConn = False
        SCRIPwithoutConn = False
+       SCRIPwithConn = False
        
        # Sampling order
        sampleCentroid = False
@@ -257,8 +258,20 @@ def parseCommandLine(argv):
               print('Expecting only ONE mesh configuration option!')
               print('Multiple options are set.')
               sys.exit(2)
-       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False):
+       elif (ExodusSingleConn == True) & (SCRIPwithConn == True):
               print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
+              print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (ExodusSingleConn == True) & (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
+              print('Expecting only ONE mesh configuration option!')
+              print('Multiple options are set.')
+              sys.exit(2)
+       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False) & (SCRIPwithConn == False):
+              print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
        
@@ -289,7 +302,7 @@ if __name__ == '__main__':
        ExodusSingleConn = False
        #ExodusMultiConn = False
        SCRIPwithoutConn = True
-       #SCRIPwithConn = False
+       SCRIPwithConn = False
        
        # Sampling Exodus .g file
        #mesh_file = 'outCSne30.g'
@@ -368,18 +381,21 @@ if __name__ == '__main__':
               conLon = m_fid.variables['lon'][:]
               conLat = m_fid.variables['lat'][:]
               varCon = m_fid.variables['element_corners'][:]
+              varCon = varCon.T
               
               # Convert to radians if necessary
-              if m_fid.variables['grid_corner_lon'].units == 'degrees_east':
+              if m_fid.variables['lon'].units == 'degrees_east':
                      conLon *= mt.pi / 180.0
                      
-              if m_fid.variables['grid_corner_lat'].units == 'degrees_north':
+              if m_fid.variables['lat'].units == 'degrees_north':
                      conLat *= mt.pi / 180.0
                      
               # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
-              varCoordLL = np.concatenate(conLon, conLat, axis=1)
-              varCoordLL = np.concatenate(varCoordLL, np.ones(np.size(conLon)), axis=1)
+              varCoordLL = np.zeros((len(conLon), 3))
+              varCoordLL[:,0] = conLon
+              varCoordLL[:,1] = conLat
+              varCoordLL[:,2] = np.ones(len(conLon))
               
               # Convert coordinates from lat/lon to Cartesian
               varCoord = computeLL2Cart(varCoordLL)
@@ -579,12 +595,20 @@ if __name__ == '__main__':
               numCells = 'num_el_in_blk1'
        elif SCRIPwithoutConn:
               numCells = 'grid_size'
+       elif SCRIPwithConn:
+              numCells = 'ncells'
               
        # Process the sampling file
-       lonNC = data_fid.createVariable('lon', 'f8', (numCells,))
-       lonNC[:] = varLonLat_deg[:,0]
-       latNC = data_fid.createVariable('lat', 'f8', (numCells,))
-       latNC[:] = varLonLat_deg[:,1]
+       if SCRIPwithConn:
+              lonNC = data_fid.createVariable('nlon', 'f8', (numCells,))
+              lonNC[:] = varLonLat_deg[:,0]
+              latNC = data_fid.createVariable('nlat', 'f8', (numCells,))
+              latNC[:] = varLonLat_deg[:,1]
+       else:
+              lonNC = data_fid.createVariable('lon', 'f8', (numCells,))
+              lonNC[:] = varLonLat_deg[:,0]
+              latNC = data_fid.createVariable('lat', 'f8', (numCells,))
+              latNC[:] = varLonLat_deg[:,1]
        
        if EvaluateTPW or EvaluateAll:
               TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
