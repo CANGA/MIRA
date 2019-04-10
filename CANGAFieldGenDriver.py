@@ -342,8 +342,15 @@ if __name__ == '__main__':
               varCoord = m_fid.variables['coord'][:]
               
        elif SCRIPwithoutConn:
+              numEdges = 'grid_corners'
+              numCells = 'grid_size'
+              numDims = 'cart_dims'
+              connCell = 'element_corners_id'
+              coordCell = 'grid_corners_cart'
+              numVerts = 'grid_corners_size'
+              
               # Open the .nc SCRIP files for reading
-              m_fid = Dataset(mesh_file)
+              m_fid = Dataset(mesh_file, 'a')
               
               # Get the list of available variables
               varList = m_fid.variables.keys()
@@ -358,17 +365,35 @@ if __name__ == '__main__':
                      
               if m_fid.variables['grid_corner_lat'].units == 'degrees':
                      conLat *= mt.pi / 180.0
-              
-              # Make coordinate and connectivity from raw SCRIP data
+                   
               start = time.time()
-              varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
-              
-              # Convert coordinates from lat/lon to Cartesian
-              varCoord = computeLL2Cart(varCoordLL[:,1:4])
-              varCoord = varCoord.T
+              try:
+                     print('Reading connectivity and coordinate arrays from raw SCRIP')
+                     varCon = m_fid.variables[connCell][:]
+                     varCoord = m_fid.variables[coordCell][:]
+              except KeyError:
+                     print('Computing connectivity and coordinate arrays from raw SCRIP')
+                     # Make coordinate and connectivity from raw SCRIP data
+                     varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
+                     
+                     # Convert coordinates from lat/lon to Cartesian
+                     varCoord = computeLL2Cart(varCoordLL[:,1:4])
+                     varCoord = varCoord.T
+                     
+                     try:   
+                            print('Storing connectivity and coordinate arrays from raw SCRIP')
+                            meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
+                            meshFileOut = m_fid.createDimension(numDims, 3)
+                            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                            meshFileOut[:] = varCon
+                            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                            meshFileOut[:] = varCoord
+                            
+                     except RuntimeError:
+                            print('Cell connectivity and grid vertices exist in mesh data file.') 
               
               endt = time.time()
-              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
               
        elif SCRIPwithConn:
               # Open the .nc SCRIP files for reading

@@ -252,10 +252,13 @@ if __name__ == '__main__':
               numEdges = 'grid_corners'
               numCells = 'grid_size'
               numDims = 'cart_dims'
+              connCell = 'element_corners_id'
+              coordCell = 'grid_corners_cart'
+              numVerts = 'grid_corners_size'
               
               # Open the .nc SCRIP files for reading
-              m_fidS = Dataset(mesh_fileS, 'r')
-              m_fidT = Dataset(mesh_fileT, 'r')
+              m_fidS = Dataset(mesh_fileS, 'a')
+              m_fidT = Dataset(mesh_fileT, 'a')
               
               # Get the list of available variables
               varListS = m_fidS.variables.keys()
@@ -279,24 +282,52 @@ if __name__ == '__main__':
                      
               if m_fidT.variables['grid_corner_lat'].units == 'degrees':
                      latT *= mt.pi / 180.0
-              
-              # Make coordinate and connectivity from raw SCRIP data
+                    
               start = time.time()
-              varCoordLLS, varConS = computeCoordConFastSCRIP(lonS, latS)
-              varCoordLLT, varConT = computeCoordConFastSCRIP(lonT, latT)
+              try:
+                     print('Reading coordinate and connectivity from augmented SCRIP')
+                     varConS = m_fidS.variables[connCell][:]
+                     varConT = m_fidT.variables[connCell][:]
+                     varCoordS = m_fidS.variables[coordCell][:]
+                     varCoordT = m_fidT.variables[coordCell][:]
+              except KeyError:
+                     print('Computing coordinate and connectivity from raw SCRIP')
+                     # Make coordinate and connectivity from raw SCRIP data
+                     varCoordLLS, varConS = computeCoordConFastSCRIP(lonS, latS)
+                     varCoordLLT, varConT = computeCoordConFastSCRIP(lonT, latT)
                      
-              # Convert coordinates from lat/lon to Cartesian
-              varCoordS = computeLL2Cart(varCoordLLS[:,1:4])
-              varCoordS = varCoordS.T
-              varCoordT = computeLL2Cart(varCoordLLT[:,1:4])
-              varCoordT = varCoordT.T
+                     # Convert coordinates from lat/lon to Cartesian
+                     varCoordS = computeLL2Cart(varCoordLLS[:,1:4])
+                     varCoordS = varCoordS.T
+                     varCoordT = computeLL2Cart(varCoordLLT[:,1:4])
+                     varCoordT = varCoordT.T
+                     
+                     try:
+                            print('Storing coordinate and connectivity to augmented SCRIP file')
+                            meshFileOut = m_fidS.createDimension(numVerts, np.size(varCoordS, 1))
+                            meshFileOut = m_fidS.createDimension(numDims, 3)
+                            meshFileOut = m_fidS.createVariable(connCell, 'i4', (numCells, numEdges))
+                            meshFileOut[:] = varConS
+                            meshFileOut = m_fidS.createVariable(coordCell, 'f8', (numDims, numVerts))
+                            meshFileOut[:] = varCoordS
+                            
+                            meshFileOut = m_fidT.createDimension(numVerts, np.size(varCoordS, 1))
+                            meshFileOut = m_fidT.createDimension(numDims, 3)
+                            meshFileOut = m_fidT.createVariable(connCell, 'i4', (numCells, numEdges))
+                            meshFileOut[:] = varConT
+                            meshFileOut = m_fidT.createVariable(coordCell, 'f8', (numDims, numVerts))
+                            meshFileOut[:] = varCoordT
+                     except RuntimeError:
+                            print('Cell connectivity and grid vertices exist in mesh data file.')
               
               endt = time.time()
-              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
        elif SCRIPwithConn:
               numEdges = 'ncorners'
               numCells = 'ncells'
               numDims = 'cart_dims'
+              connCell = 'element_corners'
+              coordCell = 'grid_corners_cart'
               
               # Open the .nc SCRIP files for reading
               m_fidS = Dataset(mesh_fileS, 'r')
