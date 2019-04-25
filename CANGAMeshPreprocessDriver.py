@@ -23,7 +23,9 @@ import math as mt
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
+from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeAreaAverage import computeAreaAverage
+from computeAreaWeight import computeAreaWeight
 
 def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
@@ -126,6 +128,10 @@ if __name__ == '__main__':
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
        
+       # Set the names for the auxiliary area and adjacency maps (NOT USER)
+       varAreaName = 'cell_area'
+       varAdjaName = 'cell_edge_adjacency'
+       
        #%% Mesh processing
        if ExodusSingleConn:
               numEdges = 'num_nod_per_el1'
@@ -168,30 +174,26 @@ if __name__ == '__main__':
                      conLat *= mt.pi / 180.0
                    
               start = time.time()
-              try:
-                     print('Reading connectivity and coordinate arrays from raw SCRIP')
-                     varCon = m_fid.variables[connCell][:]
-                     varCoord = m_fid.variables[coordCell][:]
-              except KeyError:
-                     print('Computing connectivity and coordinate arrays from raw SCRIP')
-                     # Make coordinate and connectivity from raw SCRIP data
-                     varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
+
+              print('Computing connectivity and coordinate arrays from raw SCRIP without connectivity')
+              # Make coordinate and connectivity from raw SCRIP data
+              varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
+              
+              # Convert coordinates from lat/lon to Cartesian
+              varCoord = computeLL2Cart(varCoordLL[:,1:4])
+              varCoord = varCoord.T
+              
+              try:   
+                     print('Storing connectivity and coordinate arrays from raw SCRIP')
+                     meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
+                     meshFileOut = m_fid.createDimension(numDims, 3)
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                     meshFileOut[:] = varCon
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut[:] = varCoord
                      
-                     # Convert coordinates from lat/lon to Cartesian
-                     varCoord = computeLL2Cart(varCoordLL[:,1:4])
-                     varCoord = varCoord.T
-                     
-                     try:   
-                            print('Storing connectivity and coordinate arrays from raw SCRIP')
-                            meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
-                            meshFileOut = m_fid.createDimension(numDims, 3)
-                            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
-                            meshFileOut[:] = varCon
-                            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
-                            meshFileOut[:] = varCoord
-                            
-                     except RuntimeError:
-                            print('Cell connectivity and grid vertices exist in mesh data file.') 
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.') 
               
               endt = time.time()
               print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
@@ -223,33 +225,72 @@ if __name__ == '__main__':
                      conLat *= mt.pi / 180.0
                      
               start = time.time()
-              try:
-                     print('Reading connectivity and coordinate arrays from raw SCRIP')
-                     varCon = m_fid.variables[connCell][:]
-                     varCoord = m_fid.variables[coordCell][:]
-              except KeyError:
-                     print('Computing connectivity and coordinate arrays from raw SCRIP')
-                     # Make coordinate from raw SCRIP data
-                     varCoordLL = np.zeros((len(conLon), 3))
-                     varCoordLL[:,0] = conLon
-                     varCoordLL[:,1] = conLat
-                     varCoordLL[:,2] = np.ones(len(conLon))
+              
+              print('Computing connectivity and coordinate arrays from raw SCRIP with connectivity')
+              # Make coordinate from raw SCRIP data
+              varCoordLL = np.zeros((len(conLon), 3))
+              varCoordLL[:,0] = conLon
+              varCoordLL[:,1] = conLat
+              varCoordLL[:,2] = np.ones(len(conLon))
+              
+              # Convert coordinates from lat/lon to Cartesian
+              varCoord = computeLL2Cart(varCoordLL)
+              varCoord = varCoord.T
+              
+              try:   
+                     print('Storing connectivity and coordinate arrays from raw SCRIP')
+                     meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
+                     meshFileOut = m_fid.createDimension(numDims, 3)
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut[:] = varCoord
                      
-                     # Convert coordinates from lat/lon to Cartesian
-                     varCoord = computeLL2Cart(varCoordLL)
-                     varCoord = varCoord.T
-                     
-                     try:   
-                            print('Storing connectivity and coordinate arrays from raw SCRIP')
-                            meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
-                            meshFileOut = m_fid.createDimension(numDims, 3)
-                            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
-                            meshFileOut[:] = varCoord
-                            
-                     except RuntimeError:
-                            print('Cell connectivity and grid vertices exist in mesh data file.') 
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.') 
               
               endt = time.time()
               print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
               
        #%% Area and adjacency processing
+       
+       start = time.time()
+       print('Computing adjacency maps...')
+       # Store the adjacency map in the original grid netcdf file (target mesh)
+       m_fid = Dataset(mesh_file, 'a')
+       
+       print('Adjacency data computed/written to mesh file for the first time...')
+       
+       # Compute adjacency maps for both meshes (source stencil NOT needed)
+       edgeNodeMap, edgeCellMap, cleanEdgeCellMap, varConStenDex = computeFastAdjacencyStencil(varCon)
+       # Get the starting index for the adjecency information in varConStenDexT
+       adex = np.size(varConStenDex,1) - np.size(varCon,1) 
+       
+       try:
+              meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
+              meshFileOut[:] = varConStenDex[:,adex:]
+       except RuntimeError:
+              print('Adjacency variable already exists in mesh data file')
+              
+       endt = time.time()
+       print('Time to precompute adjacency maps (sec): ', endt - start)
+       
+       start = time.time()
+       print('Computing source and target mesh areas...')
+       
+       print('Source areas computed/written to mesh file for the first time...')
+       # Precompute the area weights and then look them up in the integral below
+       NEL = len(varCon)
+       area = np.zeros((NEL,1))
+       for ii in range(NEL):
+              cdex = varCon[ii,:] - 1
+              thisCell = varCoord[:,cdex]
+              area[ii] = computeAreaWeight(thisCell)
+              
+       area = np.ravel(area)
+       
+       try:       
+              meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
+              meshFileOut[:] = area
+       except RuntimeError:
+              print('Source areas already exist in mesh data file.')
+              
+       m_fid.close()

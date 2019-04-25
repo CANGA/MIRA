@@ -389,6 +389,7 @@ if __name__ == '__main__':
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
                             
+       # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
        # Compute Centroids
        varCent = computeCentroids(varCon, varCoord)
        
@@ -431,6 +432,7 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
               
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
@@ -479,6 +481,7 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
               
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
@@ -530,6 +533,7 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
               
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
