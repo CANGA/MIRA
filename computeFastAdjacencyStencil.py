@@ -59,13 +59,16 @@ def computeFastAdjacencyStencil(varCon):
        
        # Compute the edges to cells map [c1 n1 n2 c2]
        NE = np.size(edgeNodeMap, axis=0)
+       coinDex = []
+       keepDex = []
+       edgeCellMap = []
+       thisCellMap = []
        for ii in range(NE):
               # Compute the list of nodes that are coincident
               thisEdge = sortedEdges[ii,:]
               
               # ndex will have 2 cellID's for non-degenerate edges
               ndex = edgeTree.query_ball_point(thisEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
-              
               if len(ndex) < 2:
                      continue
               
@@ -83,9 +86,15 @@ def computeFastAdjacencyStencil(varCon):
                      thisCellMap = np.array([edgeNodeMap[ndex[0],2], \
                                              thisEdge[0], thisEdge[1], \
                                              edgeNodeMap[ndex[1],2]])
-                     edgeCellMap = np.append(edgeCellMap, [thisCellMap], axis=0)
+       
+                     if len(edgeCellMap) == 0:
+                            edgeCellMap = [thisCellMap]
+                     elif len(thisCellMap) > 0:
+                            edgeCellMap = np.append(edgeCellMap, [thisCellMap], axis=0)
                      
        # Trim coincidents from edgeCellMap with keepDex array
+       #print(edgeCellMap.shape)
+       #print(keepDex)
        keepDex = np.unique(keepDex)
        cleanEdgeCellMap = edgeCellMap[keepDex,:]
                      

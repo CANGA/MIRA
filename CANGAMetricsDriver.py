@@ -173,15 +173,15 @@ if __name__ == '__main__':
        #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = \
-       parseCommandLine(sys.argv[1:])
+       #varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
+       #ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = \
+       #parseCommandLine(sys.argv[1:])
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
        varAdjaName = 'cell_edge_adjacency'
        
-       """ SET INPUT HERE FOR DEVELOPMENT TESTING
+       #""" SET INPUT HERE FOR DEVELOPMENT TESTING
        # Set the mesh configuration (mutually exclusive):
        # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
        # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
@@ -190,14 +190,14 @@ if __name__ == '__main__':
        ExodusSingleConn = True
        #ExodusMultiConn = False
        SCRIPwithoutConn = False
-       #SCRIPwithConn = False
+       SCRIPwithConn = False
        
        if ExodusSingleConn:
               # Source Exodus .g file
               mesh_fileS = 'outCSne30.g'
               # Target Exodus .g file
-              mesh_fileT = 'outRLL1deg.g'
-              #mesh_fileT = 'outICO64.g'
+              #mesh_fileT = 'outRLL1deg.g'
+              mesh_fileT = 'outICO64.g'
               
        if SCRIPwithoutConn:
               # Source SCRIP file
@@ -205,32 +205,30 @@ if __name__ == '__main__':
               # Target SCRIP file
               mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
        
-       # Set flag for precomputations of areas and adjacencies
-       # Check the mesh files for added variables if this has already been done
-       AreaAdjacentyPrecomp = False
-       
        # Set the name of the field variable in question (scalar)
+       #varName = 'Psi'
        varName = 'TotalPrecipWater'
        #varName = 'CloudFraction'
        #varName = 'Topography'
        
        # Field sampled at the source (SS)
        nc_fileSS = 'testdata_outCSne30_TPW_CFR_TPO.nc'
+       #nc_fileSS = 'testdata_CSne30_np4_3.nc'
        # Field mapped from source to target (S2T)
        #nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
        #nc_fileS2T = 'testdata_CSne30_2_ICO64_np4_3.nc'
-       nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPW.nc'
+       #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPW.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_CFR.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_RLL1deg_TPO.nc'
-       #nc_fileS2T = 'testdata_outCSne30_2_ICO64_TPW.nc'
+       nc_fileS2T = 'testdata_outCSne30_2_ICO64_TPW.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_ICO64_CFR.nc'
        #nc_fileS2T = 'testdata_outCSne30_2_ICO64_TPO.nc'
        # Field sampled at the target (ST)
-       nc_fileST = 'testdata_outRLL1deg_TPW_CFR_TPO.nc'
-       #nc_fileST = 'testdata_outICO64_TPW_CFR_TPO.nc'
+       #nc_fileST = 'testdata_outRLL1deg_TPW_CFR_TPO.nc'
+       nc_fileST = 'testdata_outICO64_TPW_CFR_TPO.nc'
        #nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
-       """ 
+       #""" 
        
        if ExodusSingleConn:
               numEdges = 'num_nod_per_el1'
@@ -406,7 +404,7 @@ if __name__ == '__main__':
        except KeyError:
               # Precompute the gradients on target mesh ONLY once
               varsOnTM = [varST, varS2T]
-              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varCoordT, varConStenDexT, areaT)
+              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
               
               # Create new Cartesian Earth centered vector dimensions
               try:

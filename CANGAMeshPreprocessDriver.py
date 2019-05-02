@@ -126,7 +126,19 @@ if __name__ == '__main__':
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
+       #mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
+       
+       # Sampling Exodus .g file
+       #mesh_file = 'outCSne30.g'
+       #mesh_file = 'outRLL1deg.g'
+       mesh_file = 'outICO64.g'
+       ExodusSingleConn = True
+       
+       # Sampling SCRIP file
+       #mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
+       SCRIPwithoutConn = False
+       #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
+       SCRIPwithConn = False
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
@@ -144,9 +156,25 @@ if __name__ == '__main__':
               # Open the .g mesh files for reading
               m_fid = Dataset(mesh_file, 'a')
               
+              start = time.time()
               # Get connectivity and coordinate arrays (check for multiple connectivity)
               varCon = m_fid.variables['connect1'][:]
               varCoord = m_fid.variables['coord'][:]
+              
+              try:   
+                     print('Storing connectivity and coordinate arrays from Exodus mesh files.')
+                     meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
+                     meshFileOut = m_fid.createDimension(numDims, 3)
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                     meshFileOut[:] = varCon
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut[:] = varCoord
+                     
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.') 
+              
+              endt = time.time()
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
@@ -196,7 +224,7 @@ if __name__ == '__main__':
                      print('Cell connectivity and grid vertices exist in mesh data file.') 
               
               endt = time.time()
-              print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
        elif SCRIPwithConn:
               numEdges = 'ncorners'
@@ -248,7 +276,7 @@ if __name__ == '__main__':
                      print('Cell connectivity and grid vertices exist in mesh data file.') 
               
               endt = time.time()
-              print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
        #%% Area and adjacency processing
        
@@ -292,5 +320,8 @@ if __name__ == '__main__':
               meshFileOut[:] = area
        except RuntimeError:
               print('Source areas already exist in mesh data file.')
+              
+       endt = time.time()
+       print('Time to precompute cell areas (sec): ', endt - start)
               
        m_fid.close()
