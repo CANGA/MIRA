@@ -131,12 +131,12 @@ if __name__ == '__main__':
        # Sampling Exodus .g file
        #mesh_file = 'outCSne30.g'
        #mesh_file = 'outRLL1deg.g'
-       mesh_file = 'outICO64.g'
-       ExodusSingleConn = True
+       #mesh_file = 'outICO64.g'
+       ExodusSingleConn = False
        
        # Sampling SCRIP file
-       #mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
-       SCRIPwithoutConn = False
+       mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
+       SCRIPwithoutConn = True
        #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
        SCRIPwithConn = False
        
