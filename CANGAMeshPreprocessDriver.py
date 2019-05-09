@@ -126,8 +126,9 @@ if __name__ == '__main__':
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       #mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
+       mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
        
+       """ SET INPUT HERE FOR DEVELOPMENT TESTING
        # Sampling Exodus .g file
        #mesh_file = 'outCSne30.g'
        #mesh_file = 'outRLL1deg.g'
@@ -139,6 +140,7 @@ if __name__ == '__main__':
        SCRIPwithoutConn = True
        #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
        SCRIPwithConn = False
+       """
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
