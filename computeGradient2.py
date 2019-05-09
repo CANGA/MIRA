@@ -18,7 +18,7 @@ import math as mt
 from computeAreaWeight import computeAreaWeight
 from computeCentroid import computeCentroid
 
-def computeGradient2(varList, varCoords, varStenDex, areas):
+def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
        SF = np.float64
        
        # Gradients are 3 component vectors
@@ -33,16 +33,16 @@ def computeGradient2(varList, varCoords, varStenDex, areas):
        cellCoords = np.zeros((nc, areas.shape[0]), dtype=SF)
        
        NV = len(varList)
-       NC = varStenDex.shape[0]
-       NP = int(varStenDex.shape[1] / 2)
+       NC = int(varStenDex.shape[0])
+       NP = int(varStenDex.shape[1])
        fluxIntegral = np.zeros((nc, NV), dtype=SF)
        
        # Precompute the cell centroid map
        cellCoords = np.zeros((nc,NC), dtype=SF)
        radius = np.zeros((NC,1), dtype=SF)
        for jj in range(NC):
-              pdex = np.array(range(NP), dtype = int)
-              cdex = (varStenDex[jj, pdex]) - 1
+              #pdex = np.array(range(NP), dtype = int)
+              cdex = (varCon[jj,:]) - 1
               cdex = cdex.astype(int)
               cell = varCoords[:,cdex]
               cellCoords[:,jj] = computeCentroid(NP, cell)
@@ -51,16 +51,11 @@ def computeGradient2(varList, varCoords, varStenDex, areas):
        # Loop over the cells
        for jj in range(NC):
               pdex = np.array(range(NP), dtype = int)
-              # Compute the center cell centroid
-              centroidC = cellCoords[:,jj]
-              
-              # Set the centroid coordinates to the workspace
-              cellCoords[:,jj] = centroidC
               
               # Check for local degeneracy in stencil and fix connectivity
               for pp in range(NP):
                      # Look for 0 in the adjacency stencil
-                     if varStenDex[jj,NP + pp] == 0:
+                     if varStenDex[jj,pp] == 0:
                             pdex = np.delete(pdex, pp)
                      else:
                             continue
@@ -72,13 +67,13 @@ def computeGradient2(varList, varCoords, varStenDex, areas):
               boundaryAngles = np.zeros((len(pdex),1))
               for pp in pdex:
                      # Fetch the dual edge and store
-                     sid1 = varStenDex[jj, NP + pp] - 1
+                     sid1 = varStenDex[jj, pp] - 1
                      sid1 = sid1.astype(int)
                      # Make the dual polygon convex
                      if pp == len(pdex) - 1:
-                            sid2 = varStenDex[jj, NP] - 1
+                            sid2 = varStenDex[jj, 0] - 1
                      else:
-                            sid2 = varStenDex[jj, NP + pp + 1] - 1
+                            sid2 = varStenDex[jj, pp + 1] - 1
                      sid2 = sid2.astype(int)
                      
                      # Store the dual mesh polygon
@@ -92,6 +87,8 @@ def computeGradient2(varList, varCoords, varStenDex, areas):
                      boundaryAngles[pp] = abs(boundaryAngles[pp])
                      
                      # Compute the stencil boundary normals
+                     #print(pp, sid1, sid2)
+                     #print(cellCoords[:,sid1], cellCoords[:,sid2])
                      boundaryNorm[:,pp] = np.cross(cellCoords[:,sid2], \
                                                    cellCoords[:,sid1])
                      bnMag = np.linalg.norm(boundaryNorm[:,pp])
@@ -106,7 +103,7 @@ def computeGradient2(varList, varCoords, varStenDex, areas):
                             fluxIntegral[:,vv] = np.add(fluxIntegral[:,vv], \
                                                vWeight * varAvg * \
                                                boundaryNorm[:,pp])
-                            
+                        
               # Compute the dual polygon area
               areaD = computeAreaWeight(dualEdgeMap)
               

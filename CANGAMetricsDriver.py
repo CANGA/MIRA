@@ -21,7 +21,6 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
 from computeGradient2 import computeGradient2
-from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
@@ -191,7 +190,7 @@ if __name__ == '__main__':
        ExodusSingleConn = True
        #ExodusMultiConn = False
        SCRIPwithoutConn = False
-       #SCRIPwithConn = False
+       SCRIPwithConn = False
        
        if ExodusSingleConn:
               # Source Exodus .g file
@@ -206,17 +205,15 @@ if __name__ == '__main__':
               # Target SCRIP file
               mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
        
-       # Set flag for precomputations of areas and adjacencies
-       # Check the mesh files for added variables if this has already been done
-       AreaAdjacentyPrecomp = False
-       
        # Set the name of the field variable in question (scalar)
+       #varName = 'Psi'
        varName = 'TotalPrecipWater'
        #varName = 'CloudFraction'
        #varName = 'Topography'
        
        # Field sampled at the source (SS)
        nc_fileSS = 'testdata_outCSne30_TPW_CFR_TPO.nc'
+       #nc_fileSS = 'testdata_CSne30_np4_3.nc'
        # Field mapped from source to target (S2T)
        #nc_fileS2T = 'testdata_CSne30_2_RLL1deg_np4_3.nc'
        #nc_fileS2T = 'testdata_CSne30_2_ICO64_np4_3.nc'
@@ -231,7 +228,7 @@ if __name__ == '__main__':
        #nc_fileST = 'testdata_outICO64_TPW_CFR_TPO.nc'
        #nc_fileST = 'testdata_RLL1deg_np4_3.nc'
        #nc_fileST = 'testdata_ICO64_np4_3.nc'
-       """ 
+       #""" 
        
        if ExodusSingleConn:
               numEdges = 'num_nod_per_el1'
@@ -259,29 +256,6 @@ if __name__ == '__main__':
               # Open the .nc SCRIP files for reading
               m_fidS = Dataset(mesh_fileS, 'a')
               m_fidT = Dataset(mesh_fileT, 'a')
-              
-              # Get the list of available variables
-              varListS = m_fidS.variables.keys()
-              varListT = m_fidT.variables.keys()
-              
-              # Get RAW (no ID) connectivity and coordinate arrays
-              lonS = m_fidS.variables['grid_corner_lon'][:]
-              latS = m_fidS.variables['grid_corner_lat'][:]
-              lonT = m_fidT.variables['grid_corner_lon'][:]
-              latT = m_fidT.variables['grid_corner_lat'][:]
-              
-              # Convert to radians if necessary
-              if m_fidS.variables['grid_corner_lon'].units == 'degrees':
-                     lonS *= mt.pi / 180.0
-                     
-              if m_fidS.variables['grid_corner_lat'].units == 'degrees':
-                     latS *= mt.pi / 180.0
-                     
-              if m_fidT.variables['grid_corner_lon'].units == 'degrees':
-                     lonT *= mt.pi / 180.0
-                     
-              if m_fidT.variables['grid_corner_lat'].units == 'degrees':
-                     latT *= mt.pi / 180.0
                     
               start = time.time()
               try:
@@ -290,38 +264,11 @@ if __name__ == '__main__':
                      varConT = m_fidT.variables[connCell][:]
                      varCoordS = m_fidS.variables[coordCell][:]
                      varCoordT = m_fidT.variables[coordCell][:]
-              except KeyError:
-                     print('Computing coordinate and connectivity from raw SCRIP')
-                     # Make coordinate and connectivity from raw SCRIP data
-                     varCoordLLS, varConS = computeCoordConFastSCRIP(lonS, latS)
-                     varCoordLLT, varConT = computeCoordConFastSCRIP(lonT, latT)
-                     
-                     # Convert coordinates from lat/lon to Cartesian
-                     varCoordS = computeLL2Cart(varCoordLLS[:,1:4])
-                     varCoordS = varCoordS.T
-                     varCoordT = computeLL2Cart(varCoordLLT[:,1:4])
-                     varCoordT = varCoordT.T
-                     
-                     try:
-                            print('Storing coordinate and connectivity to augmented SCRIP file')
-                            meshFileOut = m_fidS.createDimension(numVerts, np.size(varCoordS, 1))
-                            meshFileOut = m_fidS.createDimension(numDims, 3)
-                            meshFileOut = m_fidS.createVariable(connCell, 'i4', (numCells, numEdges))
-                            meshFileOut[:] = varConS
-                            meshFileOut = m_fidS.createVariable(coordCell, 'f8', (numDims, numVerts))
-                            meshFileOut[:] = varCoordS
-                            
-                            meshFileOut = m_fidT.createDimension(numVerts, np.size(varCoordS, 1))
-                            meshFileOut = m_fidT.createDimension(numDims, 3)
-                            meshFileOut = m_fidT.createVariable(connCell, 'i4', (numCells, numEdges))
-                            meshFileOut[:] = varConT
-                            meshFileOut = m_fidT.createVariable(coordCell, 'f8', (numDims, numVerts))
-                            meshFileOut[:] = varCoordT
-                     except RuntimeError:
-                            print('Cell connectivity and grid vertices exist in mesh data file.')
+              except:
+                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
               
               endt = time.time()
-              print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to read SCRIP mesh info (sec): ', endt - start)
        elif SCRIPwithConn:
               numEdges = 'ncorners'
               numCells = 'ncells'
@@ -330,60 +277,25 @@ if __name__ == '__main__':
               coordCell = 'grid_corners_cart'
               
               # Open the .nc SCRIP files for reading
-              m_fidS = Dataset(mesh_fileS, 'r')
-              m_fidT = Dataset(mesh_fileT, 'r')
-              
-              # Get the list of available variables
-              varListS = m_fidS.variables.keys()
-              varListT = m_fidT.variables.keys()
+              m_fidS = Dataset(mesh_fileS, 'a')
+              m_fidT = Dataset(mesh_fileT, 'a')
               
               # Get connectivity and coordinate arrays
-              lonS = m_fidS.variables['lon'][:]
-              lstS = m_fidS.variables['lat'][:]
-              varConS = m_fidS.variables['element_corners'][:]
+              varConS = m_fidS.variables[connCell][:]
               varConS = varConS.T
-              lonT = m_fidT.variables['lon'][:]
-              lstT = m_fidT.variables['lat'][:]
-              varConT = m_fidT.variables['element_corners'][:]
+              varConT = m_fidT.variables[connCell][:]
               varConT = varConT.T
-              
-              # Convert to radians if necessary
-              if m_fidS.variables['lon'].units == 'degrees_east':
-                     lonS *= mt.pi / 180.0
                      
-              if m_fidS.variables['lat'].units == 'degrees_north':
-                     latS *= mt.pi / 180.0
-                     
-              if m_fidT.variables['lon'].units == 'degrees_east':
-                     lonT *= mt.pi / 180.0
-                     
-              if m_fidT.variables['lat'].units == 'degrees_north':
-                     latT *= mt.pi / 180.0
-                     
-              # Make coordinate from SCRIP data (source)
               start = time.time()
-              varCoordLL = np.zeros((len(lonS), 3))
-              varCoordLL[:,0] = lonS
-              varCoordLL[:,1] = latS
-              varCoordLL[:,2] = np.ones(len(lonS))
-              
-              # Convert coordinates from lat/lon to Cartesian
-              varCoordS = computeLL2Cart(varCoordLL)
-              varCoordS = varCoordS.T
-              
-              # Make coordinate from SCRIP data (target)
-              start = time.time()
-              varCoordLL = np.zeros((len(lonT), 3))
-              varCoordLL[:,0] = lonT
-              varCoordLL[:,1] = latT
-              varCoordLL[:,2] = np.ones(len(lonT))
-              
-              # Convert coordinates from lat/lon to Cartesian
-              varCoordT = computeLL2Cart(varCoordLL)
-              varCoordT = varCoordT.T
+              try:
+                     print('Reading coordinate and connectivity from augmented SCRIP')
+                     varCoordS = m_fidS.variables[coordCell][:]
+                     varCoordT = m_fidT.variables[coordCell][:]
+              except:
+                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
               
               endt = time.time()
-              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to read SCRIP mesh info (sec): ', endt - start)
               
        m_fidS.close()
        m_fidT.close()
@@ -391,7 +303,7 @@ if __name__ == '__main__':
        
        #%%
        start = time.time()
-       print('Computing/reading adjacency maps...')
+       print('Reading adjacency maps...')
        # Store the adjacency map in the original grid netcdf file (target mesh)
        m_fidT = Dataset(mesh_fileT, 'a')
        # Check for existing variable data
@@ -399,27 +311,15 @@ if __name__ == '__main__':
               if m_fidT.variables[varAdjaName].name == varAdjaName:
                      varConStenDexT = m_fidT.variables[varAdjaName][:]
                      
-       except KeyError:
-              print('Adjacency data computed/written to mesh file for the first time...')
-              
-              # Compute adjacency maps for both meshes (source stencil NOT needed)
-              edgeNodeMapT, edgeCellMapT, cleanEdgeCellMapT, varConStenDexT = computeFastAdjacencyStencil(varConT)
-              # Get the starting index for the adjecency information in varConStenDexT
-              adex = np.size(varConStenDexT,1) - np.size(varConT,1) 
-              
-              try:
-                     meshFileOut = m_fidT.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
-                     meshFileOut[:] = varConStenDexT[:,adex:]
-              except RuntimeError:
-                     print('Adjacency variable already exists in mesh data file')
-              
+       except:
+              print('PRE-PROCESSING FOR ADJACENCY NOT DONE ON THIS MESH FILE!')
        m_fidT.close()
               
        endt = time.time()
-       print('Time to precompute adjacency maps (sec): ', endt - start)
+       print('Time to read adjacency maps (sec): ', endt - start)
        #%%
        start = time.time()
-       print('Computing source and target mesh areas...')
+       print('Reading source and target mesh areas...')
        
        # Store the grid cell areas in the original netcdf file (source and target)
        m_fidS = Dataset(mesh_fileS, 'a')
@@ -428,23 +328,8 @@ if __name__ == '__main__':
               if m_fidS.variables[varAreaName].name == varAreaName:
                      areaS = m_fidS.variables[varAreaName][:]
        
-       except KeyError:
-              print('Source areas computed/written to mesh file for the first time...')
-              # Precompute the area weights and then look them up in the integral below
-              NEL = len(varConS)
-              areaS = np.zeros((NEL,1))
-              for ii in range(NEL):
-                     cdex = varConS[ii,:] - 1
-                     thisCell = varCoordS[:,cdex]
-                     areaS[ii] = computeAreaWeight(thisCell)
-                     
-              areaS = np.ravel(areaS)
-              
-              try:       
-                     meshFileOut = m_fidS.createVariable(varAreaName, 'f8', (numCells, ))
-                     meshFileOut[:] = areaS
-              except RuntimeError:
-                     print('Source areas already exist in mesh data file.')
+       except:
+              print('PRE-PROCESSING FOR AREAS NOT DONE ON SOURCE MESH FILE!')
               
        m_fidS.close()
               
@@ -454,23 +339,8 @@ if __name__ == '__main__':
               if m_fidT.variables[varAreaName].name == varAreaName:
                      areaT = m_fidT.variables[varAreaName][:]
        
-       except KeyError:
-              print('Source areas computed/written to mesh file for the first time...')
-              # Precompute the area weights and then look them up in the integral below
-              NEL = len(varConS)
-              areaT = np.zeros((NEL,1))
-              for ii in range(NEL):
-                     cdex = varConS[ii,:] - 1
-                     thisCell = varCoordS[:,cdex]
-                     areaT[ii] = computeAreaWeight(thisCell)
-                     
-              areaT = np.ravel(areaT)
-              
-              try:       
-                     meshFileOut = m_fidT.createVariable(varAreaName, 'f8', (numCells, ))
-                     meshFileOut[:] = areaT
-              except RuntimeError:
-                     print('Source areas already exist in mesh data file.')
+       except:
+              print('PRE-PROCESSING FOR AREAS NOT DONE ON TARGET MESH FILE!')
               
        m_fidT.close()
        
@@ -534,7 +404,7 @@ if __name__ == '__main__':
        except KeyError:
               # Precompute the gradients on target mesh ONLY once
               varsOnTM = [varST, varS2T]
-              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varCoordT, varConStenDexT, areaT)
+              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
               
               # Create new Cartesian Earth centered vector dimensions
               try:

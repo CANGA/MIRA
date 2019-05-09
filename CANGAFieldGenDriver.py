@@ -25,7 +25,6 @@ import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeAreaAverage import computeAreaAverage
 
 #%% Utility functions
@@ -351,84 +350,46 @@ if __name__ == '__main__':
               
               # Open the .nc SCRIP files for reading
               m_fid = Dataset(mesh_file, 'a')
-              
-              # Get the list of available variables
-              varList = m_fid.variables.keys()
-              
-              # Get RAW (no ID) connectivity and coordinate arrays
-              conLon = m_fid.variables['grid_corner_lon'][:]
-              conLat = m_fid.variables['grid_corner_lat'][:]
-              
-              # Convert to radians if necessary
-              if m_fid.variables['grid_corner_lon'].units == 'degrees':
-                     conLon *= mt.pi / 180.0
-                     
-              if m_fid.variables['grid_corner_lat'].units == 'degrees':
-                     conLat *= mt.pi / 180.0
                    
               start = time.time()
               try:
                      print('Reading connectivity and coordinate arrays from raw SCRIP')
                      varCon = m_fid.variables[connCell][:]
                      varCoord = m_fid.variables[coordCell][:]
-              except KeyError:
-                     print('Computing connectivity and coordinate arrays from raw SCRIP')
-                     # Make coordinate and connectivity from raw SCRIP data
-                     varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
-                     
-                     # Convert coordinates from lat/lon to Cartesian
-                     varCoord = computeLL2Cart(varCoordLL[:,1:4])
-                     varCoord = varCoord.T
-                     
-                     try:   
-                            print('Storing connectivity and coordinate arrays from raw SCRIP')
-                            meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
-                            meshFileOut = m_fid.createDimension(numDims, 3)
-                            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
-                            meshFileOut[:] = varCon
-                            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
-                            meshFileOut[:] = varCoord
-                            
-                     except RuntimeError:
-                            print('Cell connectivity and grid vertices exist in mesh data file.') 
+              except:
+                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
               
               endt = time.time()
-              print('Time to read/precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to read SCRIP mesh info (sec): ', endt - start)
               
        elif SCRIPwithConn:
+              numEdges = 'ncorners'
+              numCells = 'ncells'
+              numDims = 'cart_dims'
+              connCell = 'element_corners'
+              coordCell = 'grid_corners_cart' 
+              
               # Open the .nc SCRIP files for reading
-              m_fid = Dataset(mesh_file)
+              m_fid = Dataset(mesh_file, 'a')
               
               # Get the list of available variables
               varList = m_fid.variables.keys()
               
               # Get RAW (no ID) connectivity and coordinate arrays
-              conLon = m_fid.variables['lon'][:]
-              conLat = m_fid.variables['lat'][:]
-              varCon = m_fid.variables['element_corners'][:]
+              varCon = m_fid.variables[connCell][:]
               varCon = varCon.T
               
-              # Convert to radians if necessary
-              if m_fid.variables['lon'].units == 'degrees_east':
-                     conLon *= mt.pi / 180.0
-                     
-              if m_fid.variables['lat'].units == 'degrees_north':
-                     conLat *= mt.pi / 180.0
-                     
-              # Make coordinate and connectivity from raw SCRIP data
               start = time.time()
-              varCoordLL = np.zeros((len(conLon), 3))
-              varCoordLL[:,0] = conLon
-              varCoordLL[:,1] = conLat
-              varCoordLL[:,2] = np.ones(len(conLon))
-              
-              # Convert coordinates from lat/lon to Cartesian
-              varCoord = computeLL2Cart(varCoordLL)
-              varCoord = varCoord.T
+              try:
+                     print('Reading coordinate arrays from raw SCRIP')
+                     varCoord = m_fid.variables[coordCell][:]
+              except:
+                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
               
               endt = time.time()
-              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to read SCRIP mesh info (sec): ', endt - start)
                             
+       # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
        # Compute Centroids
        varCent = computeCentroids(varCon, varCoord)
        
@@ -471,6 +432,7 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
               
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
@@ -519,6 +481,7 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
               
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
@@ -570,6 +533,7 @@ if __name__ == '__main__':
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
               
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
