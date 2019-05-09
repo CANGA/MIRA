@@ -20,7 +20,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from computeEdgesArray import computeEdgesArray
 
-COINCIDENT_TOLERANCE = 1.0E-14
+COINCIDENT_TOLERANCE = 1.0E-13
 kdleafs = 100
 
 def computeFastAdjacencyStencil(varCon):
@@ -69,32 +69,39 @@ def computeFastAdjacencyStencil(varCon):
               
               # ndex will have 2 cellID's for non-degenerate edges
               ndex = edgeTree.query_ball_point(thisEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
-              if len(ndex) < 2:
-                     continue
               
               # coinDex stores indices of coincident edges (and degenerate points)
               # keepDex stores indices for unique edges
-              if ii == 0:
-                     coinDex = [ndex]
-                     keepDex = [int(min(ndex))]
-                     edgeCellMap = np.array([[edgeNodeMap[ndex[0],2], \
-                                              thisEdge[0], thisEdge[1], \
-                                              edgeNodeMap[ndex[1],2]]])
-              else:
-                     coinDex.append(ndex)
-                     keepDex.append(int(min(ndex)))
-                     thisCellMap = np.array([edgeNodeMap[ndex[0],2], \
+              if int(thisEdge[0]) != int(thisEdge[1]):
+                     if len(ndex) < 2:
+                            # This edge has an empty space adjacent
+                            adjCell1 = ndex[0]
+                            adjCell2 = -1
+                     elif len(ndex) == 2:
+                            # This edge has 2 cells adjacent
+                            adjCell1 = ndex[0]
+                            adjCell2 = ndex[1]
+                            keepDex.append(int(min(ndex)))
+                     else:
+                            adjCell1 = -1
+                            adjCell2 = -1
+                            print('Found an edge with more than 2 adjacent cells.', thisEdge)
+                     
+                     # Make the cell - edge - cell map for this cell
+                     thisCellMap = np.array([edgeNodeMap[adjCell1,2], \
                                              thisEdge[0], thisEdge[1], \
-                                             edgeNodeMap[ndex[1],2]])
-       
+                                             edgeNodeMap[adjCell2,2]])
+
                      if len(edgeCellMap) == 0:
                             edgeCellMap = [thisCellMap]
                      elif len(thisCellMap) > 0:
                             edgeCellMap = np.append(edgeCellMap, [thisCellMap], axis=0)
+              else:
+                     continue
                      
        # Trim coincidents from edgeCellMap with keepDex array
        #print(edgeCellMap.shape)
-       #print(keepDex)
+       print(keepDex)
        keepDex = np.unique(keepDex)
        cleanEdgeCellMap = edgeCellMap[keepDex,:]
                      
@@ -117,10 +124,16 @@ def computeFastAdjacencyStencil(varCon):
                      thisEdge2 = thisEdge1[::-1]
                      
                      # Find the matching edge (should only give one result)
-                     cdex1  = edgeTree.query_ball_point(thisEdge1, COINCIDENT_TOLERANCE, p=2, eps=0)
-                     cdex2  = edgeTree.query_ball_point(thisEdge2, COINCIDENT_TOLERANCE, p=2, eps=0)
+                     cdex1 = edgeTree.query_ball_point(thisEdge1, COINCIDENT_TOLERANCE, p=2, eps=0)
+                     cdex2 = edgeTree.query_ball_point(thisEdge2, COINCIDENT_TOLERANCE, p=2, eps=0)
+                     
+                     # Check for no edge found
+                     if ((not cdex1) and (not cdex2)):
+                            continue
                      
                      # Fetch the edge map
+                     thisEdgeMap = np.array([0, 0, 0, 0])
+                     print(cdex1, cdex2, cleanEdgeCellMap[cdex1,:], cleanEdgeCellMap[cdex2,:])
                      if not cdex1:
                             thisEdgeMap = cleanEdgeCellMap[cdex2,:]
                      elif not cdex2:
@@ -130,6 +143,7 @@ def computeFastAdjacencyStencil(varCon):
                             thisEdgeMap = np.array([0, 0, 0, 0])
                             continue
                      
+                     print(thisEdgeMap)
                      # Get the connected cell and set the stencil
                      if (thisEdgeMap[0,0] - 1) == ii:
                             varConStenDex[ii,NP+jj] = thisEdgeMap[0,3]

@@ -278,7 +278,7 @@ if __name__ == '__main__':
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
-       #%% Area and adjacency processing
+       #%% Adjacency processing
        
        start = time.time()
        print('Computing adjacency maps...')
@@ -303,6 +303,8 @@ if __name__ == '__main__':
        
        start = time.time()
        print('Computing source and target mesh areas...')
+       
+       #%% Area processing
        
        print('Source areas computed/written to mesh file for the first time...')
        # Precompute the area weights and then look them up in the integral below
