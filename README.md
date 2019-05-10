@@ -1,6 +1,7 @@
 # CANGA-Metrics-Driver
 Python driver for the CANGA-ROO project. Developed with Python 3.6 using Spyder IDE
 
+Main mesh preprocessing file: CNAGAMeshPreprocessDriver.py
 Main field generator file: CANGAFieldGenerator.py
 Main metrics file: CANGAMetricsDriver.py
 
@@ -8,9 +9,14 @@ TESTING SEQUENCE *EXAMPLE*:
 1) Mesh files:
    - Source mesh file eg. "outCSne30.g"
    - Target mesh file et. "outRLL1deg.g"
-   - BOTH MESH FILES MUST BE MATCHING FORMAT: EXODUS OR SCRIP
+   - THE TWO MESH FILES NEED NOT BE FORMAT CONSISTENT. THEY WILL BE PREPROCESSED INDEPENDENTLY.
+   
+2) Preprocess source and target meshes:
+   - python CANGAMeshPreprocessDriver.py --mesh outCSne30.g --ExodusSingleConn
+   - python CANGAMeshPreprocessDriver.py --mesh outRLL1deg.g --ExodusSingleConn
+   This will write the two variables varCoord (Cartesian coordinates of global nodes where the field is evaluated i.e. cell centers in the FV case or GLL nodes in the FE case) and varCon (Global connectivity list for cells/elements) to the respective mesh file.
 
-2) To generate sampled data on source and target:
+3) To generate sampled data on source and target:
    - python CANGAFieldGenDriver.py --pm outCSne30.g --so 6 --nm 768 --EvaluateAll --ExodusSingleConn
    - python CANGAFieldGenDriver.py --pm outRLL1deg.g --so 6 --nm 768 --EvaluateAll --ExodusSingleConn
    - In this example the sampling order is maximum 6th order and number of modes is maximum 768 which is roughly equivalent      to 0.25 degree resolution. This is the maximum supported based on expansions of satellite data that yield ~1000+ modes      for Total Precipitable Water, Cloud Fraction, and Topography.
@@ -18,13 +24,13 @@ TESTING SEQUENCE *EXAMPLE*:
    - The following NETCDF files are created: testdata_outCSne30_TPW_CFR_TPO.nc AND testdata_outRLL1deg_TPW_CFR_TPO.nc
    - The new data files are augmented copies of the original mesh data files keeping all metadata consistent.
    
-3) Remap testdata files generated in 2) using TempestRemap
+4) Remap testdata files generated in 2) using TempestRemap
    - Run the following shell scripts provided (modify as you see fit): CSne30_2_RLL1deg_Remap_TPW_CFR_TPO.sh
    - STOP: This step assumes that you have downloaded and compiled tempest remap from:                                            https://github.com/ClimateGlobalChange/tempestremap
    - YOUR FAVORITE REMAPPER WILL LIKELY DO SOMETHING DIFFERENT ENOUGH TO BREAK THINGS WITH REGARD TO NETCDF DETAILS SO            FURTHER TESTING/FIXING WILL BE REQUIRED TO ACCOUNT FOR MORE DIVERSE USER CASES.
    - "Anywho..." as Paul U. might say, the script above will generate the following: CSne30_2_RLL1deg_np4_TPW_CFR_TPO.nc
   
-4) To generate metrics on remapped data:
+5) To generate metrics on remapped data:
    - You now have the 3 essential files: 
    ** FIELD SAMPLED ON THE SOURCE MESH: testdata_outCSne30_TPW_CFR_TPO.nc
    ** FIELD SAMPLED ON THE TARGET MESH: testdata_outRLL1deg_TPW_CFR_TPO.nc
@@ -33,7 +39,7 @@ TESTING SEQUENCE *EXAMPLE*:
    - IF this is the first run, the code will go into a LONG precomputation of cell areas, adjacencies, and field gradients        to be stored in the mesh file (areas and adjacency) and data file (gradients).
    - IF the code finds precomputed data, execuation will be MUCH faster. 
 
-5) Output for TPW (AFTER precomputations) should look like this (on a 2015 MacBook Pro...):
+6) Output for TPW (AFTER precomputations) should look like this (on a 2015 MacBook Pro...):
 
 Welcome to CANGA remapping intercomparison metrics!
 
