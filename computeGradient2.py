@@ -15,7 +15,7 @@ Parameterized flux integral assumes constant radius and field value.
 
 import numpy as np
 import math as mt
-from computeAreaWeight import computeAreaWeight
+from computeAreaIntegral import computeAreaIntegral
 from computeCentroid import computeCentroid
 
 def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
@@ -105,7 +105,7 @@ def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
                                                boundaryNorm[:,pp])
                         
               # Compute the dual polygon area
-              areaD = computeAreaWeight(dualEdgeMap)
+              areaD = computeAreaIntegral(None, dualEdgeMap, 6, False, True)
               
               # Compute the local gradient at this cell
               for vv in range(NV):

@@ -25,7 +25,7 @@ import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
 import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-from computeAreaAverage import computeAreaAverage
+from computeAreaIntegral import computeAreaIntegral
 
 #%% Utility functions
 
@@ -116,7 +116,7 @@ def computeCentroidsLL(conLon, conLat):
        
        return cellCoord
 
-def computeCellAverage(clm, varCon, varCoord, order):
+def computeCellAverage(clm, varCon, varCoord, order, avg):
        # Compute the number of cells and initialize
        NEL = np.size(varCon, 0)
        varSample = np.zeros(NEL,)
@@ -127,7 +127,7 @@ def computeCellAverage(clm, varCon, varCoord, order):
               cdex = np.unique(varCon[ii,:]) - 1
               thisCell = varCoord[:,cdex]
                             
-              varSample[ii] = computeAreaAverage(clm, thisCell, order)
+              varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
        
        return varSample
 
@@ -290,6 +290,9 @@ if __name__ == '__main__':
        mesh_file, ND, sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
        EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
+       
+       # FV mode
+       avg = True
 
        """ SET INPUT HERE FOR DEVELOPMENT TESTING
        ND = 48
@@ -437,11 +440,11 @@ if __name__ == '__main__':
               if sampleCentroid:              
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               elif sampleOrder2:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 2)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 2, avg)
               elif sampleOrder4:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 4)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 4, avg)
               elif sampleOrder6:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 6)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 6, avg)
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
@@ -486,11 +489,11 @@ if __name__ == '__main__':
               if sampleCentroid:              
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               elif sampleOrder2:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 2)
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 2, avg)
               elif sampleOrder4:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 4)
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 4, avg)
               elif sampleOrder6:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 6)
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 6, avg)
                      
               # Compute rescaled data from 0.0 to max
               minCFR = np.amin(CFRvar)
@@ -538,11 +541,11 @@ if __name__ == '__main__':
               if sampleCentroid:              
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               elif sampleOrder2:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 2)
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 2, avg)
               elif sampleOrder4:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 4)
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 4, avg)
               elif sampleOrder6:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 6)
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 6, avg)
               
               # Rescale to -1.0 to 1.0
               minTPO = np.amin(TPOvar)

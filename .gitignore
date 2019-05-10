@@ -44,3 +44,5 @@ testdata_outCSne30_CFR\.nc
 testdata_outRLL1deg_CFR\.nc
 
 testdata_outRLL1deg_TPW\.nc
+
+\.runMetrics_CSne30_2_RLL1deg_TPW_CFR_TP\.sh\.swp

@@ -20,7 +20,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from computeEdgesArray import computeEdgesArray
 
-COINCIDENT_TOLERANCE = 1.0E-13
+COINCIDENT_TOLERANCE = 1.0E-14
 kdleafs = 100
 
 def computeFastAdjacencyStencil(varCon):
@@ -59,7 +59,6 @@ def computeFastAdjacencyStencil(varCon):
        
        # Compute the edges to cells map [c1 n1 n2 c2]
        NE = np.size(edgeNodeMap, axis=0)
-       coinDex = []
        keepDex = []
        edgeCellMap = []
        thisCellMap = []
@@ -100,8 +99,6 @@ def computeFastAdjacencyStencil(varCon):
                      continue
                      
        # Trim coincidents from edgeCellMap with keepDex array
-       #print(edgeCellMap.shape)
-       print(keepDex)
        keepDex = np.unique(keepDex)
        cleanEdgeCellMap = edgeCellMap[keepDex,:]
                      
@@ -133,7 +130,6 @@ def computeFastAdjacencyStencil(varCon):
                      
                      # Fetch the edge map
                      thisEdgeMap = np.array([0, 0, 0, 0])
-                     print(cdex1, cdex2, cleanEdgeCellMap[cdex1,:], cleanEdgeCellMap[cdex2,:])
                      if not cdex1:
                             thisEdgeMap = cleanEdgeCellMap[cdex2,:]
                      elif not cdex2:
@@ -143,7 +139,6 @@ def computeFastAdjacencyStencil(varCon):
                             thisEdgeMap = np.array([0, 0, 0, 0])
                             continue
                      
-                     print(thisEdgeMap)
                      # Get the connected cell and set the stencil
                      if (thisEdgeMap[0,0] - 1) == ii:
                             varConStenDex[ii,NP+jj] = thisEdgeMap[0,3]

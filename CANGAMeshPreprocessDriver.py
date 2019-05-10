@@ -24,8 +24,7 @@ import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
-from computeAreaAverage import computeAreaAverage
-from computeAreaWeight import computeAreaWeight
+from computeAreaIntegral import computeAreaIntegral
 
 def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
@@ -315,7 +314,7 @@ if __name__ == '__main__':
        for ii in range(NEL):
               cdex = varCon[ii,:] - 1
               thisCell = varCoord[:,cdex]
-              area[ii] = computeAreaWeight(thisCell)
+              area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
               
        area = np.ravel(area)
        

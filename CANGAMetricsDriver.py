@@ -21,10 +21,8 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
 from computeGradient2 import computeGradient2
-from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
-from computeAreaWeight import computeAreaWeight
 from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics

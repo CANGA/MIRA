@@ -68,7 +68,10 @@ def computeCart2LL(cellCoord):
               
        return pointLonLat
 
-def computeAreaAverage(clm, nodes, order):
+def computeAreaIntegral(clm, nodes, order, avg, farea):
+       # avg = Boolean flag to take average of the function
+       # farea = Boolean flag to compute only the area integral (ignore field)
+       
        # Initialize the area
        dFaceArea = 0.0
        
@@ -115,8 +118,11 @@ def computeAreaAverage(clm, nodes, order):
                             
                             # Sample SH field at this quadrature point
                             # Convert dF to Lon/Lat
-                            dFLonLat = computeCart2LL(dF)
-                            thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
+                            if farea == False:
+                                   dFLonLat = computeCart2LL(dF)
+                                   thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
+                            elif farea == True:
+                                   thisVar = 1.0
                             
                             dDaF = [dOmdB * (n2x - n1x), \
                                     dOmdB * (n2y - n1y), \
@@ -152,7 +158,12 @@ def computeAreaAverage(clm, nodes, order):
                             # Sum up the integral of the field
                             dFunIntegral += thisVar * GW[pp] * GW[qq] * dJacobian
        
-       # Compute and return the cell average                            
+       
+       # Compute the cell average                            
        dFunAverage = dFunIntegral / dFaceArea
+       
+       # When a cell average is required
+       if avg:
+              dFunIntegral = dFunAverage
                             
-       return dFunAverage
+       return dFunIntegral
