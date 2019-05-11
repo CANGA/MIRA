@@ -170,9 +170,7 @@ def parseCommandLine(argv):
        
        # Sampling order
        sampleCentroid = False
-       sampleOrder2 = False
-       sampleOrder4 = False
-       sampleOrder6 = False
+       sampleOrder = 4
        
        # SET WHICH FIELDS TO EVALUATE
        EvaluateAll = False
@@ -221,15 +219,11 @@ def parseCommandLine(argv):
               elif opt == '--so':
                      if int(arg) == 1:
                             sampleCentroid = True
-                     elif int(arg) == 2:
-                            sampleOrder2 = True
-                     elif int(arg) == 4:
-                            sampleOrder4 = True
-                     elif int(arg) == 6:
-                            sampleOrder6 = True
                      else:
-                            print('Invalid order... proceeding with order 4.')
-                            sampleOrder4 = True
+                            if int(arg)%2 == 0 and int(arg) < 7:
+                                sampleOrder = int(arg)
+                            else:
+                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be in [2, 4, 6]")
               elif opt == '--nm':
                      numModes = int(arg)
               elif opt == '--EvaluateAll':
@@ -278,7 +272,7 @@ def parseCommandLine(argv):
        print('Mesh and Variable data must be in NETCDF format.')
        
        return sampleMesh, numModes, \
-              sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
+              sampleCentroid, sampleOrder, \
               EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
               ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
 
@@ -287,7 +281,7 @@ if __name__ == '__main__':
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       mesh_file, ND, sampleCentroid, sampleOrder2, sampleOrder4, sampleOrder6, \
+       mesh_file, ND, sampleCentroid, sampleOrder, \
        EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
        
@@ -316,9 +310,7 @@ if __name__ == '__main__':
        #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
        
        sampleCentroid = False
-       sampleOrder2 = True
-       sampleOrder4 = False
-       sampleOrder6 = False
+       sampleOrder = 6
        
        # SET WHICH FIELDS TO EVALUATE
        EvaluateAll = False
@@ -439,12 +431,8 @@ if __name__ == '__main__':
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
-              elif sampleOrder2:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 2, avg)
-              elif sampleOrder4:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 4, avg)
-              elif sampleOrder6:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, 6, avg)
+              else:
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder)
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
@@ -488,13 +476,9 @@ if __name__ == '__main__':
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
-              elif sampleOrder2:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 2, avg)
-              elif sampleOrder4:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 4, avg)
-              elif sampleOrder6:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, 6, avg)
-                     
+              else:
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, avg)
+ 
               # Compute rescaled data from 0.0 to max
               minCFR = np.amin(CFRvar)
               maxCFR = np.amax(CFRvar)
@@ -540,12 +524,8 @@ if __name__ == '__main__':
               # Expand the coefficients and check the field
               if sampleCentroid:              
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
-              elif sampleOrder2:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 2, avg)
-              elif sampleOrder4:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 4, avg)
-              elif sampleOrder6:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, 6, avg)
+              else:
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, avg)
               
               # Rescale to -1.0 to 1.0
               minTPO = np.amin(TPOvar)
@@ -615,6 +595,8 @@ if __name__ == '__main__':
        # Close the files out.
        data_fid.close()
 
+       '''
+
        #%% Check the data with triangular surface plot
        points2D = varLonLat
        tri = Delaunay(points2D)
@@ -638,9 +620,9 @@ if __name__ == '__main__':
                                        simplices=simplices, colormap="Portland", plot_edges=False, \
                                        title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
               py.offline.plot(fig1, filename='TPO' + data_file + '.html')
-       
+       '''
        #%% Check the evaluated spectra
-       #'''
+       '''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
        # Plot the TPW spectrum
        newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
@@ -664,4 +646,4 @@ if __name__ == '__main__':
        ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
        ax2.grid(b=True, which='both', axis='both')
        plt.show()
-       #'''      
+       '''      
