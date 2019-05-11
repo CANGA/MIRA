@@ -92,18 +92,6 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
               node2 = nodes[:,ii+1]
               node3 = nodes[:,ii+2]
 
-              '''
-              n1x = node1[0]
-              n1y = node1[1]
-              n1z = node1[2]
-              n2x = node2[0]
-              n2y = node2[1]
-              n2z = node2[2]
-              n3x = node3[0]
-              n3y = node3[1]
-              n3z = node3[2]
-              '''
-
               nDMatrix = np.array([ [node1[0], node1[1], node1[2]],
                                      [node2[0], node2[1], node2[2]],
                                      [node3[0], node3[1], node3[2]] ])
@@ -124,19 +112,8 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
                             dOmdBOmdA = np.array([ dOmdB * dOmdA, dOmdB * dA, dB ])
 
                             # Compute global coords of this quadrature point
-                            #dF = np.array( (np.array([ dOmdB * dOmdA, dOmdB * dA, dB ]) * nDMatrix) )[0]
                             dF = np.dot(nDMatrix.T, dOmdBOmdA)
                             dF2 = dF**2
-
-                            '''
-                            dFp = [dOmdB * (dOmdA * n1x + dA * n2x) + dB * n3x, \
-                                  dOmdB * (dOmdA * n1y + dA * n2y) + dB * n3y, \
-                                  dOmdB * (dOmdA * n1z + dA * n2z) + dB * n3z]
-                            if norm(dF-np.array(dFp)) > 1e-10:
-                                print('dF = ', dF)
-                                print('dFp = ', dFp)
-                                sys.exit("dF calculations are incorrect")
-                            '''
 
                             # Sample SH field at this quadrature point
                             # Convert dF to Lon/Lat
@@ -148,7 +125,6 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
 
                             dDaF = (dOmdB * nD21)
 
-                            #dDbF = np.array( np.array([ -dOmdA, -dA, 1.0 ]) * nDMatrix )[0]
                             dDbF = (np.dot(nDMatrix.T, dAOmdA).T)[0]
 
                             dR = norm(dF, 2)
@@ -157,49 +133,8 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
                                                [- dF[1] * dF[0], (dF2[0] + dF2[2]), - dF[1] * dF[2]], \
                                                [- dF[2] * dF[0], - dF[2] * dF[1], (dF2[0] + dF2[1])]]) 
                             
-                            #dDaG = np.array([dDaF[0] * (dF2[1] + dF2[2]) - dF[0] * (dDaF[1] * dF[1] + dDaF[2] * dF[2]), \
-                            #        dDaF[1] * (dF2[0] + dF2[2]) - dF[1] * (dDaF[0] * dF[0] + dDaF[2] * dF[2]), \
-                            #        dDaF[2] * (dF2[0] + dF2[1]) - dF[2] * (dDaF[0] * dF[0] + dDaF[1] * dF[1])])
                             dDaG = np.dot(dDGMat, dDaF)
                             dDbG = np.dot(dDGMat, dDbF)
-
-                            '''
-                            ## Old code
-                            dDaFp = [dOmdB * (n2x - n1x), \
-                                    dOmdB * (n2y - n1y), \
-                                    dOmdB * (n2z - n1z)]
-                            if norm(dDaF-np.array(dDaFp)) > 1e-10:
-                                sys.exit("dDaF calculations are incorrect")
-
-                            dDbFp = [-dOmdA * n1x - dA * n2x + n3x, \
-                                    -dOmdA * n1y - dA * n2y + n3y, \
-                                    -dOmdA * n1z - dA * n2z + n3z]
-                            if norm(dDbF-np.array(dDbFp)) > 1e-10:
-                                print('dDbF = ', dDbF)
-                                print('dDbFp = ', dDbFp)
-                                sys.exit("dDbF calculations are incorrect")
-
-                            dRp = mt.sqrt(dF[0]**2 + dF[1]**2 + dF[2]**2)
-                            if abs(dR-np.array(dRp)) > 1e-10:
-                                sys.exit("dR calculations are incorrect")
-
-                            dDaGp = [dDaF[0] * (dF[1]**2 + dF[2]**2) - dF[0] * (dDaF[1] * dF[1] + dDaF[2] * dF[2]), \
-                                    dDaF[1] * (dF[0]**2 + dF[2]**2) - dF[1] * (dDaF[0] * dF[0] + dDaF[2] * dF[2]), \
-                                    dDaF[2] * (dF[0]**2 + dF[1]**2) - dF[2] * (dDaF[0] * dF[0] + dDaF[1] * dF[1])]
-                            if norm(dDaG-np.array(dDaGp)) > 1e-10:
-                                print('dDaG = ', dDaG)
-                                print('dDaGp = ', dDaGp)
-                                sys.exit("dDaG calculations are incorrect")
-
-                            dDbGp = np.array([dDbF[0] * (dF2[1] + dF2[2]) - dF[0] * (dDbF[1] * dF[1] + dDbF[2] * dF[2]), \
-                                    dDbF[1] * (dF2[0] + dF2[2]) - dF[1] * (dDbF[0] * dF[0] + dDbF[2] * dF[2]), \
-                                    dDbF[2] * (dF2[0] + dF2[1]) - dF[2] * (dDbF[0] * dF[0] + dDbF[1] * dF[1])])
-                            if norm(dDbG-np.array(dDbGp)) > 1e-10:
-                                print('dDbG = ', dDbG)
-                                print('dDbGp = ', dDbGp)
-                                sys.exit("dDaG calculations are incorrect")
-                            # Old code ends
-                            '''
 
                             dDenomTerm = 1.0 / (dR**3)
                             
