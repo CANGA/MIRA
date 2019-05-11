@@ -432,7 +432,7 @@ if __name__ == '__main__':
               if sampleCentroid:              
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, avg)
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
