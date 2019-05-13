@@ -326,5 +326,6 @@ if __name__ == '__main__':
               
        endt = time.time()
        print('Time to precompute cell areas (sec): ', endt - start)
-              
+       
+       #%% Close out the file       
        m_fid.close()

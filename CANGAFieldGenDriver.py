@@ -337,7 +337,7 @@ if __name__ == '__main__':
        
        if ExodusSingleConn:
               # Open the .g mesh files for reading
-              m_fid = Dataset(mesh_file)
+0              m_fid = Dataset(mesh_file)
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
               varCon = m_fid.variables['connect1'][:]
