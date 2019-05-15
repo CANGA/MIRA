@@ -66,17 +66,22 @@ def parseCommandLine(argv):
        ExodusSingleConn = False
        SCRIPwithoutConn = False
        SCRIPwithConn = False
+       SpectralElement = False
+       # Polynomial order for spectral elements
+       seOrder = 0
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['mesh=',
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn'])
+                                         'SCRIPwithConn', 'SpectralElement', 'seorder='])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAMeshPreprocessDriver.py', \
                     '--mesh <meshFile>', \
-                    '--<meshConfiguration>')
+                    '--<meshConfiguration>', \
+                    '--<makeSEGrid>', \
+                    '--seorder <polyOrder>')
               sys.exit(2)
               
        for opt, arg in opts:
@@ -85,7 +90,9 @@ def parseCommandLine(argv):
                      print('Command line not properly set:', \
                            'CANGAMeshPreprocessDriver.py', \
                            '--mesh <meshFile>', \
-                           '--<meshConfiguration>')
+                           '--<meshConfiguration>', \
+                           '--<makeSEGrid>', \
+                           '--seorder <polyOrder>')
                      sys.exit()
               elif opt == '--mesh':
                      sampleMesh = arg
@@ -95,6 +102,13 @@ def parseCommandLine(argv):
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
                      SCRIPwithConn = True
+              elif opt == '--SpectralElement':
+                     SpectralElement = True
+              elif opt == '--seorder':
+                     if int(arg)%2 == 0 and int(arg) < 5:
+                         seOrder = int(arg)
+                     else:
+                         sys.exit("[FATAL] Error in option passed for --seorder. SE order must be in [2, 4]")
                      
        # Check that only one configuration is chosen
        if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
@@ -118,14 +132,16 @@ def parseCommandLine(argv):
               print('None of the options are set.')
               sys.exit(2)
        
-       return sampleMesh, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
+       return sampleMesh, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
+              SpectralElement, seOrder
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison mesh pre-processor!')
-       print('Authors: Jorge Guerra, Paul Ullrich, 2019')
+       print('Authors: Jorge Guerra, Vijay Mahadevan, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
+       mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
+       SpectralElement, seOrder = parseCommandLine(sys.argv[1:])
        
        """ SET INPUT HERE FOR DEVELOPMENT TESTING
        # Sampling Exodus .g file
@@ -289,7 +305,7 @@ if __name__ == '__main__':
        print('Adjacency data computed/written to mesh file for the first time...')
        
        # Compute adjacency maps for both meshes (source stencil NOT needed)
-       edgeNodeMap, edgeCellMap, cleanEdgeCellMap, varConStenDex = computeFastAdjacencyStencil(varCon)
+       edgeNodeMap, varConStenDex = computeFastAdjacencyStencil(varCon)
        # Get the starting index for the adjecency information in varConStenDexT
        adex = np.size(varConStenDex,1) - np.size(varCon,1) 
        
@@ -326,6 +342,9 @@ if __name__ == '__main__':
               
        endt = time.time()
        print('Time to precompute cell areas (sec): ', endt - start)
+       
+       #%% Make global GLL connectivity and coordinate arrays from varCon and varCoord
+       
        
        #%% Close out the file       
        m_fid.close()
