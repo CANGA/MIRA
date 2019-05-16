@@ -183,9 +183,9 @@ if __name__ == '__main__':
                      print('Storing connectivity and coordinate arrays from Exodus mesh files.')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
                      meshFileOut[:] = varCon
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -233,9 +233,9 @@ if __name__ == '__main__':
                      print('Storing connectivity and coordinate arrays from raw SCRIP')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
                      meshFileOut[:] = varCon
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVert))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -287,7 +287,7 @@ if __name__ == '__main__':
                      print('Storing connectivity and coordinate arrays from raw SCRIP')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -311,7 +311,7 @@ if __name__ == '__main__':
        adex = np.size(varConStenDex,1) - np.size(varCon,1) 
        
        try:
-              meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
+              meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
               meshFileOut[:] = varConStenDex[:,adex:]
        except RuntimeError:
               print('Adjacency variable already exists in mesh data file')
@@ -370,8 +370,25 @@ if __name__ == '__main__':
               # Compute the new GLL global coordinates and connectivity (by edges)
               edgeNodeMapGLL, varCoordGLL, varConGLL = \
                      computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
+                     
+              try:   
+                     print('Storing GLL connectivity and coordinate arrays.')
+                     numVertsGLL = 'grid_gll_size'
+                     numEdgesGLL = 'num_gll_per_el1'
+                     connCellGLL = 'element_gll_conn'
+                     coordCellGLL = 'grid_gll_cart'
+                     
+                     meshFileOut = m_fid.createDimension(numVertsGLL, np.size(varCoordGLL, 1))
+                     meshFileOut = m_fid.createDimension(numEdgesGLL, NGEL+1)
+                     meshFileOut = m_fid.createVariable(connCellGLL, 'i4', (numCells, numEdgesGLL))
+                     meshFileOut[:] = varConGLL
+                     meshFileOut = m_fid.createVariable(coordCellGLL, 'f8', (numDims, numVertsGLL))
+                     meshFileOut[:] = varCoordGLL
+                     
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.')
        else:
-              print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals.')
+              print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --SpectralElement option not set.')
        
        endt = time.time()
        print('Time to precompute GLL grid/connectivity (sec): ', endt - start)
