@@ -319,10 +319,9 @@ if __name__ == '__main__':
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
        
-       start = time.time()
-       print('Computing source and target mesh areas...')
-       
        #%% Area processing
+       start = time.time()
+       print('Computing mesh areas...')
        
        print('Source areas computed/written to mesh file for the first time...')
        # Precompute the area weights and then look them up in the integral below
@@ -345,6 +344,8 @@ if __name__ == '__main__':
        print('Time to precompute cell areas (sec): ', endt - start)
        
        #%% Make global GLL connectivity and coordinate arrays from varCon and varCoord
+       start = time.time()
+       print('Computing new GLL mesh grids and connectivity...')
        
        print('GLL global coordinates and connectivity computed/written to mesh file for the first time...')
        NEL = len(varCon)
@@ -368,9 +369,12 @@ if __name__ == '__main__':
               
               # Compute the new GLL global coordinates and connectivity (by edges)
               edgeNodeMapGLL, varCoordGLL, varConGLL = \
-                     computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, edgeNodeMap, edgeNodeKDTree, seOrder)
+                     computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
        else:
               print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals.')
+       
+       endt = time.time()
+       print('Time to precompute GLL grid/connectivity (sec): ', endt - start)
        
        #%% Close out the file       
        m_fid.close()

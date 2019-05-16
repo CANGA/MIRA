@@ -69,7 +69,7 @@ def computeFastAdjacencyStencil(varCon):
                      # Find the matching edge (should only give one result)
                      cdex = edgeTree.query_ball_point(thisEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
                      
-                     # Check for no edge found
+                     # Check for no edge found (indicates a hole)
                      if not cdex:
                             continue
                      
