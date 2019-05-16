@@ -399,6 +399,7 @@ if __name__ == '__main__':
                      
               varsOnTM = [varST, varS2T]
               gradientsOnTM = [gradST, gradS2T]
+              #gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
        except KeyError:
               # Precompute the gradients on target mesh ONLY once
               varsOnTM = [varST, varS2T]

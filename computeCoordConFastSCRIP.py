@@ -16,7 +16,7 @@ from scipy.spatial import cKDTree
 def computeCoordConFastSCRIP(lon, lat):
        
        # Initialize and set tolerance for coincident grids
-       kdleafs = 100
+       kdleafs = 64
        COINCIDENT_TOLERANCE = 1.0E-14
        NC = np.size(lon, axis=0)
        NG = np.size(lon, axis=1)

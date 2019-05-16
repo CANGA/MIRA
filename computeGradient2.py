@@ -87,8 +87,6 @@ def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
                      boundaryAngles[pp] = abs(boundaryAngles[pp])
                      
                      # Compute the stencil boundary normals
-                     #print(pp, sid1, sid2)
-                     #print(cellCoords[:,sid1], cellCoords[:,sid2])
                      boundaryNorm[:,pp] = np.cross(cellCoords[:,sid2], \
                                                    cellCoords[:,sid1])
                      bnMag = np.linalg.norm(boundaryNorm[:,pp])

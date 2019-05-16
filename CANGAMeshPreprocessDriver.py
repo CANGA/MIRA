@@ -24,6 +24,7 @@ import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
+from computeCoordConnGLL import computeCoordConnGLL
 from computeAreaIntegral import computeAreaIntegral
 
 def computeCart2LL(cellCoord):
@@ -305,7 +306,7 @@ if __name__ == '__main__':
        print('Adjacency data computed/written to mesh file for the first time...')
        
        # Compute adjacency maps for both meshes (source stencil NOT needed)
-       edgeNodeMap, varConStenDex = computeFastAdjacencyStencil(varCon)
+       edgeNodeMap, edgeNodeKDTree, varConStenDex = computeFastAdjacencyStencil(varCon)
        # Get the starting index for the adjecency information in varConStenDexT
        adex = np.size(varConStenDex,1) - np.size(varCon,1) 
        
@@ -345,6 +346,31 @@ if __name__ == '__main__':
        
        #%% Make global GLL connectivity and coordinate arrays from varCon and varCoord
        
+       print('GLL global coordinates and connectivity computed/written to mesh file for the first time...')
+       NEL = len(varCon)
+       # Check element topology (must be quads)
+       NGC = varCon.shape[1]
+       if ((NGC == 4) and (SpectralElement)):
+              # Compute number of grids per element
+              if seOrder == 2:
+                     NGED = 2
+                     NGEL = 4
+              elif seOrder == 4:
+                     NGED = 4
+                     NGEL = 12
+              else:
+                     NGED = 4
+                     NGEL = 12
+                     print('Assuming 4th order Spectral Elements')
+                     
+              # Compute the total number of new grids (corners already there)
+              NNG = NEL * (NGEL - NGC)
+              
+              # Compute the new GLL global coordinates and connectivity (by edges)
+              edgeNodeMapGLL, varCoordGLL, varConGLL = \
+                     computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, edgeNodeMap, edgeNodeKDTree, seOrder)
+       else:
+              print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals.')
        
        #%% Close out the file       
        m_fid.close()
