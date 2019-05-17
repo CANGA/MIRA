@@ -121,7 +121,10 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
               edex = edgeNodeKDTree.query_ball_point(thatEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
               edgeNodeMapGLL[edex,1:NGED-1] = edgeNodeMapGLL[ii,NGED-2:0:-1]
               
-       # Loop over the elements and reconstruct new connectivity
+       # Append the new grids onto varCoord
+       varCoordGLL = np.append(varCoord, varCoordGLL, axis=1)
+              
+       # Loop over the elements and reconstruct new connectivity for edges only
        edex = range(NEEL)
        for ii in range(NEL):
               # Fectch every NEEL edges per element
@@ -129,7 +132,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
                      edex = np.add(edex, NEEL)
               thisElement = edgeNodeMapGLL[edex,:]
               
-              # Loop over the edges
+              # Loop over the perimeter edges
               cdex =range(1,NEEL)
               for jj in range(NEEL):
                      if jj == 0:
@@ -138,7 +141,12 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
                             cdex = np.add(cdex, (NEEL - 1))
                             varConGLL[ii,cdex] = thisElement[jj,1:NEEL]
                             
-       # Append the new grids onto varCoord
-       varCoordGLL = np.append(varCoord, varCoordGLL, axis=1)
+              # Now set the interior GLL nodes using edges 2 and 4
+              edge24 = np.array([[thisElement[1,1], thisElement[3,1]], \
+                        [thisElement[1,2], thisElement[3,2]]])
+              
+              # Fetch the end point coordinates
+              coord1 = varCoordGLL[:,int(thisEdge[0])-1]
+              coord2 = varCoordGLL[:,int(thisEdge[1])-1]
                             
        return edgeNodeMapGLL, varCoordGLL, varConGLL
