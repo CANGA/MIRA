@@ -14,6 +14,25 @@ from scipy import optimize
 
 COINCIDENT_TOLERANCE = 1.0E-14
 
+def computeEdgeParametersGLL(coord1, coord2):
+       # Define arc segment from thisEdge[jj,0] to thisEdge[jj,1]
+       RE1 = np.linalg.norm(coord1)
+       RE2 = np.linalg.norm(coord2)
+       RE = 0.5 * (RE1 + RE2)
+       # Compute unit position vectors for the edge end points
+       unCoord1 = 1.0 / RE1 * coord1
+       unCoord2 = 1.0 / RE2 * coord2
+       edgeAngle = mt.acos(np.dot(unCoord1, unCoord2))
+       
+       # Compute the plane where the edge lies
+       edgePlane = np.cross(unCoord1, unCoord2)
+       
+       # Compute the half way coordinate (for initial guess)
+       halfCoord = 0.5 * (coord1 + coord2)
+       halfCoord *= RE / np.linalg.norm(halfCoord);
+       
+       return halfCoord, edgePlane, edgeAngle, RE
+
 def findCoordAlongEdge(x, edgePlane, x1Coord, locAngle, RE):
        
        # Equation 1 = the angle between x and x1Coord is locAngle
@@ -37,6 +56,8 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
        NG = varCoord.shape[1]
        # Get the number of grids/edges per element in original mesh
        NEEL = varCon.shape[1]
+       # Get the new number of nodes per element on edges only
+       NGEO = NEEL * (NGED - 1)
        
        #""" 2nd order method
        if seOrder == 2:
@@ -55,7 +76,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
        GN = 0.5 * np.add(GN, 1.0)
        
        # Initialize new global GLL connectivity
-       varConGLL = np.zeros((NEL,NGEL+1))
+       varConGLL = np.zeros((NEL,NGEL))
        # Initialize new global GLL complement of grids
        varCoordGLL = np.zeros((3,NNG))
        # Initialize new global GLL edge-node map (last column is the cell id)
@@ -87,21 +108,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
               coord1 = varCoord[:,int(thisEdge[0])-1]
               coord2 = varCoord[:,int(thisEdge[1])-1]
               
-              # Define arc segment from thisEdge[jj,0] to thisEdge[jj,1]
-              RE1 = np.linalg.norm(coord1)
-              RE2 = np.linalg.norm(coord2)
-              RE = 0.5 * (RE1 + RE2)
-              # Compute unit position vectors for the edge end points
-              unCoord1 = 1.0 / RE1 * coord1
-              unCoord2 = 1.0 / RE2 * coord2
-              edgeAngle = mt.acos(np.dot(unCoord1, unCoord2))
-              
-              # Compute the plane where the edge lies
-              edgePlane = np.cross(unCoord1, unCoord2)
-              
-              # Compute the half way coordinate (for initial guess)
-              halfCoord = 0.5 * (coord1 + coord2)
-              halfCoord *= RE / np.linalg.norm(halfCoord);
+              halfCoord, edgePlane, edgeAngle, RE = computeEdgeParametersGLL(coord1, coord2)
               
               # Loop over the new grids on the edge
               for jj in range(1,NGED-1):
@@ -125,6 +132,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
        varCoordGLL = np.append(varCoord, varCoordGLL, axis=1)
               
        # Loop over the elements and reconstruct new connectivity for edges only
+       gg = 0
        edex = range(NEEL)
        for ii in range(NEL):
               # Fectch every NEEL edges per element
@@ -132,21 +140,51 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
                      edex = np.add(edex, NEEL)
               thisElement = edgeNodeMapGLL[edex,:]
               
-              # Loop over the perimeter edges
+              # Loop over the perimeter edges setting new interior nodes to the connectivity
               cdex =range(1,NEEL)
               for jj in range(NEEL):
                      if jj == 0:
                             varConGLL[ii,0:NEEL] = thisElement[0,:]
+                     elif jj == NEEL - 1:
+                            varConGLL[ii,(NGEO-2):NGEO] = thisElement[jj,1:NEEL-1]
                      else:
                             cdex = np.add(cdex, (NEEL - 1))
                             varConGLL[ii,cdex] = thisElement[jj,1:NEEL]
                             
-              # Now set the interior GLL nodes using edges 2 and 4
-              edge24 = np.array([[thisElement[1,1], thisElement[3,1]], \
-                        [thisElement[1,2], thisElement[3,2]]])
+              # Now set the element interior GLL nodes using edges 2 and 4
+              # Order follows connectivity of the parent element
+              edge24 = np.array([[thisElement[3,2], thisElement[1,1]], \
+                        [thisElement[1,2], thisElement[3,1]]])
               
-              # Fetch the end point coordinates
-              coord1 = varCoordGLL[:,int(thisEdge[0])-1]
-              coord2 = varCoordGLL[:,int(thisEdge[1])-1]
+              # Fetch the end point coordinates (3, 2, 2) array
+              coords = np.array([[varCoordGLL[:,int(edge24[0,0])-1], 
+                                  varCoordGLL[:,int(edge24[0,1])-1]], \
+                                 [varCoordGLL[:,int(edge24[1,0])-1], 
+                                  varCoordGLL[:,int(edge24[1,1])-1]]])
+                     
+              # Loop over the rows (2nd dim) of coords and make new global nodes
+              hh = 0
+              for jj in range(coords.shape[1]):
+                     coord1 = coords[jj,0,:]
+                     coord2 = coords[jj,1,:]
+                     halfCoord, edgePlane, edgeAngle, RE = computeEdgeParametersGLL(coord1, coord2)
+                                          
+                     # Loop over the new grids on the edge
+                     for kk in range(1,NGED-1):
+                            # Compute angular location of new grid on the edge
+                            newGridAngle = GN[jj] * edgeAngle
+                            # Solve for the new coordinate
+                            sol = optimize.root(findCoordAlongEdge, halfCoord, (edgePlane, coord1, newGridAngle, RE))
+                            # Store the new grid
+                            newGrid = np.zeros((3,1))
+                            newGrid[:,0] = sol.x
+                            np.append(varCoordGLL, newGrid, axis=1)
+                            # Make a new grid ID
+                            newGridID = NNG + gg + 1
+                            # Put the new grid ID at the end of the connectivity row
+                            varConGLL[ii,NGEO+hh] = newGridID
+                            hh += 1
+                            gg += 1
+                            
                             
        return edgeNodeMapGLL, varCoordGLL, varConGLL

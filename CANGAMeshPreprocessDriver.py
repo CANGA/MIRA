@@ -358,10 +358,10 @@ if __name__ == '__main__':
                      NGEL = 4
               elif seOrder == 4:
                      NGED = 4
-                     NGEL = 12
+                     NGEL = 16
               else:
                      NGED = 4
-                     NGEL = 12
+                     NGEL = 16
                      print('Assuming 4th order Spectral Elements')
                      
               # Compute the total number of new grids (corners already there)
