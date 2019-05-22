@@ -45,7 +45,7 @@ def findCoordAlongEdge(x, edgePlane, x1Coord, locAngle, RE):
                (edgePlane[0] * x1Coord[1] - edgePlane[1] * x1Coord[0]) * x[2], \
                x[0]**2 + x[1]**2 + x[2]**2 - RE]
 
-def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder):
+def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder):
        
        #NEL = total number of elements
        #NGED = number of grids per edge (new mesh)
@@ -78,7 +78,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
        # Initialize new global GLL connectivity
        varConGLL = np.zeros((NEL,NGEL))
        # Initialize new global GLL complement of grids
-       varCoordGLL = np.zeros((3,NNG))
+       varCoordGLL = varCoord
        # Initialize new global GLL edge-node map (last column is the cell id)
        NED = edgeNodeMap.shape[0]
        edgeNodeMapGLL = np.zeros((NED,NGED))
@@ -117,7 +117,9 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
                      # Solve for the new coordinate
                      sol = optimize.root(findCoordAlongEdge, halfCoord, (edgePlane, coord1, newGridAngle, RE))
                      # Store the new grid
-                     varCoordGLL[:,gg] = sol.x
+                     newGrid = np.zeros((3,1))
+                     newGrid[:,0] = sol.x
+                     varCoordGLL = np.append(varCoordGLL, newGrid, axis=1)
                      # Make a new grid ID
                      newGridID = NG + gg + 1
                      # Update the new connectivity
@@ -128,9 +130,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
               edex = edgeNodeKDTree.query_ball_point(thatEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
               edgeNodeMapGLL[edex,1:NGED-1] = edgeNodeMapGLL[ii,NGED-2:0:-1]
               
-       # Append the new grids onto varCoord
-       varCoordGLL = np.append(varCoord, varCoordGLL, axis=1)
-              
+       print(varCoord.shape, varCoordGLL.shape)       
        # Loop over the elements and reconstruct new connectivity for edges only
        gg = 0
        edex = range(NEEL)
@@ -178,9 +178,11 @@ def computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edg
                             # Store the new grid
                             newGrid = np.zeros((3,1))
                             newGrid[:,0] = sol.x
-                            np.append(varCoordGLL, newGrid, axis=1)
-                            # Make a new grid ID
-                            newGridID = NNG + gg + 1
+                            varCoordGLL = np.append(varCoordGLL, newGrid, axis=1)
+                            # Make a new grid ID (continuing from above)
+                            newGridID += 1
+                            #print(newGridID)
+                            #print(newGrid)
                             # Put the new grid ID at the end of the connectivity row
                             varConGLL[ii,NGEO+hh] = newGridID
                             hh += 1

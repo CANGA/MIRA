@@ -364,12 +364,10 @@ if __name__ == '__main__':
                      NGEL = 16
                      print('Assuming 4th order Spectral Elements')
                      
-              # Compute the total number of new grids (corners already there)
-              NNG = NEL * (NGEL - NGC)
               
               # Compute the new GLL global coordinates and connectivity (by edges)
               edgeNodeMapGLL, varCoordGLL, varConGLL = \
-                     computeCoordConnGLL(NEL, NGED, NGEL, NNG, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
+                     computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
                      
               try:   
                      print('Storing GLL connectivity and coordinate arrays.')
