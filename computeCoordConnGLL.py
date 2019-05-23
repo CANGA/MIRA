@@ -130,7 +130,6 @@ def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNode
               edex = edgeNodeKDTree.query_ball_point(thatEdge, COINCIDENT_TOLERANCE, p=2, eps=0)
               edgeNodeMapGLL[edex,1:NGED-1] = edgeNodeMapGLL[ii,NGED-2:0:-1]
               
-       print(varCoord.shape, varCoordGLL.shape)       
        # Loop over the elements and reconstruct new connectivity for edges only
        gg = 0
        edex = range(NEEL)

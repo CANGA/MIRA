@@ -56,28 +56,19 @@ def computeCart2LL(cellCoord):
               
        return pointLonLat
 
-def computeSEIntegral(varGLL, varCoords, order, avg, farea):
+def computeSEIntegral(varCoords, order):
        # avg = Boolean flag to take average of the function
        # farea = Boolean flag to compute only the area integral (ignore field)
        
        # Initialize the area
        dFaceArea = 0.0
        
-       # Initialize the integral
-       dFunIntegral = 0.0
-       
        # Loop over the subtriangles and add up the areas
        GN, GW = getGaussNodesWeights(order)
        NP = len(GW)
        
-       # nodes is a 3D array [3, NP, NP] of the element's GLL grid (in global coords)
-       nodes = np.zeros((3,NP,NP))
+       # Set the connectivity index vector corresponding to varCoords
        cdex = [0, 1, 2, 3, 11, 12, 13, 4, 10, 15, 14, 5, 9, 8, 7, 6]
-       rr = 0
-       for pp in range(NP):
-              for qq in range(NP):
-                     nodes[:,pp,qq] = varCoords[:,cdex[rr]]
-                     rr += 1
        
        # Compute the plane edge directions for this quadrilateral
        nD30 = np.subtract(varCoords[:,3], varCoords[:,0])
@@ -89,6 +80,8 @@ def computeSEIntegral(varGLL, varCoords, order, avg, farea):
        dF = np.zeros((3,))
        dDaF = np.zeros((3,1))
        dDbF = np.zeros((3,1))
+       dJacobianGWppqq = np.zeros((len(cdex)))
+       rr = 0
        for pp in range(NP):
               for qq in range(NP):
                      # Enhance...
@@ -114,13 +107,6 @@ def computeSEIntegral(varGLL, varCoords, order, avg, farea):
                             
                      dF2 = dF**2
                      dR = norm(dF, 2)
-
-                     # Sample SH field at this quadrature point
-                     # Convert dF to Lon/Lat
-                     if farea == False:
-                            thisVar = varGLL[pp,qq]
-                     elif farea == True:
-                            thisVar = 1.0
                      
                      # Local secant vector between this node and the next in a direction
                      dDaF[:,0] = [dOmdB * nD30[0] + dB * nD69[0], \
@@ -147,21 +133,14 @@ def computeSEIntegral(varGLL, varCoords, order, avg, farea):
                      dDaG *= dDenomTerm
                      dDbG *= dDenomTerm
                      
+                     # Compute the pointwise Jacobian weight
                      dJV = np.cross(np.ravel(dDaG), np.ravel(dDbG))
-                     dJacobianGWppqq = norm(dJV, 2) * GW[pp] * GW[qq]
+                     dJacobianGWppqq[cdex[rr]] = norm(dJV, 2) * GW[pp] * GW[qq]
                      
                      # Sum up the cell area
-                     dFaceArea += dJacobianGWppqq
-                     # Sum up the integral of the field
-                     dFunIntegral += thisVar * dJacobianGWppqq
-       
-       
-       # Compute the cell average                            
-       dFunAverage = dFunIntegral / dFaceArea
-       
-       # When a cell average is required
-       if avg:
-              dFunIntegral = dFunAverage
-                            
-       return dFunIntegral
+                     dFaceArea += dJacobianGWppqq[cdex[rr]]
+                     rr += 1
+                     
+       # Return the area of this element and a set of Jacobian weights
+       return dFaceArea, dJacobianGWppqq
 

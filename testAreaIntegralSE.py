@@ -20,7 +20,7 @@ for ii in range(NEL):
        # Compute areas by using the SE method
        cdex = varConGLL[ii,:] - 1
        thisCell = varCoordGLL[:,cdex.astype(int)]
-       areaSE[ii] = computeSEIntegral(None, thisCell, 4, False, True)
+       areaSE[ii], Jacs = computeSEIntegral(thisCell, 4)
        AREASE += areaSE[ii]
        
        # Compute areas by triangular quadrature on FV mesh

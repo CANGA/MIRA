@@ -64,6 +64,7 @@ def parseCommandLine(argv):
        ExodusSingleConn = False
        SCRIPwithoutConn = False
        SCRIPwithConn = False
+       SpectralElement = False
        
        # Mesh data configuration
        meshConfig = ''
@@ -72,7 +73,7 @@ def parseCommandLine(argv):
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['ss=','s2t=','st=','sm=','tm=', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn'])
+                                         'SCRIPwithConn', 'SpectralElement'])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAMEtricsDriver.py', \
@@ -81,7 +82,8 @@ def parseCommandLine(argv):
                     '-st <targetSampledFile>', \
                     '-sm <sourceMesh>', \
                     '-tm <targetMesh>', \
-                    '--<meshConfiguration>')
+                    '--<meshConfiguration>', \
+                    '--<isSpectralElementMesh>')
               sys.exit(2)
               
        for opt, arg in opts:
@@ -94,7 +96,8 @@ def parseCommandLine(argv):
                            '-st <targetSampledFile>', \
                            '-sm <sourceMesh>', \
                            '-tm <targetMesh>', \
-                           '--<meshConfiguration>')
+                           '--<meshConfiguration>', \
+                           '--<isSpectralElementMesh>')
                      sys.exit()
               elif opt == '-v':
                      varName = arg
@@ -117,6 +120,8 @@ def parseCommandLine(argv):
               elif opt == '--SCRIPwithConn':
                      meshConfig = 'SCRIPwithConn'
                      SCRIPwithConn = True
+              elif opt == '--SpectralElement':
+                     SpectralElement = True
                      
        # Check that mesh files are consistent
        if sourceMesh[len(sourceMesh) - 1] != targetMesh[len(targetMesh) - 1]:
@@ -161,7 +166,7 @@ def parseCommandLine(argv):
        return varName, \
               sourceSampledFile, remappedFile, targetSampledFile, \
               sourceMesh, targetMesh, \
-              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
+              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
@@ -172,7 +177,7 @@ if __name__ == '__main__':
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = \
+       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement = \
        parseCommandLine(sys.argv[1:])
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
@@ -233,23 +238,35 @@ if __name__ == '__main__':
               numCells = 'num_el_in_blk1'
               numDims = 'cart_dims'
               
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'connect1'
+                     coordCell = 'coord'
+              
               # Open the .g mesh files for reading
               m_fidS = Dataset(mesh_fileS, 'r')
               m_fidT = Dataset(mesh_fileT, 'r')
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varConS = m_fidS.variables['connect1'][:]
-              varCoordS = m_fidS.variables['coord'][:]
-              varConT = m_fidT.variables['connect1'][:]
-              varCoordT = m_fidT.variables['coord'][:]
+              varConS = m_fidS.variables[connCell][:]
+              varCoordS = m_fidS.variables[coordCell][:]
+              varConT = m_fidT.variables[connCell][:]
+              varCoordT = m_fidT.variables[coordCell][:]
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
               numCells = 'grid_size'
               numDims = 'cart_dims'
-              connCell = 'element_corners_id'
-              coordCell = 'grid_corners_cart'
               numVerts = 'grid_corners_size'
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'element_corners_id'
+                     coordCell = 'grid_corners_cart'
               
               # Open the .nc SCRIP files for reading
               m_fidS = Dataset(mesh_fileS, 'a')
@@ -271,8 +288,13 @@ if __name__ == '__main__':
               numEdges = 'ncorners'
               numCells = 'ncells'
               numDims = 'cart_dims'
-              connCell = 'element_corners'
-              coordCell = 'grid_corners_cart'
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'element_corners'
+                     coordCell = 'grid_corners_cart' 
               
               # Open the .nc SCRIP files for reading
               m_fidS = Dataset(mesh_fileS, 'a')
@@ -302,7 +324,7 @@ if __name__ == '__main__':
        #%%
        start = time.time()
        print('Reading adjacency maps...')
-       # Store the adjacency map in the original grid netcdf file (target mesh)
+       # Fetch the adjacency map in the original grid netcdf file (target mesh)
        m_fidT = Dataset(mesh_fileT, 'a')
        # Check for existing variable data
        try:
@@ -319,7 +341,7 @@ if __name__ == '__main__':
        start = time.time()
        print('Reading source and target mesh areas...')
        
-       # Store the grid cell areas in the original netcdf file (source and target)
+       # Fetch the grid cell areas in the original netcdf file (source and target)
        m_fidS = Dataset(mesh_fileS, 'a')
        # Check for existing variable data
        try:

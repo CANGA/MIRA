@@ -26,6 +26,7 @@ from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
 from computeAreaIntegral import computeAreaIntegral
+from computeSEIntegral import computeSEIntegral
 
 def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
@@ -319,11 +320,11 @@ if __name__ == '__main__':
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
        
-       #%% Area processing
+       #%% Area processing for FV models
        start = time.time()
        print('Computing mesh areas...')
        
-       print('Source areas computed/written to mesh file for the first time...')
+       print('Cell areas computed/written to mesh file for the first time...')
        # Precompute the area weights and then look them up in the integral below
        NEL = len(varCon)
        area = np.zeros((NEL,1))
@@ -372,13 +373,13 @@ if __name__ == '__main__':
               try:   
                      print('Storing GLL connectivity and coordinate arrays.')
                      numVertsGLL = 'grid_gll_size'
-                     numEdgesGLL = 'num_gll_per_el1'
+                     numNodesGLL = 'num_gll_per_el1'
                      connCellGLL = 'element_gll_conn'
                      coordCellGLL = 'grid_gll_cart'
                      
                      meshFileOut = m_fid.createDimension(numVertsGLL, np.size(varCoordGLL, 1))
-                     meshFileOut = m_fid.createDimension(numEdgesGLL, NGEL)
-                     meshFileOut = m_fid.createVariable(connCellGLL, 'i4', (numCells, numEdgesGLL))
+                     meshFileOut = m_fid.createDimension(numNodesGLL, NGEL)
+                     meshFileOut = m_fid.createVariable(connCellGLL, 'i4', (numCells, numNodesGLL))
                      meshFileOut[:] = varConGLL
                      meshFileOut = m_fid.createVariable(coordCellGLL, 'f8', (numDims, numVertsGLL))
                      meshFileOut[:] = varCoordGLL
@@ -390,6 +391,34 @@ if __name__ == '__main__':
        
        endt = time.time()
        print('Time to precompute GLL grid/connectivity (sec): ', endt - start)
+       
+       #%% Jacobian/area processing for SE models
+       start = time.time()
+       print('Computing mesh element Jacobian weights...')
+       
+       print('Element Jacobians computed/written to mesh file for the first time...')
+       # Precompute the area weights and then look them up in the integral below
+       NEL = len(varConGLL)
+       jacobians = np.zeros(varConGLL.shape)
+       for ii in range(NEL):
+              cdex = varConGLL[ii,:] - 1
+              thisCell = varCoordGLL[:,cdex.astype(int)]
+              elArea, jacobians[ii,:] = computeSEIntegral(thisCell, 4)
+              
+       jacobians = np.ravel(jacobians)
+       
+       try:   
+                     print('Storing GLL connectivity and coordinate arrays.')
+                     numNodesGLL = 'num_gll_per_el1'
+                     
+                     meshFileOut = m_fid.createVariable(connCellGLL, 'f8', (numCells, numNodesGLL))
+                     meshFileOut[:] = jacobians
+                     
+       except RuntimeError:
+              print('Cell connectivity and grid vertices exist in mesh data file.')
+              
+       endt = time.time()
+       print('Time to precompute GLL element Jacobian weights (sec): ', endt - start)
        
        #%% Close out the file       
        m_fid.close()
