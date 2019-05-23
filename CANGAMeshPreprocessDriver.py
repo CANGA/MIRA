@@ -377,7 +377,7 @@ if __name__ == '__main__':
                      coordCellGLL = 'grid_gll_cart'
                      
                      meshFileOut = m_fid.createDimension(numVertsGLL, np.size(varCoordGLL, 1))
-                     meshFileOut = m_fid.createDimension(numEdgesGLL, NGEL+1)
+                     meshFileOut = m_fid.createDimension(numEdgesGLL, NGEL)
                      meshFileOut = m_fid.createVariable(connCellGLL, 'i4', (numCells, numEdgesGLL))
                      meshFileOut[:] = varConGLL
                      meshFileOut = m_fid.createVariable(coordCellGLL, 'f8', (numDims, numVertsGLL))
