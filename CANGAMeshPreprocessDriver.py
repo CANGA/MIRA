@@ -408,7 +408,7 @@ if __name__ == '__main__':
        jacobians = np.ravel(jacobians)
        
        try:   
-                     print('Storing GLL connectivity and coordinate arrays.')
+                     print('Storing GLL Jacobian arrays.')
                      numNodesGLL = 'num_gll_per_el1'
                      
                      meshFileOut = m_fid.createVariable(connCellGLL, 'f8', (numCells, numNodesGLL))

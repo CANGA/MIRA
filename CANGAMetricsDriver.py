@@ -171,9 +171,6 @@ def parseCommandLine(argv):
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
-       # Global parameters
-       #kdleafs = 100
-       #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \

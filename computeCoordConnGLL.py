@@ -68,8 +68,8 @@ def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNode
        #""" 4th order method
        if seOrder == 4:
               GN = [-1.0, \
-                    -mt.sqrt(1.0 / 5.0), \
-                    +mt.sqrt(1.0 / 5.0), \
+                    -mt.sqrt(0.2), \
+                    +mt.sqrt(0.2), \
                     +1.0]
               
        # Change GN to [0.0 1.0]

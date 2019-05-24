@@ -3,8 +3,7 @@
 """
 Created on Mon Dec 17 11:29:22 2018
 
-Computes the area of a given finite volume element of type SHELL4. Uses
-connectivity array to index 4 coordinates and reconstruct the area patch
+Computes array of Jacobian weights for a given SE element of order 4
 
 coords: double node data from .g file
 connect: int connectivity data
