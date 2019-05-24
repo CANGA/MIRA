@@ -409,9 +409,10 @@ if __name__ == '__main__':
        
        try:   
                      print('Storing GLL Jacobian arrays.')
+                     jacobiansGLL = 'element_jacobians'
                      numNodesGLL = 'num_gll_per_el1'
                      
-                     meshFileOut = m_fid.createVariable(connCellGLL, 'f8', (numCells, numNodesGLL))
+                     meshFileOut = m_fid.createVariable(jacobiansGLL, 'f8', (numCells, numNodesGLL))
                      meshFileOut[:] = jacobians
                      
        except RuntimeError:

@@ -8,24 +8,22 @@ Returns a single scalar
 
 @author: jeguerra
 """
-
+import numpy as np
 from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
-def computeGlobalConservation(varSS, varS2T, varST, areaS, areaT):
+def computeGlobalConservation(varConT, varS2T, varST, areaT, jacobiansT, SpectralElement):
        
-       NS = len(varSS)
        NT = len(varST)
        
-       # Compute integral of the source sampled SS data
-       L_SS = computeGlobalWeightedIntegral(NS, varSS, areaS)
+       diffVarT = np.subtract(varS2T, varST)
        
-       # Compute integral of the source to target remapped S2T data
-       L_S2T = computeGlobalWeightedIntegral(NT, varS2T, areaT)
+       # Compute integral of the absolute value of the difference
+       L_S2T = computeGlobalWeightedIntegral(NT, varConT, np.abs(diffVarT), areaT, jacobiansT, SpectralElement)
        
-       # Compute integral of the target sampled ST data
-       L_ST = computeGlobalWeightedIntegral(NT, varST, areaT)
+       # Compute integral of the (absolute value) target sampled ST data
+       L_ST = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST), areaT, jacobiansT, SpectralElement)
        
        # Compute the global conservation metric
-       L_g = (L_S2T - L_SS) / L_ST
+       L_g = L_S2T / L_ST
        
-       return L_SS, L_S2T, L_ST, L_g
+       return L_S2T, L_ST, L_g

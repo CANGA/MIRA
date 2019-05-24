@@ -14,7 +14,7 @@ import numpy as np
 import math as mt
 from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
-def computeGradientPreserveMetrics(gradsOnTM, varsOnTM, areaT):
+def computeGradientPreserveMetrics(varConT, gradsOnTM, varsOnTM, areaT, jacobiansT, SpectralElement):
 
     # Initialize
     H1 = 0.0
@@ -30,10 +30,10 @@ def computeGradientPreserveMetrics(gradsOnTM, varsOnTM, areaT):
     
     # Compute some integrals
     varST2 = np.multiply(varsOnTM[0], varsOnTM[0])
-    denom = computeGlobalWeightedIntegral(NT, varST2, areaT)
+    denom = computeGlobalWeightedIntegral(NT, varConT, varST2, areaT, jacobiansT, SpectralElement)
     
-    H1num = computeGlobalWeightedIntegral(NT, H1num, areaT)
-    H1_2num = computeGlobalWeightedIntegral(NT, eGradK2, areaT)
+    H1num = computeGlobalWeightedIntegral(NT, varConT, H1num, areaT, jacobiansT, SpectralElement)
+    H1_2num = computeGlobalWeightedIntegral(NT, varConT, eGradK2, areaT, jacobiansT, SpectralElement)
     
     H1 = mt.sqrt(H1num / denom)
     H1_2 = mt.sqrt(H1_2num / denom)
