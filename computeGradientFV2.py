@@ -3,9 +3,8 @@
 """
 Created on Mon Dec 24 08:26:47 2018
 
-Compute a low order FV gradient on the manifold based on the local intersection
-of the planes defined by two connected cells sharing an edge. plane1: defined
-by the centroids of the cells and plane2: defined by the nodes on the shared edge
+Compute a low order FV gradient on the manifold based on the adjacency stencil 
+around a cell. Corresponds to "strategy 2" in Barth & Jespersen, 1989 page 6.
 
 By construction, all the vectors involved start at the origin... convenient.
 Parameterized flux integral assumes constant radius and field value.
@@ -18,7 +17,7 @@ import math as mt
 from computeAreaIntegral import computeAreaIntegral
 from computeCentroid import computeCentroid
 
-def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
+def computeGradientFV2(varList, varCon, varCoords, varStenDex, areas):
        SF = np.float64
        
        # Gradients are 3 component vectors
@@ -54,8 +53,8 @@ def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
               
               # Check for local degeneracy in stencil and fix connectivity
               for pp in range(NP):
-                     # Look for 0 in the adjacency stencil
-                     if varStenDex[jj,pp] == 0:
+                     # Look for -1 in the adjacency stencil
+                     if varStenDex[jj,pp] == -1:
                             pdex = np.delete(pdex, pp)
                      else:
                             continue
@@ -109,4 +108,4 @@ def computeGradient2(varList, varCon, varCoords, varStenDex, areas):
               for vv in range(NV):
                      varGradient[vv][:,jj] = 1.0 / areaD * fluxIntegral[:,vv]
               
-       return varGradient, cellCoords
+       return varGradient

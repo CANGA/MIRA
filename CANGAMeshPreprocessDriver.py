@@ -26,7 +26,7 @@ from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
 from computeAreaIntegral import computeAreaIntegral
-from computeSEIntegral import computeSEIntegral
+from computeAreaIntegralSE import computeAreaIntegralSE
 
 def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
@@ -236,7 +236,7 @@ if __name__ == '__main__':
                      meshFileOut = m_fid.createDimension(numDims, 3)
                      meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
                      meshFileOut[:] = varCon
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVert))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -403,7 +403,7 @@ if __name__ == '__main__':
        for ii in range(NEL):
               cdex = varConGLL[ii,:] - 1
               thisCell = varCoordGLL[:,cdex.astype(int)]
-              elArea, jacobians[ii,:] = computeSEIntegral(thisCell, 4)
+              elArea, jacobians[ii,:] = computeAreaIntegralSE(thisCell, 4)
               
        jacobians = np.ravel(jacobians)
        

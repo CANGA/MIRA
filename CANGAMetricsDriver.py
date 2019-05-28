@@ -20,7 +20,8 @@ import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
-from computeGradient2 import computeGradient2
+from computeGradientSE import computeGradientSE
+from computeGradientFV2 import computeGradientFV2
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
 from computeStandardNorms import computeStandardNorms
@@ -64,9 +65,6 @@ def parseCommandLine(argv):
        SCRIPwithConn = False
        SpectralElement = False
        
-       # Mesh data configuration
-       meshConfig = ''
-       
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['s2t=', 'st=', 'tm=', \
@@ -102,13 +100,10 @@ def parseCommandLine(argv):
               elif opt == '--tm':
                      targetMesh = arg
               elif opt == '--ExodusSingleConn':
-                     meshConfig = 'ExodusSingleConn'
                      ExodusSingleConn = True
               elif opt == '--SCRIPwithoutConn':
-                     meshConfig = 'SCRIPwithoutConn'
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
-                     meshConfig = 'SCRIPwithConn'
                      SCRIPwithConn = True
               elif opt == '--SpectralElement':
                      SpectralElement = True
@@ -383,7 +378,13 @@ if __name__ == '__main__':
        except KeyError:
               # Precompute the gradients on target mesh ONLY once
               varsOnTM = [varST, varS2T]
-              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
+              
+              if SpectralElement:
+                     numDOFS = coordCell
+                     gradientsOnTM = computeGradientSE(varsOnTM, varConT, varCoordT, jacobiansT)
+              else: 
+                     numDOFS = numCells
+                     gradientsOnTM = computeGradientFV2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
               
               # Create new Cartesian Earth centered vector dimensions
               try:
@@ -397,23 +398,23 @@ if __name__ == '__main__':
               
               # Create new dimension for the number of cells
               try:
-                     nc_fidST.createDimension(numCells, np.size(varST, axis=0))
+                     nc_fidST.createDimension(numDOFS, np.size(varST, axis=0))
               except RuntimeError:
                      print('Dimensions for gradient variable already exist in field data file.')
               try:
-                     nc_fidS2T.createDimension(numCells, np.size(varS2T, axis=0))
+                     nc_fidS2T.createDimension(numDOFS, np.size(varS2T, axis=0))
               except RuntimeError:
                      print('Dimensions for gradient variable already exist in field data file.')
               
               # Store the gradients on target mesh
               try:
-                     gradFileOut = nc_fidST.createVariable(varGradientName, 'f8', (numDims, numCells))
+                     gradFileOut = nc_fidST.createVariable(varGradientName, 'f8', (numDims, numDOFS))
                      gradFileOut[:] = gradientsOnTM[0]
               except RuntimeError:
                      print('Gradient variable already exists in ST field data file.')
               
               try:
-                     gradFileOut = nc_fidS2T.createVariable(varGradientName, 'f8', (numDims, numCells))
+                     gradFileOut = nc_fidS2T.createVariable(varGradientName, 'f8', (numDims, numDOFS))
                      gradFileOut[:] = gradientsOnTM[1]
               except RuntimeError:
                      print('Gradient variable already exists in S2T field data file.')

@@ -48,6 +48,7 @@ def computeCoordPatchIndexArray(NC, pcloud, centroid, radius):
                      pdex.append(ii)
        
        return pdex
+
 ''' OLD METHOD INVOLVING A PATCH SEARCH OF THE SOURCE MESH
 def computeLocalPatchExtrema(jj, varConS, coordTree, varS, varConT, varCoordT):
        

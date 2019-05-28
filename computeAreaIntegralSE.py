@@ -15,7 +15,7 @@ import numpy as np
 from scipy.linalg import norm
 
 # Order 4 Gauss quadrature nodes and weights
-def getGaussNodesWeights(order):
+def getGLLNodesWeights(order):
        #""" 2nd order method
        if order == 2:
               GN = [-1.0, \
@@ -63,7 +63,7 @@ def computeAreaIntegralSE(varCoords, order):
        dFaceArea = 0.0
        
        # Loop over the subtriangles and add up the areas
-       GN, GW = getGaussNodesWeights(order)
+       GN, GW = getGLLNodesWeights(order)
        NP = len(GW)
        
        # Set the connectivity index vector corresponding to varCoords
@@ -141,5 +141,5 @@ def computeAreaIntegralSE(varCoords, order):
                      rr += 1
                      
        # Return the area of this element and a set of Jacobian weights
-       return dFaceArea, dDaG, dDbG, dJacobianGWppqq
+       return dFaceArea, dJacobianGWppqq
 
