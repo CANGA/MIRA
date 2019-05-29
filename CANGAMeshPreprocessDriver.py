@@ -363,8 +363,7 @@ if __name__ == '__main__':
               else:
                      NGED = 4
                      NGEL = 16
-                     print('Assuming 4th order Spectral Elements')
-                     
+                     print('Assuming 4th order Spectral Elements') 
               
               # Compute the new GLL global coordinates and connectivity (by edges)
               edgeNodeMapGLL, varCoordGLL, varConGLL = \
@@ -403,10 +402,7 @@ if __name__ == '__main__':
        for ii in range(NEL):
               cdex = varConGLL[ii,:] - 1
               thisCell = varCoordGLL[:,cdex.astype(int)]
-              elArea, jacobians[ii,:] = computeAreaIntegralSE(thisCell, 4)
-              
-       jacobians = np.ravel(jacobians)
-       
+              elArea, jacobians[ii,:] = computeAreaIntegralSE(thisCell, 4)       
        try:   
                      print('Storing GLL Jacobian arrays.')
                      jacobiansGLL = 'element_jacobians'

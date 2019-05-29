@@ -138,7 +138,7 @@ if __name__ == '__main__':
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileS2T, nc_fileST, mesh_fileT, \
+       varName, nc_fileS2T, nc_fileST, mesh_file, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement = \
        parseCommandLine(sys.argv[1:])
        
@@ -162,14 +162,14 @@ if __name__ == '__main__':
               # Source Exodus .g file
               mesh_fileS = 'outCSne30.g'
               # Target Exodus .g file
-              mesh_fileT = 'outRLL1deg.g'
-              #mesh_fileT = 'outICO64.g'
+              mesh_file = 'outRLL1deg.g'
+              #mesh_file = 'outICO64.g'
               
        if SCRIPwithoutConn:
               # Source SCRIP file
               mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
               # Target SCRIP file
-              mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
+              mesh_file = 'Grids/ne30np4_latlon.091226.nc'
        
        # Set the name of the field variable in question (scalar)
        #varName = 'Psi'
@@ -209,11 +209,11 @@ if __name__ == '__main__':
                      coordCell = 'coord'
               
               # Open the .g mesh files for reading
-              m_fidT = Dataset(mesh_fileT, 'r')
+              m_fid = Dataset(mesh_file, 'a')
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varConT = m_fidT.variables[connCell][:]
-              varCoordT = m_fidT.variables[coordCell][:]
+              varConT = m_fid.variables[connCell][:]
+              varCoordT = m_fid.variables[coordCell][:]
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
@@ -229,15 +229,16 @@ if __name__ == '__main__':
                      coordCell = 'grid_corners_cart'
               
               # Open the .nc SCRIP files for reading
-              m_fidT = Dataset(mesh_fileT, 'a')
+              m_fid = Dataset(mesh_file, 'a')
                     
               start = time.time()
               try:
                      print('Reading coordinate and connectivity from augmented SCRIP')
-                     varConT = m_fidT.variables[connCell][:]
-                     varCoordT = m_fidT.variables[coordCell][:]
+                     varConT = m_fid.variables[connCell][:]
+                     varCoordT = m_fid.variables[coordCell][:]
               except:
-                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
+                     print('PRE-PROCESSING NOT DONE ON THIS SCRIP MESH FILE!')
+                     sys.exit()
               
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
@@ -254,38 +255,41 @@ if __name__ == '__main__':
                      coordCell = 'grid_corners_cart' 
               
               # Open the .nc SCRIP files for reading
-              m_fidT = Dataset(mesh_fileT, 'a')
+              m_fid = Dataset(mesh_file, 'a')
               
               # Get connectivity and coordinate arrays
-              varConT = m_fidT.variables[connCell][:]
+              varConT = m_fid.variables[connCell][:]
               varConT = varConT.T
                      
               start = time.time()
               try:
                      print('Reading coordinate and connectivity from augmented SCRIP')
-                     varCoordT = m_fidT.variables[coordCell][:]
+                     varCoordT = m_fid.variables[coordCell][:]
               except:
-                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
+                     print('PRE-PROCESSING NOT DONE ON THIS SCRIP MESH FILE!')
+                     sys.exit()
               
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
               
-       m_fidT.close()
+       m_fid.close()
        
        
        #%%
        start = time.time()
        print('Reading adjacency maps...')
        # Fetch the adjacency map in the original grid netcdf file (target mesh)
-       m_fidT = Dataset(mesh_fileT, 'a')
+       m_fid = Dataset(mesh_file, 'a')
        # Check for existing variable data
        try:
-              if m_fidT.variables[varAdjaName].name == varAdjaName:
-                     varConStenDexT = m_fidT.variables[varAdjaName][:]
+              if m_fid.variables[varAdjaName].name == varAdjaName:
+                     varConStenDexT = m_fid.variables[varAdjaName][:]
                      
        except:
               print('PRE-PROCESSING FOR ADJACENCY NOT DONE ON THIS MESH FILE!')
-       m_fidT.close()
+              sys.exit()
+              
+       m_fid.close()
               
        endt = time.time()
        print('Time to read adjacency maps (sec): ', endt - start)
@@ -293,16 +297,17 @@ if __name__ == '__main__':
        start = time.time()
        print('Reading mesh areas...')
               
-       m_fidT = Dataset(mesh_fileT, 'a')
+       m_fid = Dataset(mesh_file, 'a')
        # Check for existing variable data
        try:
-              if m_fidT.variables[varAreaName].name == varAreaName:
-                     areaT = m_fidT.variables[varAreaName][:]
+              if m_fid.variables[varAreaName].name == varAreaName:
+                     areaT = m_fid.variables[varAreaName][:]
        
        except:
               print('PRE-PROCESSING FOR AREAS NOT DONE ON TARGET MESH FILE!')
+              sys.exit()
               
-       m_fidT.close()
+       m_fid.close()
        
        endt = time.time()
        print('Time to read mesh areas (sec): ', endt - start)
@@ -312,16 +317,17 @@ if __name__ == '__main__':
               start = time.time()
               print('Reading SE mesh jacobians...')
                      
-              m_fidT = Dataset(mesh_fileT, 'a')
+              m_fid = Dataset(mesh_file, 'a')
               # Check for existing variable data
               try:
-                     if m_fidT.variables[varJacoName].name == varJacoName:
-                            jacobiansT = m_fidT.variables[varJacoName][:]
+                     if m_fid.variables[varJacoName].name == varJacoName:
+                            jacobiansT = m_fid.variables[varJacoName][:]
               
               except:
-                     print('PRE-PROCESSING FOR JACOBIANS NOT AVAILABLE ON TARGET MESH FILE!')
+                     print('ERROR: PRE-PROCESSING FOR JACOBIANS NOT AVAILABLE ON TARGET MESH FILE!')
+                     sys.exit()
                      
-              m_fidT.close()
+              m_fid.close()
               
               endt = time.time()
               print('Time to read SE mesh jacobians (sec): ', endt - start)
@@ -374,14 +380,13 @@ if __name__ == '__main__':
                      
               varsOnTM = [varST, varS2T]
               gradientsOnTM = [gradST, gradS2T]
-              #gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
        except KeyError:
               # Precompute the gradients on target mesh ONLY once
               varsOnTM = [varST, varS2T]
               
               if SpectralElement:
                      numDOFS = coordCell
-                     gradientsOnTM = computeGradientSE(varsOnTM, varConT, varCoordT, jacobiansT)
+                     gradientsOnTM = computeGradientSE(varsOnTM, varConT, varCoordT, 4, jacobiansT)
               else: 
                      numDOFS = numCells
                      gradientsOnTM = computeGradientFV2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)

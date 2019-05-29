@@ -13,7 +13,8 @@ from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
 def computeGlobalConservation(varConT, varS2T, varST, areaT, jacobiansT, SpectralElement):
        
-       NT = len(varST)
+       # Get the total number of cells/elements
+       NT = varConT.shape[0]
        
        diffVarT = np.subtract(varS2T, varST)
        

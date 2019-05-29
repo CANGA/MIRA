@@ -19,7 +19,7 @@ def computeGradientPreserveMetrics(varConT, gradsOnTM, varsOnTM, areaT, jacobian
     # Initialize
     H1 = 0.0
     H1_2 = 0.0
-    NT = len(varsOnTM[0])
+    NT = varConT.shape[0]
          
     # Compute the local errors in the field and gradient
     eK = np.absolute(np.subtract(varsOnTM[1], varsOnTM[0]))

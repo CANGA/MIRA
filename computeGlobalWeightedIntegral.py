@@ -11,17 +11,15 @@ various data arrays MUST have matching sizes. This is checked here.
 import numpy as np
 
 def computeGlobalWeightedIntegral(NEL, varCon, varF, areas, jacobians, SpectralElement):
-       # NEL = total number of elements/cells       
+       # NEL = total number of elements/cells
        
        # Loop over each element and compute the sum
        INT = 0.0
        for ii in range(NEL):
               
               if SpectralElement:
-                     if jacobians == None:
-                            print('GLL grid Jacobians NOT passed to global integral!')
-                            
-                     INT += np.dot(jacobians[ii,:], varF[varCon[ii,:].astype(int)])
+                     gdex = varCon[ii,:] - 1
+                     INT += np.dot(jacobians[ii,:], varF[gdex.astype(int)])
               else:
                      INT += areas[ii] * varF[ii]
               

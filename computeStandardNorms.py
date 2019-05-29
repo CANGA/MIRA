@@ -13,13 +13,15 @@ from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
 def computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, SpectralElement):
        
+       # Get the total number of cells/elements
+       NT = varConT.shape[0]
+       
        # Compute the difference
        varDiff = np.subtract(varS2T, varST)
        varDiff2 = np.power(varDiff, 2)
        varST2 = np.power(varST, 2)
        
        # Compute the necessary integrals
-       NT = len(varST)
        L1Den = computeGlobalWeightedIntegral(NT, varConT, varST, areaT, jacobiansT, SpectralElement)
        L2Den = computeGlobalWeightedIntegral(NT, varConT, varST2, areaT, jacobiansT, SpectralElement)
        LinfDen = np.amax(varST)

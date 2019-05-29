@@ -10,8 +10,8 @@ Computes the local extrema metrics for regridded and reference target data
 
 import math as mt
 import numpy as np
-from scipy.spatial import cKDTree
-from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
+#from scipy.spatial import cKDTree
+#from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
 COINCIDENT_TOLERANCE = 1.0E-14
 kdleafs = 100
@@ -109,7 +109,7 @@ def computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST, SpectralElement
               ndex = varConT[sdex,:] - 1
               ndex = ndex.astype(int)
               # Fetch the nodal values 
-              varPatch = varST[ndex.flatten]
+              varPatch = varST[ndex]
        else:
               # Fetch the cell values
               varPatch = varST[sdex]
@@ -119,9 +119,9 @@ def computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST, SpectralElement
        
        return pmin, pmax
 
-def computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, SpectralElement):
+def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, SpectralElement):
        
-       NT = len(varST)
+       NT = varCon.shape[0]
        minDiff = np.zeros((NT,1))
        maxDiff = np.zeros((NT,1))
        
@@ -135,14 +135,11 @@ def computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST
               #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
               
               # Compute the patch extrema using the sampled target data and adjacency stencil
-              lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST, SpectralElement)
+              lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDex, varCon, varST, SpectralElement)
               
               # Compute the min and max difference arrays
               minDiff[jj] = np.minimum(varS2T[jj] - lPmin, 0.0)
               maxDiff[jj] = np.maximum(lPmax - varS2T[jj], 0.0)
-              
-       # Compute standard norms on local extrema differences
-       NT = len(varST)
        
        # Compute normalization integrals
        LinfDen = np.amax(varST)

@@ -18,7 +18,7 @@ Parameterized flux integral assumes constant radius and field value.
 
 @author: jeguerra
 """
-
+import sys
 import numpy as np
 import math as mt
 
@@ -73,8 +73,8 @@ def computeTangentBasisSE(varCoords, order):
        dF = np.zeros((3,))
        dDaF = np.zeros((3,1))
        dDbF = np.zeros((3,1))
-       dDaG = np.zeros(3,(len(cdex)))
-       dDbG = np.zeros(3,(len(cdex)))
+       dDaG = np.zeros((3,len(cdex)))
+       dDbG = np.zeros((3,len(cdex)))
        rr = 0
        for pp in range(NP):
               for qq in range(NP):
@@ -118,14 +118,14 @@ def computeTangentBasisSE(varCoords, order):
                                         [- dF[2] * dF[0], - dF[2] * dF[1], (dF2[0] + dF2[1])]]) 
                      
                      # Compute the local tangent vectors in a and b directions
-                     dDaG[cdex[rr]] = np.dot(dDGMat, dDaF)
-                     dDbG[cdex[rr]] = np.dot(dDGMat, dDbF)
+                     dDaG[:,cdex[rr]] = np.ravel(np.dot(dDGMat, dDaF))
+                     dDbG[:,cdex[rr]] = np.ravel(np.dot(dDGMat, dDbF))
 
                      dDenomTerm = 1.0 / (dR**3)
                      
                      # This happens to dDaG twice...
-                     dDaG[cdex[rr]] *= dDenomTerm
-                     dDbG[cdex[rr]] *= dDenomTerm
+                     dDaG[:,cdex[rr]] *= dDenomTerm
+                     dDbG[:,cdex[rr]] *= dDenomTerm
                      rr += 1
                      
        # Return the local tangent basis vectors
@@ -137,10 +137,10 @@ def computeDerivativeMatrixGLL(order):
               GN, GW = getGLLNodesWeights(order)
               
               # Derivatives of Legendre polynomials to order 4
-              DD = np.array([[0.0, 1.0, 3.0 * GN[0], 0.5 * (15.0 * GN[0]** - 3.0)], \
-                             [0.0, 1.0, 3.0 * GN[1], 0.5 * (15.0 * GN[1]** - 3.0)], \
-                             [0.0, 1.0, 3.0 * GN[2], 0.5 * (15.0 * GN[2]** - 3.0)], \
-                             [0.0, 1.0, 3.0 * GN[3], 0.5 * (15.0 * GN[3]** - 3.0)]])
+              DD = np.array([[0.0, 1.0, 3.0 * GN[0], 0.5 * (15.0 * GN[0]**2.0 - 3.0)], \
+                             [0.0, 1.0, 3.0 * GN[1], 0.5 * (15.0 * GN[1]**2.0 - 3.0)], \
+                             [0.0, 1.0, 3.0 * GN[2], 0.5 * (15.0 * GN[2]**2.0 - 3.0)], \
+                             [0.0, 1.0, 3.0 * GN[3], 0.5 * (15.0 * GN[3]**2.0 - 3.0)]])
               
               # Scale derivative matrix to [0.0 1.0]
               DD *= 2.0
@@ -148,6 +148,12 @@ def computeDerivativeMatrixGLL(order):
        return DD
 
 def computeGradientSE(varList, varCon, varCoords, order, jacobians):
+       
+       # Check GLL connectivity
+       if int(varCon.shape[1]) != int(jacobians.shape[1]):
+              print('ERROR: INVALID MESH DATA: Jacobians DOF mismatch connectivity DOF!')
+              sys.exit()
+       
        SF = np.float64
        
        # Gradients are 3 component vectors
@@ -182,7 +188,7 @@ def computeGradientSE(varList, varCon, varCoords, order, jacobians):
        # Loop over the elements
        for jj in range(NC):
               
-              ndex = varCon[jj,:].astype(int) - 1
+              ndex = np.subtract(varCon[jj,:].astype(int), 1)
               
               # Fetch the variable on this element
               var1 = varList[0][ndex]
@@ -190,30 +196,30 @@ def computeGradientSE(varList, varCon, varCoords, order, jacobians):
               
               # Loop over GLL order and compute local derivatives
               for oo in range(NP):
+                     
                      # Get the alpha index
-                     odex = cdex[0:order] + NP * oo
+                     adex = cdex[(NP * oo):(NP * (oo+1))]
                      # Get variables as an (order X 1) vector
-                     varST[:,0] = var1[odex.astype(int)]
-                     varS2T[:,0] = var2[odex.astype(int)]
+                     varST[:,0] = var1[adex]
+                     varS2T[:,0] = var2[adex]
                      # Compute the native derivative in alpha
-                     varDervAlphaST[odex.astype(int)] = np.dot(dDab, varST)
-                     varDervAlphaS2T[odex.astype(int)] = np.dot(dDab, varS2T)
+                     varDervAlphaST[adex] = np.ravel(np.dot(dDab, varST))
+                     varDervAlphaS2T[adex] = np.ravel(np.dot(dDab, varS2T))
                      
                      # Get the beta index
-                     odex = rdex[0:order] + NP * oo
+                     bdex = rdex[(NP * oo):(NP * (oo+1))]
                      # Get variables as an (order X 1) vector
-                     varST[:,0] = var1[odex.astype(int)]
-                     varS2T[:,0] = var2[odex.astype(int)]
+                     varST[:,0] = var1[bdex]
+                     varS2T[:,0] = var2[bdex]
                      # Compute the native derivative in beta
-                     varDervBetaST[odex.astype(int)] = np.dot(dDab, varST)
-                     varDervBetaS2T[odex.astype(int)] = np.dot(dDab, varS2T)
+                     varDervBetaST[bdex] = np.ravel(np.dot(dDab, varST))
+                     varDervBetaS2T[bdex] = np.ravel(np.dot(dDab, varS2T))
                      
-              # Set the gradient to the appropriate grids
-              varGradient[0][:,ndex] = np.mul(varDervAlphaST, dDaG, axis=1)
-              varGradient[0][:,ndex] += np.mul(varDervBetaST, dDbG, axis=1)
+              # Set the gradient to the appropriate grids             
+              varGradient[0][:,ndex] = np.multiply(varDervAlphaST, dDaG)
+              varGradient[0][:,ndex] += np.multiply(varDervBetaST, dDbG)
               
-              varGradient[1][:,ndex] = np.mul(varDervAlphaS2T, dDaG, axis=1)
-              varGradient[1][:,ndex] += np.mul(varDervBetaS2T, dDbG, axis=1)
-              
-              
+              varGradient[1][:,ndex] = np.multiply(varDervAlphaS2T, dDaG)
+              varGradient[1][:,ndex] += np.multiply(varDervBetaS2T, dDbG)
+                            
        return varGradient
