@@ -348,11 +348,12 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing new GLL mesh grids and connectivity...')
        
-       print('GLL global coordinates and connectivity computed/written to mesh file for the first time...')
-       NEL = len(varCon)
        # Check element topology (must be quads)
        NGC = varCon.shape[1]
        if ((NGC == 4) and (SpectralElement)):
+              print('GLL global coordinates and connectivity computed/written to mesh file for the first time...')
+              NEL = len(varCon)
+       
               # Compute number of grids per element
               if seOrder == 2:
                      NGED = 2
@@ -395,24 +396,28 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing mesh element Jacobian weights...')
        
-       print('Element Jacobians computed/written to mesh file for the first time...')
-       # Precompute the area weights and then look them up in the integral below
-       NEL = len(varConGLL)
-       jacobians = np.zeros(varConGLL.shape)
-       for ii in range(NEL):
-              cdex = varConGLL[ii,:] - 1
-              thisCell = varCoordGLL[:,cdex.astype(int)]
-              elArea, jacobians[ii,:] = computeAreaIntegralSE(thisCell, 4)       
-       try:   
-                     print('Storing GLL Jacobian arrays.')
-                     jacobiansGLL = 'element_jacobians'
-                     numNodesGLL = 'num_gll_per_el1'
-                     
-                     meshFileOut = m_fid.createVariable(jacobiansGLL, 'f8', (numCells, numNodesGLL))
-                     meshFileOut[:] = jacobians
-                     
-       except RuntimeError:
-              print('Cell connectivity and grid vertices exist in mesh data file.')
+       NGC = varCon.shape[1]
+       if ((NGC == 4) and (SpectralElement)):
+              print('Element Jacobians computed/written to mesh file for the first time...')
+              # Precompute the area weights and then look them up in the integral below
+              NEL = len(varConGLL)
+              jacobians = np.zeros(varConGLL.shape)
+              for ii in range(NEL):
+                     cdex = varConGLL[ii,:] - 1
+                     thisCell = varCoordGLL[:,cdex.astype(int)]
+                     elArea, jacobians[ii,:] = computeAreaIntegralSE(thisCell, 4)       
+              try:   
+                            print('Storing GLL Jacobian arrays.')
+                            jacobiansGLL = 'element_jacobians'
+                            numNodesGLL = 'num_gll_per_el1'
+                            
+                            meshFileOut = m_fid.createVariable(jacobiansGLL, 'f8', (numCells, numNodesGLL))
+                            meshFileOut[:] = jacobians
+                            
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.')
+       else:
+              print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --SpectralElement option not set.')
               
        endt = time.time()
        print('Time to precompute GLL element Jacobian weights (sec): ', endt - start)

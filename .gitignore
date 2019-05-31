@@ -46,3 +46,15 @@ testdata_outRLL1deg_CFR\.nc
 testdata_outRLL1deg_TPW\.nc
 
 \.runMetrics_CSne30_2_RLL1deg_TPW_CFR_TP\.sh\.swp
+
+meshes/CSne30_2_RLL1deg\.nc
+
+meshes/CSne30_2_RLL1deg_np4\.nc
+
+meshes/RLL1deg_2_CSne30\.g
+
+meshes/RLL1deg_2_CSne30_np4\.nc
+
+testdata_outCSne30_2_RLL1deg_np4_3\.nc
+
+testdata_RLL1deg_2_outCSne30_np4_3\.nc
