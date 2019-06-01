@@ -568,6 +568,10 @@ if __name__ == '__main__':
               
        #%% Copy grid files and store the new test data (source and target)
        outFileName = data_file
+       
+       if SpectralElement:
+              outFileName = outFileName + 'GLL'
+       
        if EvaluateAll:
               outFileName = outFileName + '_TPW_CFR_TPO.nc'
        elif EvaluateTPW:

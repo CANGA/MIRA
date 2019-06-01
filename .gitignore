@@ -58,3 +58,11 @@ meshes/RLL1deg_2_CSne30_np4\.nc
 testdata_outCSne30_2_RLL1deg_np4_3\.nc
 
 testdata_RLL1deg_2_outCSne30_np4_3\.nc
+
+testdata_outCSne30GLL_TPW_CFR_TPO\.nc
+
+testdataGLL_outCSne30_2_RLL1deg_CFR\.nc
+
+testdataGLL_outCSne30_2_RLL1deg_TPO\.nc
+
+testdataGLL_outCSne30_2_RLL1deg_TPW\.nc
