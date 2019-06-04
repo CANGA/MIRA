@@ -182,9 +182,12 @@ def parseCommandLine(argv):
        # Number of modes used up to 512
        numModes = 128
        
+       # Pseudo-random number generator seed
+       seed = 384
+       
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['pm=', 'so=', 'nm=', 'EvaluateAll', \
+                                        ['pm=', 'so=', 'nm=', 'rseed=', 'EvaluateAll', \
                                          'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
                                          'SCRIPwithConn', 'SpectralElement'])
@@ -194,6 +197,7 @@ def parseCommandLine(argv):
                     '--pm <sampleMeshFile>', \
                     '--so <sampleOrderInteger>', \
                     '--nm <numberSHModesMax768>', \
+                    '--rseed <randnumSeed>', \
                     '--<evaluateAllFields>', \
                     '--<evaluateTotalPrecipWater>', \
                     '--<evaluateCloudFraction>', \
@@ -210,6 +214,7 @@ def parseCommandLine(argv):
                            '--pm <sampleMeshFile>', \
                            '--so <sampleOrderInteger>', \
                            '--nm <numberSHModesMax768>', \
+                           '--rseed <randnumSeed>', \
                            '--<evaluateAllFields>', \
                            '--<evaluateTotalPrecipWater>', \
                            '--<evaluateCloudFraction>', \
@@ -229,6 +234,8 @@ def parseCommandLine(argv):
                                 sys.exit("[FATAL] Error in option passed for --so. Sample order must be in [2, 4, 6]")
               elif opt == '--nm':
                      numModes = int(arg)
+              elif opt == '--rseed':
+                     seed = int(arg)
               elif opt == '--EvaluateAll':
                      EvaluateAll = True
               elif opt == '--EvaluateTPW':
@@ -276,7 +283,7 @@ def parseCommandLine(argv):
        print('Welcome to CANGA remapping intercomparison metrics!')              
        print('Mesh and Variable data must be in NETCDF format.')
        
-       return sampleMesh, numModes, \
+       return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
               EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
               ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
@@ -286,7 +293,7 @@ if __name__ == '__main__':
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       mesh_file, ND, sampleCentroid, sampleOrder, \
+       mesh_file, ND, seed, sampleCentroid, sampleOrder, \
        EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
        = parseCommandLine(sys.argv[1:])
@@ -345,6 +352,18 @@ if __name__ == '__main__':
               # Get connectivity and coordinate arrays (check for multiple connectivity)
               varCon = m_fid.variables[connCell][:]
               varCoord = m_fid.variables[coordCell][:]
+              
+              # Get the rectilinear attribute if available
+              try:
+                     print('Rectilinear mesh detected; field variable written as 2D')
+                     rectilinear = m_fid.rectilinear
+                     # Get the 2D size of the field array from mesh file
+                     NLON = m_fid.rectilinear_dim1_size
+                     NLAT = m_fid.rectilinear_dim0_size
+              except:
+                     print('NOT a rectilinear mesh.')
+                     rectilinear = False
+              
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
@@ -611,15 +630,35 @@ if __name__ == '__main__':
               latNC = data_fid.createVariable('lat', 'f8', (numCells,))
               latNC[:] = varLonLat_deg[:,1]
        
-       if EvaluateTPW or EvaluateAll:
-              TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
-              TPWNC[:] = TPWvar
-       if EvaluateCFR or EvaluateAll:
-              CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
-              CFRNC[:] = CFRvar
-       if EvaluateTPO or EvaluateAll:
-              TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
-              TPONC[:] = TPOvar
+       #rectilinear = False
+       if rectilinear:
+              slon = 'lonDim'
+              slat = 'latDim'
+              data_fid.createDimension(slon, NLON)
+              data_fid.createDimension(slat, NLAT)
+              
+              if EvaluateTPW or EvaluateAll:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slon, slat))
+                     field = np.reshape(TPWvar, (NLON, NLAT))
+                     TPWNC[:] = field
+              if EvaluateCFR or EvaluateAll:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slon, slat))
+                     field = np.reshape(CFRvar, (NLON, NLAT))
+                     CFRNC[:] = field
+              if EvaluateTPO or EvaluateAll:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (slon, slat))
+                     field = np.reshape(TPOvar, (NLON, NLAT))
+                     TPONC[:] = field
+       else:
+              if EvaluateTPW or EvaluateAll:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
+                     TPWNC[:] = TPWvar
+              if EvaluateCFR or EvaluateAll:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
+                     CFRNC[:] = CFRvar
+              if EvaluateTPO or EvaluateAll:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
+                     TPONC[:] = TPOvar
        
        # Close the files out.
        data_fid.close()

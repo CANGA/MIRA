@@ -297,12 +297,15 @@ if __name__ == '__main__':
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
+       # Close the mesh file
+       m_fid.close()
+       # Open the mesh file for new data
+       m_fid = Dataset(mesh_file, 'a')
+              
        #%% Adjacency processing
        
        start = time.time()
        print('Computing adjacency maps...')
-       # Store the adjacency map in the original grid netcdf file (target mesh)
-       m_fid = Dataset(mesh_file, 'a')
        
        print('Adjacency data computed/written to mesh file for the first time...')
        
