@@ -17,24 +17,21 @@ import math as mt
 from computeAreaIntegral import computeAreaIntegral
 from computeCentroid import computeCentroid
 
-def computeGradientFV2(varList, varCon, varCoords, varStenDex, areas):
+def computeGradientFV2(varField, varCon, varCoords, varStenDex):
        SF = np.float64
        
        # Gradients are 3 component vectors
        nc = 3
-       gradShape1 = (nc, varList[0].shape[0])
-       gradShape2 = (nc, varList[1].shape[0])
+       gradShape = (nc, varField.shape[0])
        
        # Set the main return variable
-       varGradient = [np.zeros(gradShape1, dtype=SF), \
-                      np.zeros(gradShape2, dtype=SF)]
+       varGradient = np.zeros(gradShape, dtype=SF)
        
-       cellCoords = np.zeros((nc, areas.shape[0]), dtype=SF)
+       cellCoords = np.zeros((nc, varCon.shape[0]), dtype=SF)
        
-       NV = len(varList)
        NC = int(varStenDex.shape[0])
        NP = int(varStenDex.shape[1])
-       fluxIntegral = np.zeros((nc, NV), dtype=SF)
+       fluxIntegral = np.zeros(nc, dtype=SF)
        
        # Precompute the cell centroid map
        cellCoords = np.zeros((nc,NC), dtype=SF)
@@ -60,7 +57,7 @@ def computeGradientFV2(varList, varCon, varCoords, varStenDex, areas):
                             continue
               
               # Loop over the stencil and get dual edges map
-              fluxIntegral = np.zeros((nc, NV), dtype=SF)
+              fluxIntegral = np.zeros(nc, dtype=SF)
               dualEdgeMap = np.zeros((nc,len(pdex)))
               boundaryNorm = np.zeros((nc,len(pdex)))
               boundaryAngles = np.zeros((len(pdex),1))
@@ -91,21 +88,19 @@ def computeGradientFV2(varList, varCon, varCoords, varStenDex, areas):
                      bnMag = np.linalg.norm(boundaryNorm[:,pp])
                      boundaryNorm[:,pp] = 1.0 / bnMag * boundaryNorm[:,pp]
                      
-                     for vv in range(NV):
-                            # Compute the weighted average of the two cell values AT the shared edge location
-                            vWeight = 0.5 * boundaryAngles[pp] * RE
-                            varAvg = varList[vv][sid1] + varList[vv][sid2]
-                            
-                            # Compute the integral over this edge
-                            fluxIntegral[:,vv] = np.add(fluxIntegral[:,vv], \
-                                               vWeight * varAvg * \
-                                               boundaryNorm[:,pp])
+                     # Compute the weighted average of the two cell values AT the shared edge location
+                     vWeight = 0.5 * boundaryAngles[pp] * RE
+                     varAvg = varField[sid1] + varField[sid2]
+                     
+                     # Compute the integral over this edge
+                     fluxIntegral = np.add(fluxIntegral, \
+                                        vWeight * varAvg * \
+                                        boundaryNorm[:,pp])
                         
               # Compute the dual polygon area
               areaD = computeAreaIntegral(None, dualEdgeMap, 6, False, True)
               
               # Compute the local gradient at this cell
-              for vv in range(NV):
-                     varGradient[vv][:,jj] = 1.0 / areaD * fluxIntegral[:,vv]
+              varGradient[:,jj] = 1.0 / areaD * fluxIntegral
               
        return varGradient

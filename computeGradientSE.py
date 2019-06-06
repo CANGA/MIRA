@@ -147,7 +147,7 @@ def computeDerivativeMatrixGLL(order):
               
        return DD
 
-def computeGradientSE(varList, varCon, varCoords, order, jacobians):
+def computeGradientSE(varField, varCon, varCoords, order, jacobians):
        
        # Check GLL connectivity
        if int(varCon.shape[1]) != int(jacobians.shape[1]):
@@ -158,12 +158,10 @@ def computeGradientSE(varList, varCon, varCoords, order, jacobians):
        
        # Gradients are 3 component vectors
        nc = 3
-       gradShape1 = (nc, varList[0].shape[0])
-       gradShape2 = (nc, varList[1].shape[0])
+       gradShape = (nc, varField.shape[0])
        
        # Set the main return variable
-       varGradient = [np.zeros(gradShape1, dtype=SF), \
-                      np.zeros(gradShape2, dtype=SF)]
+       varGradient = np.zeros(gradShape, dtype=SF)
        
        # Alpha direction connectivity index (columns)
        cdex = [0, 1, 2, 3, 11, 12, 13, 4, 10, 15, 14, 5, 9, 8, 7, 6]
@@ -179,20 +177,17 @@ def computeGradientSE(varList, varCon, varCoords, order, jacobians):
        # Compute the local tangent basis vectors
        dDaG, dDbG = computeTangentBasisSE(varCoords, order)
        
-       varST = np.zeros((order,1))
-       varS2T = np.zeros((order,1))
-       varDervAlphaST = np.zeros(len(cdex))
-       varDervAlphaS2T = np.zeros(len(cdex))
-       varDervBetaST = np.zeros(len(rdex))
-       varDervBetaS2T = np.zeros(len(rdex))
+       varT = np.zeros((order,1))
+       varDervAlphaT = np.zeros(len(cdex))
+       varDervBetaT = np.zeros(len(rdex))
+       
        # Loop over the elements
        for jj in range(NC):
               
               ndex = np.subtract(varCon[jj,:].astype(int), 1)
               
               # Fetch the variable on this element
-              var1 = varList[0][ndex]
-              var2 = varList[1][ndex]
+              varT = varField[ndex]
               
               # Loop over GLL order and compute local derivatives
               for oo in range(NP):
@@ -200,26 +195,19 @@ def computeGradientSE(varList, varCon, varCoords, order, jacobians):
                      # Get the alpha index
                      adex = cdex[(NP * oo):(NP * (oo+1))]
                      # Get variables as an (order X 1) vector
-                     varST[:,0] = var1[adex]
-                     varS2T[:,0] = var2[adex]
+                     varT = varField[adex]
                      # Compute the native derivative in alpha
-                     varDervAlphaST[adex] = np.ravel(np.dot(dDab, varST))
-                     varDervAlphaS2T[adex] = np.ravel(np.dot(dDab, varS2T))
+                     varDervAlphaT[adex] = np.ravel(np.dot(dDab, varT))
                      
                      # Get the beta index
                      bdex = rdex[(NP * oo):(NP * (oo+1))]
                      # Get variables as an (order X 1) vector
-                     varST[:,0] = var1[bdex]
-                     varS2T[:,0] = var2[bdex]
+                     varT = varField[bdex]
                      # Compute the native derivative in beta
-                     varDervBetaST[bdex] = np.ravel(np.dot(dDab, varST))
-                     varDervBetaS2T[bdex] = np.ravel(np.dot(dDab, varS2T))
+                     varDervBetaT[bdex] = np.ravel(np.dot(dDab, varT))
                      
               # Set the gradient to the appropriate grids             
-              varGradient[0][:,ndex] = np.multiply(varDervAlphaST, dDaG)
-              varGradient[0][:,ndex] += np.multiply(varDervBetaST, dDbG)
-              
-              varGradient[1][:,ndex] = np.multiply(varDervAlphaS2T, dDaG)
-              varGradient[1][:,ndex] += np.multiply(varDervBetaS2T, dDbG)
-                            
+              varGradient[:,ndex] = np.multiply(varDervAlphaT, dDaG)
+              varGradient[:,ndex] += np.multiply(varDervBetaT, dDbG)
+                                          
        return varGradient

@@ -362,6 +362,7 @@ if __name__ == '__main__':
        endt = time.time()
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
+
        start = time.time()
        print('Computing or reading gradients for target sampled and regridded fields...')
        
@@ -370,66 +371,52 @@ if __name__ == '__main__':
        nc_fidST = Dataset(nc_fileST, 'a')
        
        varGradientName = 'FieldGradient'
+       
+       # Read in previously stored ST data if it exists, or compute it and store
        try:
-              # Read in previously stored data if it exists
               if nc_fidST.variables[varGradientName].name == varGradientName:
                      gradST = nc_fidST.variables[varGradientName][:]
-                     
-              if nc_fidS2T.variables[varGradientName].name == varGradientName:
-                     gradS2T = nc_fidS2T.variables[varGradientName][:]
-                     
-              varsOnTM = [varST, varS2T]
-              gradientsOnTM = [gradST, gradS2T]
        except KeyError:
-              # Precompute the gradients on target mesh ONLY once
-              varsOnTM = [varST, varS2T]
-              
               if SpectralElement:
-                     numDOFS = coordCell
-                     gradientsOnTM = computeGradientSE(varsOnTM, varConT, varCoordT, 4, jacobiansT)
+                     # This comes from mesh preprocessing
+                     numDOFS = 'grid_gll_size'
+                     gradST = computeGradientSE(varST, varConT, varCoordT, 4, jacobiansT)
               else: 
                      numDOFS = numCells
-                     gradientsOnTM = computeGradientFV2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
-              
-              # Create new Cartesian Earth centered vector dimensions
-              try:
-                     nc_fidST.createDimension(numDims, 3)
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              try:
-                     nc_fidS2T.createDimension(numDims, 3)
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              
-              # Create new dimension for the number of cells
-              try:
-                     nc_fidST.createDimension(numDOFS, np.size(varST, axis=0))
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              try:
-                     nc_fidS2T.createDimension(numDOFS, np.size(varS2T, axis=0))
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              
+                     gradST = computeGradientFV2(varST, varConT, varCoordT, varConStenDexT)
+                     
               # Store the gradients on target mesh
               try:
                      gradFileOut = nc_fidST.createVariable(varGradientName, 'f8', (numDims, numDOFS))
-                     gradFileOut[:] = gradientsOnTM[0]
-              except RuntimeError:
-                     print('Gradient variable already exists in ST field data file.')
-              
+                     gradFileOut[:] = gradST
+              except Exception as exc:
+                     print('Gradient variable already exists in ST field data file.', exc)
+       
+       # Read in previously stored S2T data if it exists, or compute it and store
+       try:
+              varGradientName = 'FieldGradient'
+              if nc_fidS2T.variables[varGradientName].name == varGradientName:
+                     gradS2T = nc_fidS2T.variables[varGradientName][:]
+       except KeyError:
+              if SpectralElement:
+                     numDOFS = 'grid_gll_size'
+                     gradS2T = computeGradientSE(varS2T, varConT, varCoordT, 4, jacobiansT)
+              else: 
+                     numDOFS = numCells
+                     gradS2T = computeGradientFV2(varS2T, varConT, varCoordT, varConStenDexT)
+                     
+              # Store the gradients on target mesh
               try:
                      gradFileOut = nc_fidS2T.createVariable(varGradientName, 'f8', (numDims, numDOFS))
-                     gradFileOut[:] = gradientsOnTM[1]
+                     gradFileOut[:] = gradS2T
               except RuntimeError:
                      print('Gradient variable already exists in S2T field data file.')
-                     
        
        nc_fidS2T.close()
        nc_fidST.close()
        endt = time.time()
        print('Time to compute/read gradients on target mesh (sec): ', endt - start)
-       
+
        #%%
        start = time.time()
        print('Computing all metrics...')
@@ -445,6 +432,8 @@ if __name__ == '__main__':
        Lmin_inf, Lmax_inf = \
        computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, SpectralElement)
        # Gradient preservation
+       gradientsOnTM = [gradST, gradS2T]
+       varsOnTM = [varST, varS2T]
        H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, SpectralElement)
        endt = time.time()
        print('Time to execute metrics (sec): ', endt - start)

@@ -16,15 +16,17 @@ def computeGlobalConservation(varConT, varS2T, varST, areaT, jacobiansT, Spectra
        # Get the total number of cells/elements
        NT = varConT.shape[0]
        
-       diffVarT = np.subtract(varS2T, varST)
+       #diffVarT = np.subtract(varS2T, varST)
        
        # Compute integral of the absolute value of the difference
-       L_S2T = computeGlobalWeightedIntegral(NT, varConT, np.abs(diffVarT), areaT, jacobiansT, SpectralElement)
+       #L_S2T = computeGlobalWeightedIntegral(NT, varConT, np.abs(diffVarT), areaT, jacobiansT, SpectralElement)
+       L_S2T = computeGlobalWeightedIntegral(NT, varConT, np.abs(varS2T), areaT, jacobiansT, SpectralElement)
        
        # Compute integral of the (absolute value) target sampled ST data
        L_ST = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST), areaT, jacobiansT, SpectralElement)
        
        # Compute the global conservation metric
-       L_g = L_S2T / L_ST
+       #L_g = L_S2T / L_ST
+       L_g = (L_S2T - L_ST) / L_ST
        
        return L_S2T, L_ST, L_g

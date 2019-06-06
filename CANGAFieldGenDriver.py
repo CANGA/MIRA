@@ -630,7 +630,6 @@ if __name__ == '__main__':
               latNC = data_fid.createVariable('lat', 'f8', (numCells,))
               latNC[:] = varLonLat_deg[:,1]
        
-       #rectilinear = False
        if rectilinear:
               slon = 'lonDim'
               slat = 'latDim'
@@ -638,16 +637,16 @@ if __name__ == '__main__':
               data_fid.createDimension(slat, NLAT)
               
               if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slon, slat))
-                     field = np.reshape(TPWvar, (NLON, NLAT))
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon))
+                     field = np.reshape(TPWvar, (NLAT, NLON))
                      TPWNC[:] = field
               if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slon, slat))
-                     field = np.reshape(CFRvar, (NLON, NLAT))
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon))
+                     field = np.reshape(CFRvar, (NLAT, NLON))
                      CFRNC[:] = field
               if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (slon, slat))
-                     field = np.reshape(TPOvar, (NLON, NLAT))
+                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon))
+                     field = np.reshape(TPOvar, (NLAT, NLON))
                      TPONC[:] = field
        else:
               if EvaluateTPW or EvaluateAll:
