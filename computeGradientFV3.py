@@ -4,7 +4,7 @@
 Created on Mon Dec 24 08:26:47 2018
 
 Compute a low order FV gradient on the manifold based on the adjacency stencil 
-around a cell. Corresponds to "strategy 2" in Barth & Jespersen, 1989 page 6.
+around a cell. Corresponds to "strategy 3" in Barth & Jespersen, 1989 page 6.
 
 By construction, all the vectors involved start at the origin... convenient.
 Parameterized flux integral assumes constant radius and field value.
@@ -17,7 +17,7 @@ import math as mt
 from computeAreaIntegral import computeAreaIntegral
 from computeCentroid import computeCentroid
 
-def computeGradientFV2(varField, varCon, varCoords, varStenDex):
+def computeGradientFV3(varField, varCon, varCoords, varStenDex):
        SF = np.float64
        
        # Gradients are 3 component vectors
@@ -56,22 +56,54 @@ def computeGradientFV2(varField, varCon, varCoords, varStenDex):
                      else:
                             continue
                      
-              thisStencil = varStenDex[jj,pdex]
+              # Make pdex periodic
+              pdexp = np.append(pdex, pdex[0])
               
-              # Loop over the stencil and get dual edges map
+              # Fetch the modified stencil
+              thisStencil = varStenDex[jj,pdexp]
+              
+              # Initialize the new convex hull stencil
+              convHullSten = varStenDex[jj,pdex]
+              
+              # Build the convex hull of cells around this cell
+              for pp in range(len(convHullSten)):
+                     # Fetch consecutive pairs of cell id
+                     cid1 = thisStencil[pp] - 1
+                     cid2 = thisStencil[pp+1] - 1
+                     
+                     # Fetch consecutive pairs of stencils
+                     stn1 = varStenDex[cid1.astype(int),:]
+                     stn2 = varStenDex[cid2.astype(int),:]
+                     
+                     # Get the set intersection
+                     commonIds = list(set(stn1).intersection(stn2))
+                     # Get the common cell that is NOT the current target cell
+                     newCellId = [x for x in commonIds if x != jj+1]
+                     
+                     # Check new cell ID to be of length 1
+                     if len(newCellId) != 1:
+                            print('Found no neighboring cell or multiples in stencil!')
+                            print('New cell will NOT be recorded to the convex hull at cell: ', jj+1)
+                            continue
+                     
+                     # Insert the new cell ID
+                     np.insert(convHullSten, pp+1, newCellId[0].astype(int))
+              
+              # Loop over the convex hull stencil and get dual edges map
+              NS = len(convHullSten)
               fluxIntegral = np.zeros(nc, dtype=SF)
-              dualEdgeMap = np.zeros((nc,len(pdex)))
-              boundaryNorm = np.zeros((nc,len(pdex)))
-              boundaryAngles = np.zeros((len(pdex),1))
-              for pp in pdex:
+              dualEdgeMap = np.zeros((nc,NS))
+              boundaryNorm = np.zeros((nc,NS))
+              boundaryAngles = np.zeros((NS,1))
+              for pp in range(NS):
                      # Fetch the dual edge and store
-                     sid1 = thisStencil[pp] - 1
+                     sid1 = convHullSten[pp] - 1
                      sid1 = sid1.astype(int)
                      # Make the dual polygon convex
                      if pp == len(pdex) - 1:
-                            sid2 = thisStencil[0] - 1
+                            sid2 = convHullSten[0] - 1
                      else:
-                            sid2 = thisStencil[pp+1] - 1
+                            sid2 = convHullSten[pp+1] - 1
                      sid2 = sid2.astype(int)
                      
                      # Store the dual mesh polygon

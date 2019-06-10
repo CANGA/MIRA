@@ -22,6 +22,7 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 # Bring in all the different metric modules
 from computeGradientSE import computeGradientSE
 from computeGradientFV2 import computeGradientFV2
+from computeGradientFV3 import computeGradientFV3
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
 from computeStandardNorms import computeStandardNorms
@@ -411,6 +412,10 @@ if __name__ == '__main__':
                      gradFileOut[:] = gradS2T
               except RuntimeError:
                      print('Gradient variable already exists in S2T field data file.')
+       
+       # TESTING GRADIENT COMPUTATIONS... comment out when done.
+       #gradST = computeGradientFV3(varST, varConT, varCoordT, varConStenDexT)
+       #gradS2T = computeGradientFV3(varS2T, varConT, varCoordT, varConStenDexT)
        
        nc_fidS2T.close()
        nc_fidST.close()
