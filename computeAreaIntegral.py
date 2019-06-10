@@ -17,13 +17,14 @@ from scipy.linalg import norm
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
+       #""" 2nd order method
        if order == 2:
               GN = [-0.5773502691896257, \
                     +0.5773502691896257]
               
               GW = [+1.0, \
                     +1.0]
-       #""" 4th oder method for testing
+       #""" 4th order method
        if order == 4:
               GN = [-0.8611363115940526, \
                     -0.3399810435848563, \
@@ -35,7 +36,7 @@ def getGaussNodesWeights(order):
                     0.6521451548625461, \
                     0.3478548451374538]
        #"""
-       #""" 6th order method is slower
+       #""" 6th order method
        if order == 6:
               GN = [-0.9324695142031521, \
                     -0.6612093864662645, \

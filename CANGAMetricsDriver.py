@@ -20,7 +20,9 @@ import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
-from computeGradient2 import computeGradient2
+from computeGradientSE import computeGradientSE
+from computeGradientFV2 import computeGradientFV2
+from computeGradientFV3 import computeGradientFV3
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
 from computeStandardNorms import computeStandardNorms
@@ -53,35 +55,30 @@ def parseCommandLine(argv):
        varName = ''
        
        # NC files with field data
-       sourceSampledFile = ''
        targetSampledFile = ''
        remappedFile = ''
        
        # Mesh information files
-       sourceMesh = ''
        targetMesh = ''
        
        ExodusSingleConn = False
        SCRIPwithoutConn = False
        SCRIPwithConn = False
-       
-       # Mesh data configuration
-       meshConfig = ''
+       SpectralElement = False
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['ss=','s2t=','st=','sm=','tm=', \
+                                        ['s2t=', 'st=', 'tm=', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn'])
+                                         'SCRIPwithConn', 'SpectralElement'])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAMEtricsDriver.py', \
-                    '-ss <sourceSampledFile>', \
                     '-s2t <remappedFile>', \
                     '-st <targetSampledFile>', \
-                    '-sm <sourceMesh>', \
                     '-tm <targetMesh>', \
-                    '--<meshConfiguration>')
+                    '--<meshConfiguration>', \
+                    '--<isSpectralElementMesh>')
               sys.exit(2)
               
        for opt, arg in opts:
@@ -89,40 +86,28 @@ def parseCommandLine(argv):
               if opt == '-h':
                      print('Command line not properly set:', \
                            'CANGAMEtricsDriver.py', \
-                           '-ss <sourceSampledFile>', \
                            '-s2t <remappedFile>', \
                            '-st <targetSampledFile>', \
-                           '-sm <sourceMesh>', \
                            '-tm <targetMesh>', \
-                           '--<meshConfiguration>')
+                           '--<meshConfiguration>', \
+                           '--<isSpectralElementMesh>')
                      sys.exit()
               elif opt == '-v':
                      varName = arg
-              elif opt == '--ss':
-                     sourceSampledFile = arg
               elif opt == '--s2t':
                      remappedFile = arg
               elif opt == '--st':
                      targetSampledFile = arg
-              elif opt == '--sm':
-                     sourceMesh = arg
               elif opt == '--tm':
                      targetMesh = arg
               elif opt == '--ExodusSingleConn':
-                     meshConfig = 'ExodusSingleConn'
                      ExodusSingleConn = True
               elif opt == '--SCRIPwithoutConn':
-                     meshConfig = 'SCRIPwithoutConn'
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
-                     meshConfig = 'SCRIPwithConn'
                      SCRIPwithConn = True
-                     
-       # Check that mesh files are consistent
-       if sourceMesh[len(sourceMesh) - 1] != targetMesh[len(targetMesh) - 1]:
-              print('Mesh data files have inconsistent file extensions!')
-              print('Source and target mesh files MUST have the same extension.')
-              sys.exit(2)
+              elif opt == '--SpectralElement':
+                     SpectralElement = True
               
        # Check that only one configuration is chosen
        if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
@@ -145,38 +130,22 @@ def parseCommandLine(argv):
               print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
-                     
-       # Check that configurations match the correct file extensions
-       if meshConfig == 'ExodusSingleConn':
-              if sourceMesh[len(sourceMesh) - 1] != 'g':
-                     print('Expected Exodus .g mesh data files!')
-                     print('Exodus files MUST have .g extension')
-                     sys.exit(2)
-       if meshConfig == 'SCRIPwithoutConn':
-              if sourceMesh[len(sourceMesh) - 1] != 'c':
-                     print('Expected SCRIP .nc mesh data files!')
-                     print('SCRIP files MUST have .nc extension')
-                     sys.exit(2)
        
-       return varName, \
-              sourceSampledFile, remappedFile, targetSampledFile, \
-              sourceMesh, targetMesh, \
-              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
+       return varName, remappedFile, targetSampledFile, targetMesh, \
+              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
-       # Global parameters
-       #kdleafs = 100
-       #COINCIDENT_TOLERANCE = 1.0E-14
 
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileSS, nc_fileS2T, nc_fileST, mesh_fileS, mesh_fileT, \
-       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = \
+       varName, nc_fileS2T, nc_fileST, mesh_file, \
+       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement = \
        parseCommandLine(sys.argv[1:])
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
+       varJacoName = 'element_jacobians'
        varAdjaName = 'cell_edge_adjacency'
        
        """ SET INPUT HERE FOR DEVELOPMENT TESTING
@@ -194,14 +163,14 @@ if __name__ == '__main__':
               # Source Exodus .g file
               mesh_fileS = 'outCSne30.g'
               # Target Exodus .g file
-              mesh_fileT = 'outRLL1deg.g'
-              #mesh_fileT = 'outICO64.g'
+              mesh_file = 'outRLL1deg.g'
+              #mesh_file = 'outICO64.g'
               
        if SCRIPwithoutConn:
               # Source SCRIP file
               mesh_fileS = 'Grids/ne30np4_pentagons.091226.nc'
               # Target SCRIP file
-              mesh_fileT = 'Grids/ne30np4_latlon.091226.nc'
+              mesh_file = 'Grids/ne30np4_latlon.091226.nc'
        
        # Set the name of the field variable in question (scalar)
        #varName = 'Psi'
@@ -233,37 +202,44 @@ if __name__ == '__main__':
               numCells = 'num_el_in_blk1'
               numDims = 'cart_dims'
               
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'connect1'
+                     coordCell = 'coord'
+              
               # Open the .g mesh files for reading
-              m_fidS = Dataset(mesh_fileS, 'r')
-              m_fidT = Dataset(mesh_fileT, 'r')
+              m_fid = Dataset(mesh_file, 'a')
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varConS = m_fidS.variables['connect1'][:]
-              varCoordS = m_fidS.variables['coord'][:]
-              varConT = m_fidT.variables['connect1'][:]
-              varCoordT = m_fidT.variables['coord'][:]
+              varConT = m_fid.variables[connCell][:]
+              varCoordT = m_fid.variables[coordCell][:]
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
               numCells = 'grid_size'
               numDims = 'cart_dims'
-              connCell = 'element_corners_id'
-              coordCell = 'grid_corners_cart'
               numVerts = 'grid_corners_size'
               
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'element_corners_id'
+                     coordCell = 'grid_corners_cart'
+              
               # Open the .nc SCRIP files for reading
-              m_fidS = Dataset(mesh_fileS, 'a')
-              m_fidT = Dataset(mesh_fileT, 'a')
+              m_fid = Dataset(mesh_file, 'a')
                     
               start = time.time()
               try:
                      print('Reading coordinate and connectivity from augmented SCRIP')
-                     varConS = m_fidS.variables[connCell][:]
-                     varConT = m_fidT.variables[connCell][:]
-                     varCoordS = m_fidS.variables[coordCell][:]
-                     varCoordT = m_fidT.variables[coordCell][:]
+                     varConT = m_fid.variables[connCell][:]
+                     varCoordT = m_fid.variables[coordCell][:]
               except:
-                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
+                     print('PRE-PROCESSING NOT DONE ON THIS SCRIP MESH FILE!')
+                     sys.exit()
               
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
@@ -271,100 +247,107 @@ if __name__ == '__main__':
               numEdges = 'ncorners'
               numCells = 'ncells'
               numDims = 'cart_dims'
-              connCell = 'element_corners'
-              coordCell = 'grid_corners_cart'
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'element_corners'
+                     coordCell = 'grid_corners_cart' 
               
               # Open the .nc SCRIP files for reading
-              m_fidS = Dataset(mesh_fileS, 'a')
-              m_fidT = Dataset(mesh_fileT, 'a')
+              m_fid = Dataset(mesh_file, 'a')
               
               # Get connectivity and coordinate arrays
-              varConS = m_fidS.variables[connCell][:]
-              varConS = varConS.T
-              varConT = m_fidT.variables[connCell][:]
+              varConT = m_fid.variables[connCell][:]
               varConT = varConT.T
                      
               start = time.time()
               try:
                      print('Reading coordinate and connectivity from augmented SCRIP')
-                     varCoordS = m_fidS.variables[coordCell][:]
-                     varCoordT = m_fidT.variables[coordCell][:]
+                     varCoordT = m_fid.variables[coordCell][:]
               except:
-                     print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
+                     print('PRE-PROCESSING NOT DONE ON THIS SCRIP MESH FILE!')
+                     sys.exit()
               
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
               
-       m_fidS.close()
-       m_fidT.close()
+       m_fid.close()
        
        
        #%%
        start = time.time()
        print('Reading adjacency maps...')
-       # Store the adjacency map in the original grid netcdf file (target mesh)
-       m_fidT = Dataset(mesh_fileT, 'a')
+       # Fetch the adjacency map in the original grid netcdf file (target mesh)
+       m_fid = Dataset(mesh_file, 'a')
        # Check for existing variable data
        try:
-              if m_fidT.variables[varAdjaName].name == varAdjaName:
-                     varConStenDexT = m_fidT.variables[varAdjaName][:]
+              if m_fid.variables[varAdjaName].name == varAdjaName:
+                     varConStenDexT = m_fid.variables[varAdjaName][:]
                      
        except:
               print('PRE-PROCESSING FOR ADJACENCY NOT DONE ON THIS MESH FILE!')
-       m_fidT.close()
+              sys.exit()
+              
+       m_fid.close()
               
        endt = time.time()
        print('Time to read adjacency maps (sec): ', endt - start)
        #%%
        start = time.time()
-       print('Reading source and target mesh areas...')
-       
-       # Store the grid cell areas in the original netcdf file (source and target)
-       m_fidS = Dataset(mesh_fileS, 'a')
+       print('Reading mesh areas...')
+              
+       m_fid = Dataset(mesh_file, 'a')
        # Check for existing variable data
        try:
-              if m_fidS.variables[varAreaName].name == varAreaName:
-                     areaS = m_fidS.variables[varAreaName][:]
-       
-       except:
-              print('PRE-PROCESSING FOR AREAS NOT DONE ON SOURCE MESH FILE!')
-              
-       m_fidS.close()
-              
-       m_fidT = Dataset(mesh_fileT, 'a')
-       # Check for existing variable data
-       try:
-              if m_fidT.variables[varAreaName].name == varAreaName:
-                     areaT = m_fidT.variables[varAreaName][:]
+              if m_fid.variables[varAreaName].name == varAreaName:
+                     areaT = m_fid.variables[varAreaName][:]
        
        except:
               print('PRE-PROCESSING FOR AREAS NOT DONE ON TARGET MESH FILE!')
+              sys.exit()
               
-       m_fidT.close()
+       m_fid.close()
        
        endt = time.time()
-       print('Time to precompute/read mesh areas (sec): ', endt - start)
+       print('Time to read mesh areas (sec): ', endt - start)
+       
+       #%%
+       if SpectralElement:
+              start = time.time()
+              print('Reading SE mesh jacobians...')
+                     
+              m_fid = Dataset(mesh_file, 'a')
+              # Check for existing variable data
+              try:
+                     if m_fid.variables[varJacoName].name == varJacoName:
+                            jacobiansT = m_fid.variables[varJacoName][:]
+              
+              except:
+                     print('ERROR: PRE-PROCESSING FOR JACOBIANS NOT AVAILABLE ON TARGET MESH FILE!')
+                     sys.exit()
+                     
+              m_fid.close()
+              
+              endt = time.time()
+              print('Time to read SE mesh jacobians (sec): ', endt - start)
+       else:
+              jacobiansT = None
 
        #%%
        start = time.time()
        # Open the .nc data files for reading
-       nc_fidSS = Dataset(nc_fileSS, 'r')
        nc_fidS2T = Dataset(nc_fileS2T, 'r')
        nc_fidST = Dataset(nc_fileST, 'r')
        
-       # Get the SS data
-       varSS = nc_fidSS.variables[varName][:]
        # Get the S2T data
        varS2T = nc_fidS2T.variables[varName][:]
        # Get the ST data
        varST = nc_fidST.variables[varName][:]
        
        # Check the extracted variables for dimensionality
-       # If the variables are 2D then reshape along the longitude (ASSUMED)
-       VS = varSS.shape
-       if len(VS) > 1:
-              varSS = np.reshape(varSS, VS[0] * VS[1])
-              
+       # If the variables are 2D then reshape along the longitude (ASSUMED)     
        VS = varS2T.shape
        if len(VS) > 1:
               varS2T = np.reshape(varS2T, VS[0] * VS[1])
@@ -374,13 +357,13 @@ if __name__ == '__main__':
               varST = np.reshape(varST, VS[0] * VS[1])
               
        #%% Close original NetCDF file.
-       nc_fidSS.close()
        nc_fidS2T.close()
        nc_fidST.close()
        
        endt = time.time()
        print('Time to read NC and Exodus data (sec): ', endt - start)
        #%%
+
        start = time.time()
        print('Computing or reading gradients for target sampled and regridded fields...')
        
@@ -389,76 +372,74 @@ if __name__ == '__main__':
        nc_fidST = Dataset(nc_fileST, 'a')
        
        varGradientName = 'FieldGradient'
+       
+       # Read in previously stored ST data if it exists, or compute it and store
        try:
-              # Read in previously stored data if it exists
               if nc_fidST.variables[varGradientName].name == varGradientName:
                      gradST = nc_fidST.variables[varGradientName][:]
-                     
-              if nc_fidS2T.variables[varGradientName].name == varGradientName:
-                     gradS2T = nc_fidS2T.variables[varGradientName][:]
-                     
-              varsOnTM = [varST, varS2T]
-              gradientsOnTM = [gradST, gradS2T]
        except KeyError:
-              # Precompute the gradients on target mesh ONLY once
-              varsOnTM = [varST, varS2T]
-              gradientsOnTM, cellCoordT = computeGradient2(varsOnTM, varConT, varCoordT, varConStenDexT, areaT)
-              
-              # Create new Cartesian Earth centered vector dimensions
-              try:
-                     nc_fidST.createDimension(numDims, 3)
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              try:
-                     nc_fidS2T.createDimension(numDims, 3)
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              
-              # Create new dimension for the number of cells
-              try:
-                     nc_fidST.createDimension(numCells, np.size(varST, axis=0))
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              try:
-                     nc_fidS2T.createDimension(numCells, np.size(varS2T, axis=0))
-              except RuntimeError:
-                     print('Dimensions for gradient variable already exist in field data file.')
-              
+              if SpectralElement:
+                     # This comes from mesh preprocessing
+                     numDOFS = 'grid_gll_size'
+                     gradST = computeGradientSE(varST, varConT, varCoordT, 4, jacobiansT)
+              else: 
+                     numDOFS = numCells
+                     gradST = computeGradientFV2(varST, varConT, varCoordT, varConStenDexT)
+                     
               # Store the gradients on target mesh
               try:
-                     gradFileOut = nc_fidST.createVariable(varGradientName, 'f8', (numDims, numCells))
-                     gradFileOut[:] = gradientsOnTM[0]
-              except RuntimeError:
-                     print('Gradient variable already exists in ST field data file.')
-              
+                     gradFileOut = nc_fidST.createVariable(varGradientName, 'f8', (numDims, numDOFS))
+                     gradFileOut[:] = gradST
+              except Exception as exc:
+                     print('Gradient variable already exists in ST field data file.', exc)
+       
+       # Read in previously stored S2T data if it exists, or compute it and store
+       try:
+              varGradientName = 'FieldGradient'
+              if nc_fidS2T.variables[varGradientName].name == varGradientName:
+                     gradS2T = nc_fidS2T.variables[varGradientName][:]
+       except KeyError:
+              if SpectralElement:
+                     numDOFS = 'grid_gll_size'
+                     gradS2T = computeGradientSE(varS2T, varConT, varCoordT, 4, jacobiansT)
+              else: 
+                     numDOFS = numCells
+                     gradS2T = computeGradientFV2(varS2T, varConT, varCoordT, varConStenDexT)
+                     
+              # Store the gradients on target mesh
               try:
-                     gradFileOut = nc_fidS2T.createVariable(varGradientName, 'f8', (numDims, numCells))
-                     gradFileOut[:] = gradientsOnTM[1]
+                     gradFileOut = nc_fidS2T.createVariable(varGradientName, 'f8', (numDims, numDOFS))
+                     gradFileOut[:] = gradS2T
               except RuntimeError:
                      print('Gradient variable already exists in S2T field data file.')
-                     
+       
+       # TESTING GRADIENT COMPUTATIONS... comment out when done.
+       #gradST = computeGradientFV3(varST, varConT, varCoordT, varConStenDexT)
+       #gradS2T = computeGradientFV3(varS2T, varConT, varCoordT, varConStenDexT)
        
        nc_fidS2T.close()
        nc_fidST.close()
        endt = time.time()
        print('Time to compute/read gradients on target mesh (sec): ', endt - start)
-       
+
        #%%
        start = time.time()
        print('Computing all metrics...')
        # Global conservation metric
-       massSS, massS2T, massST, L_g = computeGlobalConservation(varSS, varS2T, varST, areaS, areaT)
+       massS2T, massST, L_g = computeGlobalConservation(varConT, varS2T, varST, areaT, jacobiansT, SpectralElement)
        # Locality measure (returns an array for each target DOF)
        #L_local = computeLocalityMetric(varS2T, varST, varConT, varCoordT)
        # Standard Error norms (L_1, L_2, L_inf)
-       L_1, L_2, L_inf = computeStandardNorms(varS2T, varST, areaT)
+       L_1, L_2, L_inf = computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, SpectralElement)
        # Global Extrema preservation
        Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
        # Local Extrema preservation
-       Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
-       computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT)
+       Lmin_inf, Lmax_inf = \
+       computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, SpectralElement)
        # Gradient preservation
-       H1, H1_2 = computeGradientPreserveMetrics(gradientsOnTM, varsOnTM, areaT)
+       gradientsOnTM = [gradST, gradS2T]
+       varsOnTM = [varST, varS2T]
+       H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, SpectralElement)
        endt = time.time()
        print('Time to execute metrics (sec): ', endt - start)
        #%%
@@ -469,11 +450,7 @@ if __name__ == '__main__':
        print('Global Linf error:   %16.15e' % np.ravel(L_inf))
        print('Global max error:    %16.15e' % np.ravel(Lmax))
        print('Global min error:    %16.15e' % np.ravel(Lmin))
-       print('Local max L1 error:  %16.15e' % np.ravel(Lmax_1))
-       print('Local max L2 error:  %16.15e' % np.ravel(Lmax_2))
        print('Local max Lm error:  %16.15e' % np.ravel(Lmax_inf))
-       print('Local min L1 error:  %16.15e' % np.ravel(Lmin_1))
-       print('Local min L2 error:  %16.15e' % np.ravel(Lmin_2))
        print('Local min Lm error:  %16.15e' % np.ravel(Lmin_inf))
        print('Gradient semi-norm:  %16.15e' % np.ravel(H1_2))
        print('Gradient full-norm:  %16.15e' % np.ravel(H1))       

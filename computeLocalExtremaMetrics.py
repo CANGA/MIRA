@@ -10,8 +10,8 @@ Computes the local extrema metrics for regridded and reference target data
 
 import math as mt
 import numpy as np
-from scipy.spatial import cKDTree
-from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
+#from scipy.spatial import cKDTree
+#from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
 COINCIDENT_TOLERANCE = 1.0E-14
 kdleafs = 100
@@ -49,6 +49,7 @@ def computeCoordPatchIndexArray(NC, pcloud, centroid, radius):
        
        return pdex
 
+''' OLD METHOD INVOLVING A PATCH SEARCH OF THE SOURCE MESH
 def computeLocalPatchExtrema(jj, varConS, coordTree, varS, varConT, varCoordT):
        
        # Index the target cell from the input coordinates
@@ -95,55 +96,64 @@ def computeLocalPatchExtrema(jj, varConS, coordTree, varS, varConT, varCoordT):
               pmax = 0.0
               
        return pmin, pmax
+'''
 
-def computeLocalExtremaMetrics(areaT, varSS, varS2T, varST, varConS, varCoordS, varConT, varCoordT):
+def computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST, SpectralElement):
        
-       NT = len(varST)
+       # Fetch the stencil of neighboring elements/cells
+       sdex = varConStenDexT[jj,:] - 1
+       sdex = sdex.astype(int)
+       
+       if SpectralElement:
+              # Fetch the gridID for all nodes in the stencil of elements
+              ndex = varConT[sdex,:] - 1
+              ndex = ndex.astype(int)
+              # Fetch the nodal values 
+              varPatch = varST[ndex]
+       else:
+              # Fetch the cell values
+              varPatch = varST[sdex]
+              
+       pmin = np.amin(varPatch)
+       pmax = np.amin(varPatch)
+       
+       return pmin, pmax
+
+def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, SpectralElement):
+       
+       NT = varCon.shape[0]
        minDiff = np.zeros((NT,1))
        maxDiff = np.zeros((NT,1))
        
        # Compute a KDtree for the source coordinates
-       coordTreeS = cKDTree(varCoordS.T, leafsize=kdleafs)
+       #coordTreeS = cKDTree(varCoordS.T, leafsize=kdleafs)
        
        # Compute the localized difference arrays (eqs. 10 and 11)
        for jj in range(NT):
               
-              # Compute the patch extrema using the KDtree set up above
-              lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
+              # Compute the patch extrema using the KDtree set up above (OLD WAY USING SOURCE DATA)
+              #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
+              
+              # Compute the patch extrema using the sampled target data and adjacency stencil
+              lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDex, varCon, varST, SpectralElement)
               
               # Compute the min and max difference arrays
               minDiff[jj] = np.minimum(varS2T[jj] - lPmin, 0.0)
               maxDiff[jj] = np.maximum(lPmax - varS2T[jj], 0.0)
-              
-       # Compute standard norms on local extrema differences
-       NT = len(varST)
-       varST2 = np.power(varST, 2)
        
        # Compute normalization integrals
-       L1Den = computeGlobalWeightedIntegral(NT, varST, areaT)
-       L2Den = computeGlobalWeightedIntegral(NT, varST2, areaT)
        LinfDen = np.amax(varST)
        
        # Compute numerators for minima
        varDiff = minDiff
-       varDiff2 = np.power(minDiff, 2)
-       L1Num = computeGlobalWeightedIntegral(NT, varDiff, areaT)
-       L2Num = computeGlobalWeightedIntegral(NT, varDiff2, areaT)
        LinfNum = np.amax(abs(varDiff))
        
-       Lmin_1 = np.asscalar(L1Num / L1Den)
-       Lmin_2 = mt.sqrt(L2Num / L2Den)
        Lmin_inf = LinfNum / LinfDen
        
        # Compute numerators for maxima
        varDiff = maxDiff
-       varDiff2 = np.power(maxDiff, 2)
-       L1Num = computeGlobalWeightedIntegral(NT, varDiff, areaT)
-       L2Num = computeGlobalWeightedIntegral(NT, varDiff2, areaT)
        LinfNum = np.amax(abs(varDiff))
        
-       Lmax_1 = np.asscalar(L1Num / L1Den)
-       Lmax_2 = mt.sqrt(L2Num / L2Den)
        Lmax_inf = LinfNum / LinfDen
        
-       return Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf 
+       return Lmin_inf, Lmax_inf 

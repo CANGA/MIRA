@@ -167,6 +167,7 @@ def parseCommandLine(argv):
        ExodusSingleConn = False
        SCRIPwithoutConn = False
        SCRIPwithConn = False
+       SpectralElement = False
        
        # Sampling order
        sampleCentroid = False
@@ -178,26 +179,31 @@ def parseCommandLine(argv):
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
        
-       # Number of modes used up to 768
+       # Number of modes used up to 512
        numModes = 128
+       
+       # Pseudo-random number generator seed
+       seed = 384
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['pm=', 'so=', 'nm=', 'EvaluateAll', \
+                                        ['pm=', 'so=', 'nm=', 'rseed=', 'EvaluateAll', \
                                          'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn'])
+                                         'SCRIPwithConn', 'SpectralElement'])
        except getopt.GetoptError:
               print('Command line not properly set:', \
                     'CANGAFieldGenDriver.py', \
                     '--pm <sampleMeshFile>', \
                     '--so <sampleOrderInteger>', \
                     '--nm <numberSHModesMax768>', \
+                    '--rseed <randnumSeed>', \
                     '--<evaluateAllFields>', \
                     '--<evaluateTotalPrecipWater>', \
                     '--<evaluateCloudFraction>', \
                     '--<evaluateGlobalTerrain>', \
-                    '--<meshConfiguration>')
+                    '--<meshConfiguration>', \
+                    '--<isSpectralElementMesh>')
               sys.exit(2)
               
        for opt, arg in opts:
@@ -208,11 +214,13 @@ def parseCommandLine(argv):
                            '--pm <sampleMeshFile>', \
                            '--so <sampleOrderInteger>', \
                            '--nm <numberSHModesMax768>', \
+                           '--rseed <randnumSeed>', \
                            '--<evaluateAllFields>', \
                            '--<evaluateTotalPrecipWater>', \
                            '--<evaluateCloudFraction>', \
                            '--<evaluateGlobalTerrain>', \
-                           '--<meshConfiguration>')
+                           '--<meshConfiguration>', \
+                           '--<isSpectralElementMesh>')
                      sys.exit()
               elif opt == '--pm':
                      sampleMesh = arg
@@ -226,6 +234,8 @@ def parseCommandLine(argv):
                                 sys.exit("[FATAL] Error in option passed for --so. Sample order must be in [2, 4, 6]")
               elif opt == '--nm':
                      numModes = int(arg)
+              elif opt == '--rseed':
+                     seed = int(arg)
               elif opt == '--EvaluateAll':
                      EvaluateAll = True
               elif opt == '--EvaluateTPW':
@@ -240,11 +250,13 @@ def parseCommandLine(argv):
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
                      SCRIPwithConn = True
+              elif opt == '--SpectralElement':
+                     SpectralElement = True
                      
-       # Check that the number of modes requested doesn't exceed 768
-       if numModes > 768:
-              print('Setting maximum number of expansion modes: 768.')
-              numModes = 768
+       # Check that the number of modes requested doesn't exceed 512
+       if numModes > 512:
+              print('Setting maximum number of expansion modes: 512.')
+              numModes = 512
                      
        # Check that only one configuration is chosen
        if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
@@ -271,22 +283,20 @@ def parseCommandLine(argv):
        print('Welcome to CANGA remapping intercomparison metrics!')              
        print('Mesh and Variable data must be in NETCDF format.')
        
-       return sampleMesh, numModes, \
+       return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
               EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
-              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn
+              ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
        print('Authors: Jorge Guerra, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       mesh_file, ND, sampleCentroid, sampleOrder, \
+       mesh_file, ND, seed, sampleCentroid, sampleOrder, \
        EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
-       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn = parseCommandLine(sys.argv[1:])
-       
-       # FV mode
-       avg = True
+       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
+       = parseCommandLine(sys.argv[1:])
 
        """ SET INPUT HERE FOR DEVELOPMENT TESTING
        ND = 48
@@ -328,20 +338,45 @@ if __name__ == '__main__':
        print('Number of SH degrees for sampling set to: ', ND)
        
        if ExodusSingleConn:
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'connect1'
+                     coordCell = 'coord'
+                     
               # Open the .g mesh files for reading
-0              m_fid = Dataset(mesh_file)
+              m_fid = Dataset(mesh_file)
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
-              varCon = m_fid.variables['connect1'][:]
-              varCoord = m_fid.variables['coord'][:]
+              varCon = m_fid.variables[connCell][:]
+              varCoord = m_fid.variables[coordCell][:]
+              
+              # Get the rectilinear attribute if available
+              try:
+                     print('Rectilinear mesh detected; field variable written as 2D')
+                     rectilinear = m_fid.rectilinear
+                     # Get the 2D size of the field array from mesh file
+                     NLON = m_fid.rectilinear_dim1_size
+                     NLAT = m_fid.rectilinear_dim0_size
+              except:
+                     print('NOT a rectilinear mesh.')
+                     rectilinear = False
+              
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
               numCells = 'grid_size'
               numDims = 'cart_dims'
-              connCell = 'element_corners_id'
-              coordCell = 'grid_corners_cart'
               numVerts = 'grid_corners_size'
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'element_corners_id'
+                     coordCell = 'grid_corners_cart'
               
               # Open the .nc SCRIP files for reading
               m_fid = Dataset(mesh_file, 'a')
@@ -361,8 +396,13 @@ if __name__ == '__main__':
               numEdges = 'ncorners'
               numCells = 'ncells'
               numDims = 'cart_dims'
-              connCell = 'element_corners'
-              coordCell = 'grid_corners_cart' 
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'element_corners'
+                     coordCell = 'grid_corners_cart' 
               
               # Open the .nc SCRIP files for reading
               m_fid = Dataset(mesh_file, 'a')
@@ -383,13 +423,14 @@ if __name__ == '__main__':
               
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
-                            
-       # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
-       # Compute Centroids
-       varCent = computeCentroids(varCon, varCoord)
        
-       # Compute Lon/Lat coordinates from centroids
-       varLonLat = computeCart2LL(varCent)
+       if SpectralElement:
+              # Compute Lon/Lat coordinates from GLL nodes
+              varLonLat = computeCart2LL(varCoord.T)
+       else:
+              # Compute Lon/Lat coordinates from centroids
+              varCent = computeCentroids(varCon, varCoord)
+              varLonLat = computeCart2LL(varCent)
        
        # Convert to degrees from radians
        varLonLat_deg = 180.0 / mt.pi * varLonLat
@@ -429,10 +470,10 @@ if __name__ == '__main__':
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
-              if sampleCentroid:              
+              if sampleCentroid or SpectralElement:              
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, avg)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True)
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
@@ -474,10 +515,10 @@ if __name__ == '__main__':
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
-              if sampleCentroid:              
+              if sampleCentroid or SpectralElement:              
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, avg)
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True)
  
               # Compute rescaled data from 0.0 to max
               minCFR = np.amin(CFRvar)
@@ -522,10 +563,10 @@ if __name__ == '__main__':
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
-              if sampleCentroid:              
+              if sampleCentroid or SpectralElement:              
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, avg)
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True)
               
               # Rescale to -1.0 to 1.0
               minTPO = np.amin(TPOvar)
@@ -546,6 +587,10 @@ if __name__ == '__main__':
               
        #%% Copy grid files and store the new test data (source and target)
        outFileName = data_file
+       
+       if SpectralElement:
+              outFileName = outFileName + 'GLL'
+       
        if EvaluateAll:
               outFileName = outFileName + '_TPW_CFR_TPO.nc'
        elif EvaluateTPW:
@@ -570,6 +615,9 @@ if __name__ == '__main__':
        elif SCRIPwithConn:
               numCells = 'ncells'
               
+       if SpectralElement:
+              numCells = 'grid_gll_size'
+              
        # Process the sampling file
        if SCRIPwithConn:
               lonNC = data_fid.createVariable('nlon', 'f8', (numCells,))
@@ -582,21 +630,39 @@ if __name__ == '__main__':
               latNC = data_fid.createVariable('lat', 'f8', (numCells,))
               latNC[:] = varLonLat_deg[:,1]
        
-       if EvaluateTPW or EvaluateAll:
-              TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
-              TPWNC[:] = TPWvar
-       if EvaluateCFR or EvaluateAll:
-              CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
-              CFRNC[:] = CFRvar
-       if EvaluateTPO or EvaluateAll:
-              TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
-              TPONC[:] = TPOvar
+       if rectilinear:
+              slon = 'lonDim'
+              slat = 'latDim'
+              data_fid.createDimension(slon, NLON)
+              data_fid.createDimension(slat, NLAT)
+              
+              if EvaluateTPW or EvaluateAll:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon))
+                     field = np.reshape(TPWvar, (NLAT, NLON))
+                     TPWNC[:] = field
+              if EvaluateCFR or EvaluateAll:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon))
+                     field = np.reshape(CFRvar, (NLAT, NLON))
+                     CFRNC[:] = field
+              if EvaluateTPO or EvaluateAll:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon))
+                     field = np.reshape(TPOvar, (NLAT, NLON))
+                     TPONC[:] = field
+       else:
+              if EvaluateTPW or EvaluateAll:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
+                     TPWNC[:] = TPWvar
+              if EvaluateCFR or EvaluateAll:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
+                     CFRNC[:] = CFRvar
+              if EvaluateTPO or EvaluateAll:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
+                     TPONC[:] = TPOvar
        
        # Close the files out.
        data_fid.close()
 
-       '''
-
+       #'''
        #%% Check the data with triangular surface plot
        points2D = varLonLat
        tri = Delaunay(points2D)
@@ -620,7 +686,7 @@ if __name__ == '__main__':
                                        simplices=simplices, colormap="Portland", plot_edges=False, \
                                        title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
               py.offline.plot(fig1, filename='TPO' + data_file + '.html')
-       '''
+       #'''
        #%% Check the evaluated spectra
        '''
        fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)

@@ -8,19 +8,19 @@ various data arrays MUST have matching sizes. This is checked here.
 
 @author: jeguerra
 """
+import numpy as np
 
-def computeGlobalWeightedIntegral(NEL, varF, areas):
+def computeGlobalWeightedIntegral(NEL, varCon, varF, areas, jacobians, SpectralElement):
+       # NEL = total number of elements/cells
        
-       try:
-              # Check the number of elements (grid cells) against field variable
-              if len(varF) != NEL:
-                     print('Field variable array length does not match number of elements in "computeGlobalWeightedIntegral"')
-       except ValueError:
-              print('CHECK DATA ARRAY SIZES FOR INTEGRAL COMPUTATIONS.')
-              
        # Loop over each element and compute the sum
        INT = 0.0
        for ii in range(NEL):
-              INT += areas[ii] * varF[ii]
+              
+              if SpectralElement:
+                     gdex = varCon[ii,:] - 1
+                     INT += np.dot(jacobians[ii,:], varF[gdex.astype(int)])
+              else:
+                     INT += areas[ii] * varF[ii]
               
        return INT

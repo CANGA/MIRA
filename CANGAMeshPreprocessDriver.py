@@ -24,7 +24,9 @@ import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
+from computeCoordConnGLL import computeCoordConnGLL
 from computeAreaIntegral import computeAreaIntegral
+from computeAreaIntegralSE import computeAreaIntegralSE
 
 def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
@@ -182,9 +184,9 @@ if __name__ == '__main__':
                      print('Storing connectivity and coordinate arrays from Exodus mesh files.')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
                      meshFileOut[:] = varCon
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -232,9 +234,9 @@ if __name__ == '__main__':
                      print('Storing connectivity and coordinate arrays from raw SCRIP')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges, ))
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
                      meshFileOut[:] = varCon
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -286,7 +288,7 @@ if __name__ == '__main__':
                      print('Storing connectivity and coordinate arrays from raw SCRIP')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts ))
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
               except RuntimeError:
@@ -295,22 +297,25 @@ if __name__ == '__main__':
               endt = time.time()
               print('Time to precompute SCRIP mesh info (sec): ', endt - start)
               
+       # Close the mesh file
+       m_fid.close()
+       # Open the mesh file for new data
+       m_fid = Dataset(mesh_file, 'a')
+              
        #%% Adjacency processing
        
        start = time.time()
        print('Computing adjacency maps...')
-       # Store the adjacency map in the original grid netcdf file (target mesh)
-       m_fid = Dataset(mesh_file, 'a')
        
        print('Adjacency data computed/written to mesh file for the first time...')
        
        # Compute adjacency maps for both meshes (source stencil NOT needed)
-       edgeNodeMap, varConStenDex = computeFastAdjacencyStencil(varCon)
+       edgeNodeMap, edgeNodeKDTree, varConStenDex = computeFastAdjacencyStencil(varCon)
        # Get the starting index for the adjecency information in varConStenDexT
        adex = np.size(varConStenDex,1) - np.size(varCon,1) 
        
        try:
-              meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges, ))
+              meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
               meshFileOut[:] = varConStenDex[:,adex:]
        except RuntimeError:
               print('Adjacency variable already exists in mesh data file')
@@ -318,12 +323,11 @@ if __name__ == '__main__':
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
        
+       #%% Area processing for FV models
        start = time.time()
-       print('Computing source and target mesh areas...')
+       print('Computing mesh areas...')
        
-       #%% Area processing
-       
-       print('Source areas computed/written to mesh file for the first time...')
+       print('Cell areas computed/written to mesh file for the first time...')
        # Precompute the area weights and then look them up in the integral below
        NEL = len(varCon)
        area = np.zeros((NEL,1))
@@ -344,7 +348,82 @@ if __name__ == '__main__':
        print('Time to precompute cell areas (sec): ', endt - start)
        
        #%% Make global GLL connectivity and coordinate arrays from varCon and varCoord
+       start = time.time()
+       print('Computing new GLL mesh grids and connectivity...')
        
+       # Check element topology (must be quads)
+       NGC = varCon.shape[1]
+       if ((NGC == 4) and (SpectralElement)):
+              print('GLL global coordinates and connectivity computed/written to mesh file for the first time...')
+              NEL = len(varCon)
+       
+              # Compute number of grids per element
+              if seOrder == 2:
+                     NGED = 2
+                     NGEL = 4
+              elif seOrder == 4:
+                     NGED = 4
+                     NGEL = 16
+              else:
+                     NGED = 4
+                     NGEL = 16
+                     print('Assuming 4th order Spectral Elements') 
+              
+              # Compute the new GLL global coordinates and connectivity (by edges)
+              edgeNodeMapGLL, varCoordGLL, varConGLL = \
+                     computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
+                     
+              try:   
+                     print('Storing GLL connectivity and coordinate arrays.')
+                     numVertsGLL = 'grid_gll_size'
+                     numNodesGLL = 'num_gll_per_el1'
+                     connCellGLL = 'element_gll_conn'
+                     coordCellGLL = 'grid_gll_cart'
+                     
+                     meshFileOut = m_fid.createDimension(numVertsGLL, np.size(varCoordGLL, 1))
+                     meshFileOut = m_fid.createDimension(numNodesGLL, NGEL)
+                     meshFileOut = m_fid.createVariable(connCellGLL, 'i4', (numCells, numNodesGLL))
+                     meshFileOut[:] = varConGLL
+                     meshFileOut = m_fid.createVariable(coordCellGLL, 'f8', (numDims, numVertsGLL))
+                     meshFileOut[:] = varCoordGLL
+                     
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.')
+       else:
+              print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --SpectralElement option not set.')
+       
+       endt = time.time()
+       print('Time to precompute GLL grid/connectivity (sec): ', endt - start)
+       
+       #%% Jacobian/area processing for SE models
+       start = time.time()
+       print('Computing mesh element Jacobian weights...')
+       
+       NGC = varCon.shape[1]
+       if ((NGC == 4) and (SpectralElement)):
+              print('Element Jacobians computed/written to mesh file for the first time...')
+              # Precompute the area weights and then look them up in the integral below
+              NEL = len(varConGLL)
+              jacobians = np.zeros(varConGLL.shape)
+              for ii in range(NEL):
+                     cdex = varConGLL[ii,:] - 1
+                     thisCell = varCoordGLL[:,cdex.astype(int)]
+                     elArea, jacobians[ii,:] = computeAreaIntegralSE(thisCell, 4)       
+              try:   
+                            print('Storing GLL Jacobian arrays.')
+                            jacobiansGLL = 'element_jacobians'
+                            numNodesGLL = 'num_gll_per_el1'
+                            
+                            meshFileOut = m_fid.createVariable(jacobiansGLL, 'f8', (numCells, numNodesGLL))
+                            meshFileOut[:] = jacobians
+                            
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.')
+       else:
+              print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --SpectralElement option not set.')
+              
+       endt = time.time()
+       print('Time to precompute GLL element Jacobian weights (sec): ', endt - start)
        
        #%% Close out the file       
        m_fid.close()
