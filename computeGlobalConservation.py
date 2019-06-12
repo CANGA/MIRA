@@ -11,22 +11,22 @@ Returns a single scalar
 import numpy as np
 from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
-def computeGlobalConservation(varConT, varS2T, varST, areaT, jacobiansT, SpectralElement):
+def computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, areaT, jacobiansS, jacobiansT, sourceSE, targetSE):
        
        # Get the total number of cells/elements
+       NS = varConS.shape[0]
        NT = varConT.shape[0]
        
-       #diffVarT = np.subtract(varS2T, varST)
+       # Compute integral of the (absolute value) target sampled ST data
+       L_SS = computeGlobalWeightedIntegral(NS, varConS, varSS, areaS, jacobiansS, sourceSE)
        
        # Compute integral of the absolute value of the difference
-       #L_S2T = computeGlobalWeightedIntegral(NT, varConT, np.abs(diffVarT), areaT, jacobiansT, SpectralElement)
-       L_S2T = computeGlobalWeightedIntegral(NT, varConT, np.abs(varS2T), areaT, jacobiansT, SpectralElement)
+       L_S2T = computeGlobalWeightedIntegral(NT, varConT, varS2T, areaT, jacobiansT, targetSE)
        
        # Compute integral of the (absolute value) target sampled ST data
-       L_ST = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST), areaT, jacobiansT, SpectralElement)
+       L_ST = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST), areaT, jacobiansT, targetSE)
        
        # Compute the global conservation metric
-       #L_g = L_S2T / L_ST
-       L_g = (L_S2T - L_ST) / L_ST
+       L_g = (L_S2T - L_SS) / L_ST
        
        return L_S2T, L_ST, L_g

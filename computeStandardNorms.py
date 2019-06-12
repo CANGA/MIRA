@@ -22,13 +22,13 @@ def computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, SpectralElem
        varST2 = np.power(varST, 2)
        
        # Compute the necessary integrals
-       L1Den = computeGlobalWeightedIntegral(NT, varConT, varST, areaT, jacobiansT, SpectralElement)
-       L2Den = computeGlobalWeightedIntegral(NT, varConT, varST2, areaT, jacobiansT, SpectralElement)
-       LinfDen = np.amax(varST)
+       L1Den = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST), areaT, jacobiansT, SpectralElement)
+       L2Den = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST2), areaT, jacobiansT, SpectralElement)
+       LinfDen = np.amax(np.abs(varST))
        
-       L1Num = computeGlobalWeightedIntegral(NT, varConT, varDiff, areaT, jacobiansT, SpectralElement)
-       L2Num = computeGlobalWeightedIntegral(NT, varConT, varDiff2, areaT, jacobiansT, SpectralElement)
-       LinfNum = np.amax(abs(varDiff))
+       L1Num = computeGlobalWeightedIntegral(NT, varConT, np.abs(varDiff), areaT, jacobiansT, SpectralElement)
+       L2Num = computeGlobalWeightedIntegral(NT, varConT, np.abs(varDiff2), areaT, jacobiansT, SpectralElement)
+       LinfNum = np.amax(np.abs(varDiff))
        
        L_1 = L1Num / L1Den
        L_2 = mt.sqrt(L2Num / L2Den)
