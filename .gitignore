@@ -72,3 +72,11 @@ testdataGLL_RLL1deg_2_CSne30_CFR\.nc
 testdataGLL_RLL1deg_2_CSne30_TPO\.nc
 
 testdataGLL_RLL1deg_2_CSne30_TPW\.nc
+
+meshes/CSne60_2_RLL1deg\.g
+
+meshes/CSne60_2_RLL1deg\.nc
+
+meshes/RLL1deg_2_CSne60_np4\.nc
+
+meshes/RLL1deg_2_CSne60\.g
