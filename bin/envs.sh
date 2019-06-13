@@ -1,2 +1,2 @@
 #export TEMPESTREMAP_DIR=/opt/tempestremap/drivers/bin/
-export TEMPESTREMAP_DIR=~/Desktop/tempestremap/build/
+export TEMPESTREMAP_DIR=~/tempestremap/build/

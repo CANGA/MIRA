@@ -402,8 +402,8 @@ if __name__ == '__main__':
        # Global Extrema preservation
        Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
        # Local Extrema preservation
-       Lmin_inf, Lmax_inf = \
-       computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, targetSE)
+       Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
+       computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, targetSE)
        # Gradient preservation
        gradientsOnTM = [gradST, gradS2T]
        varsOnTM = [varST, varS2T]
@@ -418,7 +418,11 @@ if __name__ == '__main__':
        print('Global Linf error:   %16.15e' % np.ravel(L_inf))
        print('Global max error:    %16.15e' % np.ravel(Lmax))
        print('Global min error:    %16.15e' % np.ravel(Lmin))
+       print('Local max L1 error:  %16.15e' % np.ravel(Lmax_1))
+       print('Local max L2 error:  %16.15e' % np.ravel(Lmax_2))
        print('Local max Lm error:  %16.15e' % np.ravel(Lmax_inf))
+       print('Local min L1 error:  %16.15e' % np.ravel(Lmin_1))
+       print('Local min L2 error:  %16.15e' % np.ravel(Lmin_2))
        print('Local min Lm error:  %16.15e' % np.ravel(Lmin_inf))
        print('Gradient semi-norm:  %16.15e' % np.ravel(H1_2))
        print('Gradient full-norm:  %16.15e' % np.ravel(H1))       

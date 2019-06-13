@@ -11,7 +11,7 @@ Computes the local extrema metrics for regridded and reference target data
 import math as mt
 import numpy as np
 #from scipy.spatial import cKDTree
-#from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
+from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
 
 COINCIDENT_TOLERANCE = 1.0E-14
 kdleafs = 100
@@ -119,9 +119,10 @@ def computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST, SpectralElement
        
        return pmin, pmax
 
-def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, SpectralElement):
+def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, areaT, jacobiansT, SpectralElement):
        
        NT = varCon.shape[0]
+       varST2 = np.power(varST, 2)
        minDiff = np.zeros((NT,1))
        maxDiff = np.zeros((NT,1))
        
@@ -142,18 +143,30 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, S
               maxDiff[jj] = np.maximum(lPmax - varS2T[jj], 0.0)
        
        # Compute normalization integrals
-       LinfDen = np.amax(varST)
+       L1Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST), areaT, jacobiansT, SpectralElement)
+       L2Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST2), areaT, jacobiansT, SpectralElement)
+       LinfDen = np.amax(varST) - np.amin(varST)
        
        # Compute numerators for minima
        varDiff = minDiff
+       varDiff2 = np.power(minDiff, 2)
+       L1Num = computeGlobalWeightedIntegral(NT, varCon, np.abs(varDiff), areaT, jacobiansT, SpectralElement)
+       L2Num = computeGlobalWeightedIntegral(NT, varCon, varDiff2, areaT, jacobiansT, SpectralElement)
        LinfNum = np.amax(abs(varDiff))
        
+       Lmin_1 = np.asscalar(L1Num / L1Den)
+       Lmin_2 = mt.sqrt(L2Num / L2Den)
        Lmin_inf = LinfNum / LinfDen
        
        # Compute numerators for maxima
        varDiff = maxDiff
+       varDiff2 = np.power(maxDiff, 2)
+       L1Num = computeGlobalWeightedIntegral(NT, varCon, np.abs(varDiff), areaT, jacobiansT, SpectralElement)
+       L2Num = computeGlobalWeightedIntegral(NT, varCon, varDiff2, areaT, jacobiansT, SpectralElement)
        LinfNum = np.amax(abs(varDiff))
        
+       Lmax_1 = np.asscalar(L1Num / L1Den)
+       Lmax_2 = mt.sqrt(L2Num / L2Den)
        Lmax_inf = LinfNum / LinfDen
        
-       return Lmin_inf, Lmax_inf 
+       return Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf
