@@ -1,95 +1,53 @@
 # CANGA-Metrics-Driver
 Python driver for the CANGA-ROO project. Developed with Python 3.6 using Spyder IDE
 
-Main mesh preprocessing file: CNAGAMeshPreprocessDriver.py
-Main field generator file: CANGAFieldGenerator.py
-Main metrics file: CANGAMetricsDriver.py
+- Main mesh preprocessing file: CNAGAMeshPreprocessDriver.py
+- Main field generator file: CANGAFieldGenerator.py
+- Main metrics file: CANGAMetricsDriver.py
 
 TESTING SEQUENCE *EXAMPLE*:
 1) Mesh files:
-   - Source mesh file eg. "outCSne30.g"
+   - Source mesh file eg. "outCSne60.g"
    - Target mesh file et. "outRLL1deg.g"
    - THE TWO MESH FILES NEED NOT BE FORMAT CONSISTENT. THEY WILL BE PREPROCESSED INDEPENDENTLY.
    
 2) Preprocess source and target meshes:
-   - python CANGAMeshPreprocessDriver.py --mesh outCSne30.g --ExodusSingleConn
+   - python CANGAMeshPreprocessDriver.py --mesh outCSne60.g --ExodusSingleConn --SpectralElement
    - python CANGAMeshPreprocessDriver.py --mesh outRLL1deg.g --ExodusSingleConn
-   This will write the two variables varCoord (Cartesian coordinates of global nodes where the field is evaluated i.e. cell centers in the FV case or GLL nodes in the FE case) and varCon (Global connectivity list for cells/elements) to the respective mesh file.
+   - This will write the two variables varCoord (Cartesian coordinates of global nodes where the field is evaluated i.e. cell centers in the FV case or GLL nodes in the FE case) and varCon (Global connectivity list for cells/elements) to the respective mesh file.
+   - Output will be:
+   - Augmented source mesh file: "outCSne60.g_RIPPED"
+   - Augmented target mesh file: "outRLL1deg.g_RIPPED"
+   - The --SpectralElement option only applies to quadrilaterals (code will check and abort otherwise) and generates augmented global DOF coordinates and connectivity. It also generates the global Jacobian weights for each global DOF. This facilitates integrals through the susequent metrics computations.
 
 3) To generate sampled data on source and target:
-   - python CANGAFieldGenDriver.py --pm outCSne30.g --so 6 --nm 768 --EvaluateAll --ExodusSingleConn
-   - python CANGAFieldGenDriver.py --pm outRLL1deg.g --so 6 --nm 768 --EvaluateAll --ExodusSingleConn
+   - python CANGAFieldGenDriver.py --pm outCSne60.g_RIPPED --so 6 --nm 512 --EvaluateAll --ExodusSingleConn
+   - THIS WILL OUTPUT ON CELL CENTERS USING A 6TH ORDER TRIANGULAR QUADRATURE TO COMPUTE ELEMENT AVERAGE.
+   - python CANGAFieldGenDriver.py --pm outCSne60.g_RIPPED --so 6 --nm 512 --EvaluateAll --ExodusSingleConn --SpectralElement
+   - THIS WILL OUTPUT ON GLOBAL GLL NODES WITH NO QUADRATURE APPLIED SO --so OPTION IS IGNORED.
+   - python CANGAFieldGenDriver.py --pm outRLL1deg.g_RIPPED --so 6 --nm 512 --EvaluateAll --ExodusSingleConn
    - In this example the sampling order is maximum 6th order and number of modes is maximum 768 which is roughly equivalent      to 0.25 degree resolution. This is the maximum supported based on expansions of satellite data that yield ~1000+ modes      for Total Precipitable Water, Cloud Fraction, and Topography.
    - This will generate NEW files with the prefix 'testdata_' and suffix 'TPW_CFR_TPO' if --EvaluateAll is set. Individual        fields can also be set with --EvaluateTPW, --EvaluateCFR, --EvaluateTPO.
-   - The following NETCDF files are created: testdata_outCSne30_TPW_CFR_TPO.nc AND testdata_outRLL1deg_TPW_CFR_TPO.nc
+   - The following NETCDF files are created: testdata_outCSne60_TPW_CFR_TPO.nc AND testdata_outRLL1deg_TPW_CFR_TPO.nc
    - The new data files are augmented copies of the original mesh data files keeping all metadata consistent.
    
 4) Remap testdata files generated in 2) using TempestRemap
-   - Run the following shell scripts provided (modify as you see fit): CSne30_2_RLL1deg_Remap_TPW_CFR_TPO.sh
+   - Run the following shell scripts provided (modify as you see fit): CSne60_2_RLL1deg_Remap_TPW_CFR_TPO.sh
    - STOP: This step assumes that you have downloaded and compiled tempest remap from:                                            https://github.com/ClimateGlobalChange/tempestremap
    - YOUR FAVORITE REMAPPER WILL LIKELY DO SOMETHING DIFFERENT ENOUGH TO BREAK THINGS WITH REGARD TO NETCDF DETAILS SO            FURTHER TESTING/FIXING WILL BE REQUIRED TO ACCOUNT FOR MORE DIVERSE USER CASES.
-   - "Anywho..." as Paul U. might say, the script above will generate the following: CSne30_2_RLL1deg_np4_TPW_CFR_TPO.nc
+   - "Anywho..." as Paul U. might say, the script above will generate the following: CSne60_2_RLL1deg_np4_TPW_CFR_TPO.nc
   
 5) To generate metrics on remapped data:
    - You now have the 3 essential files: 
-   ** FIELD SAMPLED ON THE SOURCE MESH: testdata_outCSne30_TPW_CFR_TPO.nc
+   ** FIELD SAMPLED ON THE SOURCE MESH: testdata_outCSne60_TPW_CFR_TPO.nc
    ** FIELD SAMPLED ON THE TARGET MESH: testdata_outRLL1deg_TPW_CFR_TPO.nc
-   ** FIELD REMAPPED SOURCE TO TARGET: CSne30_2_RLL1deg_np4_TPW_CFR_TPO.nc
-   - Run the following shell script to generate metrics: CSne30_2_RLL1deg_np4_TPW_CFR_TPO.nc
+   ** FIELD REMAPPED SOURCE TO TARGET: CSne60_2_RLL1deg_np4_TPW_CFR_TPO.nc
+   - Run the following shell script to generate metrics: CSne60_2_RLL1deg_np4_TPW_CFR_TPO.nc
    - IF this is the first run, the code will go into a LONG precomputation of cell areas, adjacencies, and field gradients        to be stored in the mesh file (areas and adjacency) and data file (gradients).
    - IF the code finds precomputed data, execuation will be MUCH faster. 
 
 6) Output for TPW (AFTER precomputations) should look like this (on a 2015 MacBook Pro...):
 
-Welcome to CANGA remapping intercomparison metrics!
-
-Authors: Jorge Guerra, Paul Ullrich, 2019
-
-Computing/reading adjacency maps...
-
-Time to precompute adjacency maps (sec):  0.002249002456665039
-
-Computing source and target mesh areas...
-
-Time to precompute/read mesh areas (sec):  0.0022902488708496094
-
-Time to read NC and Exodus data (sec):  0.0025649070739746094
-
-Computing or reading gradients for target sampled and regridded fields...
-
-Time to compute/read gradients on target mesh (sec):  0.0046977996826171875
-
-Computing all metrics...
-
-Time to execute metrics (sec):  41.048941135406494
-
-Global conservation: -1.342620427744820e-11
-
-Global L1 error:     -5.375076262147747e-02
-
-Global L2 error:     5.818910116017171e-02
-
-Global Linf error:   9.500633281658483e-02
-
-Global max error:    -2.221532280056399e-02
-
-Global min error:    8.323725405955121e-03
-
-Local max L1 error:  1.422438389080596e-02
-
-Local max L2 error:  3.435138652959414e-02
-
-Local max Lm error:  1.506976424475193e-01
-
-Local min L1 error:  -9.498159999055940e-05
-
-Local min L2 error:  1.239117251460247e-03
-
-Local min Lm error:  2.771707334760692e-02
-
-Gradient semi-norm:  1.891627764536130e+00
-
-Gradient full-norm:  1.892522541756834e+00
 
 NOTES:
 - variable name as given in data netcdf file, check with "ncdump -c <filename>".
