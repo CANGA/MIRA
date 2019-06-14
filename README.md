@@ -64,12 +64,7 @@ REQUIRES:
 
 MAIN ASSUMPTIONS:
 1) Non-coincident grid array from mesh file
-2) Non-coincident, convex, element connectivity array from mesh file (single type 3 or 4 node)
-    ** Support for multiple connectivity arrays coming soon **
-3) Main variable is defined at cell centers only (FV to FV mappings)
-4) Gradient metric is implemented using a linear reconstruction between adjacent cells
+2) Non-coincident, convex, element connectivity array from mesh file or automatically generated for SCRIP formatted mesh files
+3) Main variable is defined at cell centroids (FV to FV mappings) or at element GLL nodes (FV to SE or SE to FV mappings) for regular quadrilateral elements ONLY
+4) Gradient metric is implemented using a linear reconstruction of one ring of adjacent cells (strategy 6 from Barth & Jesperson, 1989) or by direct local differentiation per element at GLL nodes.
 5) Locality metric requires 2 remapping applications to measure on the same (source) grid
-
-TO DO:
-1) Test support for SCRIP grid data (provided by Phil J.)
-2) Support for fields on GLL grids
