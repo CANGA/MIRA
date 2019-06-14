@@ -17,6 +17,7 @@ REVISION HISTORY
 REFERENCES
 '''
 #%%
+import shutil
 import time
 import sys, getopt
 import math as mt
@@ -70,7 +71,7 @@ def parseCommandLine(argv):
        SCRIPwithConn = False
        SpectralElement = False
        # Polynomial order for spectral elements
-       seOrder = 0
+       seOrder = 4
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
@@ -145,23 +146,13 @@ if __name__ == '__main__':
        mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
        SpectralElement, seOrder = parseCommandLine(sys.argv[1:])
        
-       """ SET INPUT HERE FOR DEVELOPMENT TESTING
-       # Sampling Exodus .g file
-       #mesh_file = 'outCSne30.g'
-       #mesh_file = 'outRLL1deg.g'
-       #mesh_file = 'outICO64.g'
-       ExodusSingleConn = False
-       
-       # Sampling SCRIP file
-       mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
-       SCRIPwithoutConn = True
-       #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
-       SCRIPwithConn = False
-       """
-       
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
        varAdjaName = 'cell_edge_adjacency'
+       
+       # Set the name of the augmented mesh file and copy from original
+       outFileName = mesh_file + '_RIPPED'
+       shutil.copy(mesh_file, outFileName)
        
        #%% Mesh processing
        if ExodusSingleConn:
@@ -300,7 +291,7 @@ if __name__ == '__main__':
        # Close the mesh file
        m_fid.close()
        # Open the mesh file for new data
-       m_fid = Dataset(mesh_file, 'a')
+       m_fid = Dataset(outFileName, 'a')
               
        #%% Adjacency processing
        

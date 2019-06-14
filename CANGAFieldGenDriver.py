@@ -297,37 +297,6 @@ if __name__ == '__main__':
        EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
        = parseCommandLine(sys.argv[1:])
-
-       """ SET INPUT HERE FOR DEVELOPMENT TESTING
-       ND = 48
-       # Set the mesh configuration (mutually exclusive):
-       # ExodusSingleConn -> DEFAULT BEST (DEGENERATE POLYGONS OK)
-       # ExodusMultiConn -> NOT IMPLEMENTED (DEGENERATE POLYGONS OK)
-       # SCRIPwithoutConn -> UNFORTUNATE SECOND
-       # SCRIPwithConn -> NOT IMPLEMENTED (READING METIS MESH INFO PROBLEMATIC)
-       ExodusSingleConn = False
-       #ExodusMultiConn = False
-       SCRIPwithoutConn = True
-       SCRIPwithConn = False
-       
-       # Sampling Exodus .g file
-       #mesh_file = 'outCSne30.g'
-       #mesh_file = 'outRLL1deg.g'
-       #mesh_file = 'outICO64.g'
-       
-       # Sampling SCRIP file
-       mesh_file = 'Grids/ne30np4_pentagons.091226.nc'
-       #mesh_file = 'Grids/ne30np4_latlon.091226.nc'
-       
-       sampleCentroid = False
-       sampleOrder = 6
-       
-       # SET WHICH FIELDS TO EVALUATE
-       EvaluateAll = False
-       EvaluateTPW = True # Total Precipitable Water
-       EvaluateCFR = False # Global Cloud Fraction
-       EvaluateTPO = False # Global topography
-       """
        
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
