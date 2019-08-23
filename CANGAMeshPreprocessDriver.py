@@ -28,38 +28,7 @@ from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
 from computeAreaIntegral import computeAreaIntegral
 from computeAreaIntegralSE import computeAreaIntegralSE
-
-def computeCart2LL(cellCoord):
-       # Loop over each cell centroid, extract (lon, lat)
-       NC = np.size(cellCoord, axis=0)
-       varLonLat = np.zeros((NC, 2))
-       for ii in range(NC):
-              RO = np.linalg.norm(cellCoord[ii,:])
-              psi = mt.asin(1.0 / RO * cellCoord[ii,2])
-              lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
-              varLonLat[ii,:] = [lam, psi]
-       
-       # OUTPUT IS IN RADIANS       
-       return varLonLat
-
-def computeLL2Cart(cellCoord):
-       # Loop over the Lon/Lat coordinate array, extract Cartesian coords
-       # Input array is [lon, lat, radius]
-       NC = np.size(cellCoord, axis=0)
-       varCart = np.zeros((NC, 3))
-       for ii in range(NC):
-              RO = cellCoord[ii,2]
-              lon = cellCoord[ii,0]
-              lat = cellCoord[ii,1]
-              X = RO * mt.cos(lat) * mt.sin(lon)
-              Y = RO * mt.cos(lat) * mt.cos(lon)
-              Z = RO * mt.sin(lat)
-              RC = mt.sqrt(X**2 + Y**2 + Z**2)
-              varCart[ii,:] = [X, Y, Z]
-              varCart[ii,:] *= 1.0 / RC
-       
-       # INPUT IS IN RADIANS
-       return varCart
+import computeSphericalCartesianTransforms as sphcrt
 
 # Parse the command line
 def parseCommandLine(argv):
@@ -218,7 +187,7 @@ if __name__ == '__main__':
               varCoordLL, varCon = computeCoordConFastSCRIP(conLon, conLat)
               
               # Convert coordinates from lat/lon to Cartesian
-              varCoord = computeLL2Cart(varCoordLL[:,1:4])
+              varCoord = sphcrt.computeLL2Cart(varCoordLL[:,1:4])
               varCoord = varCoord.T
               
               try:   
@@ -272,7 +241,7 @@ if __name__ == '__main__':
               varCoordLL[:,2] = np.ones(len(conLon))
               
               # Convert coordinates from lat/lon to Cartesian
-              varCoord = computeLL2Cart(varCoordLL)
+              varCoord = sphcrt.computeLL2Cart(varCoordLL)
               varCoord = varCoord.T
               
               try:   

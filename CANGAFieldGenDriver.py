@@ -23,9 +23,9 @@ import numpy as np
 import plotly as py
 import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
-import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeAreaIntegral import computeAreaIntegral
+import computeSphericalCartesianTransforms as sphcrt
 
 #%% Utility functions
 
@@ -65,38 +65,6 @@ def computeCentroids(varCon, varCoord):
               cellCoord[ii,:] = centroid 
        
        return cellCoord
-
-def computeCart2LL(cellCoord):
-       # Loop over each cell centroid, extract (lon, lat)
-       NC = np.size(cellCoord, axis=0)
-       varLonLat = np.zeros((NC, 2))
-       for ii in range(NC):
-              RO = np.linalg.norm(cellCoord[ii,:])
-              psi = mt.asin(1.0 / RO * cellCoord[ii,2])
-              lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
-              varLonLat[ii,:] = [lam, psi]
-       
-       # OUTPUT IS IN RADIANS       
-       return varLonLat
-
-def computeLL2Cart(cellCoord):
-       # Loop over the Lon/Lat coordinate array, extract Cartesian coords
-       # Input array is [lon, lat, radius]
-       NC = np.size(cellCoord, axis=0)
-       varCart = np.zeros((NC, 3))
-       for ii in range(NC):
-              RO = cellCoord[ii,2]
-              lon = cellCoord[ii,0]
-              lat = cellCoord[ii,1]
-              X = RO * mt.cos(lat) * mt.sin(lon)
-              Y = RO * mt.cos(lat) * mt.cos(lon)
-              Z = RO * mt.sin(lat)
-              RC = mt.sqrt(X**2 + Y**2 + Z**2)
-              varCart[ii,:] = [X, Y, Z]
-              varCart[ii,:] *= 1.0 / RC
-       
-       # INPUT IS IN RADIANS
-       return varCart
 
 def computeCentroidsLL(conLon, conLat):
        # Loop over rows of the corner array and get centroid
@@ -395,11 +363,11 @@ if __name__ == '__main__':
        
        if SpectralElement:
               # Compute Lon/Lat coordinates from GLL nodes
-              varLonLat = computeCart2LL(varCoord.T)
+              varLonLat = sphcrt.computeCart2LL(varCoord.T)
        else:
               # Compute Lon/Lat coordinates from centroids
               varCent = computeCentroids(varCon, varCoord)
-              varLonLat = computeCart2LL(varCent)
+              varLonLat = sphcrt.computeCart2LL(varCent)
        
        # Convert to degrees from radians
        varLonLat_deg = 180.0 / mt.pi * varLonLat
