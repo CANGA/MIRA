@@ -7,8 +7,28 @@ PURPOSE
     Reads 3 NetCDF files containing model output (identical variables) and
     computes regridding metrics. Also takes mesh data from Exodus or SCRIP.
 PROGRAMMER(S)
-    Jorge Guerra, Paul Ullrich
+    Jorge Guerra, Paul Ullrich, Vijay Mahadevan
 REVISION HISTORY
+
+REQUIREMENTS
+    Input Specifications:
+       - sm: source mesh file
+       - tm: target mesh file
+       - data: field data file
+       - src_fields: field names (as variables) in field data file on source mesh
+       - tgt_fields: field names (as variables) in field data file on target mesh
+       - iterations: maximum dimensionality in 2-D space (number of remap iterations)
+    Output:
+       - Computed metrics as a table
+
+USAGE
+       python CANGAMetricsDriver.py \
+              --ss testdata_outCSMesh_ne16_TPW_CFR_TPO.nc \
+              --st testdata_outICODMesh_ne16_TPW_CFR_TPO.nc \
+              --smc 1 --tmc 1 \
+              --data OutputRemapFields-1-CS16-CVT16.nc \
+              --field Topography \
+              --dimension 2
     
 REFERENCES
 '''    
@@ -17,6 +37,7 @@ import sys, getopt
 import time
 import math as mt
 import numpy as np
+import datatable as dt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
@@ -51,89 +72,13 @@ def computeLL2Cart(cellCoord):
 
 # Parse the command line
 def parseCommandLine(argv):
-       # Field variable name
-       varName = ''
        
-       # NC files with field data
-       sourceSampledFile = ''
-       targetSampledFile = ''
-       remappedFile = ''
        
-       # Mesh information files
-       sourceMeshFile = ''
-       targetMeshFile = ''
-       sourceMeshConfig = 0
-       targetMeshConfig = 0
-
-       sourceSE = False
-       targetSE = False
-       
-       try:
-              opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['ss=', 's2t=', 'st=', 'sm=', 'tm=', \
-                                         'smc=', 'tmc=', 'sourceSE', 'targetSE'])
-       except getopt.GetoptError:
-              print('Command line not properly set:', \
-                    'CANGAMEtricsDriver.py', \
-                    '--ss <SourceSampledFile>', \
-                    '--s2t <remappedFile>', \
-                    '--st <targetSampledFile>', \
-                    '--sm <sourceMeshFile>', \
-                    '--smc <sourceMeshConfiguration>', \
-                    '--<isSourceSpectralElementMesh>', \
-                    '--tm <targetMeshFile>', \
-                    '--tmc <targetMeshConfiguration>', \
-                    '--<isTargetSpectralElementMesh>')
-              sys.exit(2)
-              
-       for opt, arg in opts:
-              # Request for usage help
-              if opt == '-h':
-                     print('Command line not properly set:', \
-                           'CANGAMEtricsDriver.py', \
-                           '--ss <SourceSampledFile>', \
-                           '--s2t <remappedFile>', \
-                           '--st <targetSampledFile>', \
-                           '--sm <sourceMeshFile>', \
-                           '--smc <sourceMeshConfiguration>', \
-                           '--<isSourceSpectralElementMesh>', \
-                           '--tm <targetMeshFile>', \
-                           '--tmc <targetMeshConfiguration>', \
-                           '--<isTargetSpectralElementMesh>')
-                     sys.exit()
-              elif opt == '-v':
-                     varName = arg
-              elif opt == '--ss':
-                     sourceSampledFile = arg
-              elif opt == '--s2t':
-                     remappedFile = arg
-              elif opt == '--st':
-                     targetSampledFile = arg
-              elif opt == '--sm':
-                     sourceMeshFile = arg
-              elif opt == '--tm':
-                     targetMeshFile = arg
-              elif opt == '--smc':
-                     sourceMeshConfig = int(arg)
-              elif opt == '--tmc':
-                     targetMeshConfig = int(arg)
-              elif opt == '--sourceSE':
-                     sourceSE = True
-              elif opt == '--targetSE':
-                     targetSE = True
-                                   
-       # Input checks
-       if sourceMeshConfig > 3:
-              print('ERROR: Invalid source mesh configuration (1-3)')
-              sys.exit(2)
-       
-       if targetMeshConfig > 3:
-              print('ERROR: Invalid target mesh configuration (1-3)')
-              sys.exit(2)
-       
-       return varName, sourceSampledFile, remappedFile, targetSampledFile, \
-              sourceMeshFile, targetMeshFile, \
-              sourceMeshConfig, targetMeshConfig, sourceSE, targetSE
+       return sourceSampledFile, targetSampledFile, \
+              sourceMeshConfig, targetMeshConfig, \
+              fieldName, fieldDataFile, \
+              isSourceSpectralElementMesh, isTargetSpectralElementMesh, \
+              maxRemapIterations
               
 def loadMeshData(mesh_file, mesh_config, SpectralElement):
        
@@ -289,13 +234,13 @@ def loadMeshJacobians(mesh_file, varJacoName, SpectralElement):
 def loadField(var_file, varName):
        start = time.time()
        # Open the .nc data files for reading
-       nc_fid = Dataset(var_file, 'a')
+       nc_fid = Dataset(var_file, 'r')
        
        # Get the field data
        varField = nc_fid.variables[varName][:]
        
        # Check the extracted variables for dimensionality
-       # If the variables are 2D then reshape along the longitude (ASSUMED)     
+       # If the variables are 2D then reshape along the longitude (ASSUMED)
        VS = varField.shape
        if len(VS) > 1:
               varField = np.reshape(varField, VS[0] * VS[1])
@@ -307,6 +252,24 @@ def loadField(var_file, varName):
        print('Time to read NC and Exodus data (sec): ', endt - start)
        
        return varField
+
+
+def loadDataField(var_file, varName, dimension):
+       srcvarName = varName + '_remap_src'
+       tgtvarName = varName + '_remap_tgt'
+
+       # Open the .nc data files for reading
+       nc_fid = Dataset(var_file, 'r')
+       
+       # Get the field data
+       varFieldSrc = nc_fid.variables[srcvarName][:,dimension]
+       varFieldTgt = nc_fid.variables[tgtvarName][:,dimension]
+       
+       #%% Close original NetCDF file.
+       nc_fid.close()
+       
+       return varFieldTgt, varFieldSrc
+
 
 def loadFieldGradient(var_file, varGradientName, varField, varConn, varCoord, varConStenDex, jacobians, numCells, numDims, SpectralElement):
        
@@ -327,7 +290,8 @@ def loadFieldGradient(var_file, varGradientName, varField, varConn, varCoord, va
                      gradField = computeGradientSE(varField, varConn, varCoord, 4, jacobians)
               else: 
                      numDOFS = numCells
-                     gradField = computeGradientFV2(varField, varConn, varCoord, varConStenDex)
+                     # gradField = computeGradientFV2(varField, varConn, varCoord, varConStenDex)
+                     gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
                      
               # Store the gradients on target mesh
               try:
@@ -345,13 +309,94 @@ def loadFieldGradient(var_file, varGradientName, varField, varConn, varCoord, va
        
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison metrics!')
-       print('Authors: Jorge Guerra, Paul Ullrich, 2019')
+       print('Authors: Jorge Guerra, Vijay Mahadevan, Paul Ullrich, 2019')
 
-       # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       varName, nc_fileSS, nc_fileS2T, nc_fileST, \
-       mesh_fileS, mesh_fileT, \
-       sourceMeshConfig, targetMeshConfig, sourceSE, targetSE = \
-       parseCommandLine(sys.argv[1:])
+       # Parse the command-line inputs
+       
+       # NC files representing sampled data on source and target meshes
+       sourceSampledFile = ''
+       targetSampledFile = ''
+       
+       # Mesh information details
+       sourceMeshConfig = 0
+       targetMeshConfig = 0
+
+       # Field variable name and data file
+       fieldName = ''
+       fieldDataFile = ''
+
+       # Spectral element specification
+       isSourceSpectralElementMesh = False
+       isTargetSpectralElementMesh = False
+
+       # By default, let us not compute the gradient metrics. These are expensive
+       includeGradientMetrics = False
+
+       # Max number of remap iteration solutions to use in order to compute the metrics
+       maxRemapIterations = 1
+
+
+       def print_usage():
+              print('Command line not properly set:', \
+                    'CANGAMEtricsDriver.py', \
+                    '--ss <SourceSampledFile>', \
+                    '--st <targetSampledFile>', \
+                    '--smc <sourceMeshConfiguration>', \
+                    '--tmc <targetMeshConfiguration>', \
+                    '--data <fieldDataFile>', \
+                    '--field <fieldName>', \
+                    '--dimension <maxRemapIterations>', \
+                    '--<includeGradientMetrics>', \
+                    '--<isSourceSpectralElementMesh>', \
+                    '--<isTargetSpectralElementMesh>')
+       
+       try:
+              opts, args = getopt.getopt(sys.argv[1:], 'hv:', \
+                                        ['ss=', 'st=', 'data=', 'field=', \
+                                         'smc=', 'tmc=', \
+                                         'dimension=', 'includeGradientMetrics', \
+                                         'isSourceSpectralElementMesh', 'isTargetSpectralElementMesh'])
+       except getopt.GetoptError:
+              print_usage()
+              sys.exit(2)
+              
+       for opt, arg in opts:
+              # Request for usage help
+              if opt == '-h':
+                     print_usage()
+                     sys.exit()
+              elif opt == '--ss':
+                     sourceSampledFile = arg
+              elif opt == '--st':
+                     targetSampledFile = arg
+              elif opt == '--smc':
+                     sourceMeshConfig = int(arg)
+              elif opt == '--tmc':
+                     targetMeshConfig = int(arg)
+              elif opt == '--field':
+                     fieldName = arg
+              elif opt == '--data':
+                     fieldDataFile = arg
+              elif opt == '--isSourceSpectralElementMesh':
+                     isSourceSpectralElementMesh = True
+              elif opt == '--isTargetSpectralElementMesh':
+                     isTargetSpectralElementMesh = True
+              elif opt == '--includeGradientMetrics':
+                     includeGradientMetrics = True
+              elif opt == '--dimension':
+                     maxRemapIterations = int(arg)
+                                   
+       # Input checks
+       if sourceMeshConfig > 3:
+              print('ERROR: Invalid source mesh configuration (1-3)')
+              sys.exit(2)
+       
+       if targetMeshConfig > 3:
+              print('ERROR: Invalid target mesh configuration (1-3)')
+              sys.exit(2)
+
+       mesh_fileS = sourceSampledFile
+       mesh_fileT = targetSampledFile
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
@@ -361,68 +406,104 @@ if __name__ == '__main__':
               
        # Read in raw vertex/connectivity data from mesh files
        varCoordS, varConS, numEdgesS, numCellsS, numDimsS, numVertsS = \
-       loadMeshData(mesh_fileS, sourceMeshConfig, sourceSE)
+       loadMeshData(mesh_fileS, sourceMeshConfig, isSourceSpectralElementMesh)
 
        varCoordT, varConT, numEdgesT, numCellsT, numDimsT, numVertsT = \
-       loadMeshData(mesh_fileT, targetMeshConfig, targetSE)
+       loadMeshData(mesh_fileT, targetMeshConfig, isTargetSpectralElementMesh)
               
        # Read in source and target cell areas
        areaS = loadMeshAreas(mesh_fileS, varAreaName)
        areaT = loadMeshAreas(mesh_fileT, varAreaName)
               
        # Read in source and target Jacobian weights
-       jacobiansS = loadMeshJacobians(mesh_fileS, varJacoName, sourceSE)
-       jacobiansT = loadMeshJacobians(mesh_fileT, varJacoName, targetSE)
+       jacobiansS = loadMeshJacobians(mesh_fileS, varJacoName, isSourceSpectralElementMesh)
+       jacobiansT = loadMeshJacobians(mesh_fileT, varJacoName, isTargetSpectralElementMesh)
        
        # Read in source and target adjacency maps
        varConStenDexS = loadMeshAdjacencyMap(mesh_fileS, varAdjaName)
        varConStenDexT = loadMeshAdjacencyMap(mesh_fileT, varAdjaName)
-       
-       # Read in field variable data
-       varSS = loadField(nc_fileSS, varName)
-       varST = loadField(nc_fileST, varName)
-       varS2T = loadField(nc_fileS2T, varName)
-       
+
+       varSS = loadField(sourceSampledFile, fieldName)
+       varST = loadField(targetSampledFile, fieldName)
+
        # Read in or compute the respective gradients on target mesh
-       gradST = loadFieldGradient(nc_fileST, varGradientName, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, targetSE)
-       gradS2T = loadFieldGradient(nc_fileS2T, varGradientName, varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, targetSE)
-       
-       varsOnTM = [varST, varS2T]
-       gradientsOnTM = [gradST, gradS2T]
+       if includeGradientMetrics:
+              gradST = loadFieldGradient(targetSampledFile, varGradientName, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
+              gradTS = loadFieldGradient(sourceSampledFile, varGradientName, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
 
        #%%
-       start = time.time()
-       print('Computing all metrics...')
-       # Global conservation metric
-       massS2T, massST, L_g = computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, areaT, jacobiansS, jacobiansT, sourceSE, targetSE)
-       # Locality measure (returns an array for each target DOF)
-       #L_local = computeLocalityMetric(varS2T, varST, varConn, varCoord)
-       # Standard Error norms (L_1, L_2, L_inf)
-       L_1, L_2, L_inf = computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, targetSE)
-       # Global Extrema preservation
-       Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
-       # Local Extrema preservation
-       Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
-       computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, targetSE)
-       # Gradient preservation
-       gradientsOnTM = [gradST, gradS2T]
-       varsOnTM = [varST, varS2T]
-       H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, targetSE)
-       endt = time.time()
-       print('Time to execute metrics (sec): ', endt - start)
-       #%%
+       df = dt.Frame({"Iteration": range(maxRemapIterations), "GC": np.zeros(maxRemapIterations, dtype='float64'), "GL1": np.zeros(maxRemapIterations, dtype='float64'), 
+       "GL2": np.zeros(maxRemapIterations, dtype='float64'), "GLinf": np.zeros(maxRemapIterations, dtype='float64'), "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), "GMinE": np.zeros(maxRemapIterations, dtype='float64'),
+       "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), 
+       "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), "LMinLm": np.zeros(maxRemapIterations, dtype='float64')})
+       if includeGradientMetrics:
+              df.cbind(dt.Frame({'H12': np.zeros(maxRemapIterations, dtype='float64'), 'H1': np.zeros(maxRemapIterations, dtype='float64')}))
+       df.cbind(dt.Frame({'CPUMetrics': np.zeros(maxRemapIterations, dtype='float64')}))
        # Print out a table with metric results
-       print('Global conservation: %16.15e' % np.ravel(L_g))
-       print('Global L1 error:     %16.15e' % np.ravel(L_1))
-       print('Global L2 error:     %16.15e' % np.ravel(L_2))
-       print('Global Linf error:   %16.15e' % np.ravel(L_inf))
-       print('Global max error:    %16.15e' % np.ravel(Lmax))
-       print('Global min error:    %16.15e' % np.ravel(Lmin))
-       print('Local max L1 error:  %16.15e' % np.ravel(Lmax_1))
-       print('Local max L2 error:  %16.15e' % np.ravel(Lmax_2))
-       print('Local max Lm error:  %16.15e' % np.ravel(Lmax_inf))
-       print('Local min L1 error:  %16.15e' % np.ravel(Lmin_1))
-       print('Local min L2 error:  %16.15e' % np.ravel(Lmin_2))
-       print('Local min Lm error:  %16.15e' % np.ravel(Lmin_inf))
-       print('Gradient semi-norm:  %16.15e' % np.ravel(H1_2))
-       print('Gradient full-norm:  %16.15e' % np.ravel(H1))       
+       print("Iterations, Global-Conservation, Global-L1, Global-L2, Global Linf, Global MaxE, Global MinE, Local Max-L1, Local Max-L2, Local Max-Lm, Local Min-L1, Local Min-L2, Local Min-Lm ", ', H1_2, H1' if includeGradientMetrics else '', 'CPU-Time')
+
+
+       for iteration in range(maxRemapIterations):
+              # Read in field variable data
+              varS2T, varT2S = loadDataField(fieldDataFile, fieldName, iteration)
+
+              #%% Computing all metrics...
+              start = time.time()
+
+              # Global conservation metric
+              massS2T, massST, L_g = computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, areaT, jacobiansS, jacobiansT, isSourceSpectralElementMesh, isTargetSpectralElementMesh)
+
+              # Locality measure (returns an array for each target DOF)
+              #L_local = computeLocalityMetric(varS2T, varST, varConn, varCoord)
+
+              # Standard Error norms (L_1, L_2, L_inf)
+              L_1, L_2, L_inf = computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
+
+              # Global Extrema preservation
+              Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
+
+              # Local Extrema preservation
+              Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
+              computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
+
+              # Populate the datatable 
+              df[iteration,'GC'] = L_g
+              df[iteration,'GL1'] = L_1
+              df[iteration,'GL2'] = L_2
+              df[iteration,'GLinf'] = L_inf
+              df[iteration,'GMaxE'] = Lmax
+              df[iteration,'GMinE'] = Lmin
+              df[iteration,'LMaxL1'] = Lmax_1
+              df[iteration,'LMaxL2'] = Lmax_2
+              df[iteration,'LMaxLm'] = Lmax_inf
+              df[iteration,'LMinL1'] = Lmin_1
+              df[iteration,'LMinL2'] = Lmin_2
+              df[iteration,'LMinLm'] = Lmin_inf
+
+              # Read in or compute the respective gradients on target mesh
+              if includeGradientMetrics:
+                     gradS2T = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
+                     gradT2S = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
+
+                     varsOnSM = [varSS, varT2S]
+                     varsOnTM = [varST, varS2T]
+                     gradientsOnSM = [gradTS, gradT2S]
+                     gradientsOnTM = [gradST, gradS2T]
+
+                     # Gradient preservation
+                     H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
+                     # H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
+
+                     df[iteration, "H12"] = H1_2
+                     df[iteration, "H1"] = H1
+
+              endt = time.time()
+              df[iteration, "CPUMetrics"] = (endt-start)
+              #%%
+              # Print out a table with metric results
+              print("%i, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e " % (iteration, L_g, L_1, L_2, L_inf, Lmax, Lmin, Lmax_1, Lmax_2, Lmax_inf, Lmin_1, Lmin_2, Lmin_inf), ', %16.15e, %16.15e' % (H1_2, H1) if includeGradientMetrics else '', endt - start)
+
+
+       df.to_csv("metrics.csv")
+
+#%%
