@@ -19,7 +19,7 @@ REFERENCES
 #%%
 import shutil
 import time
-import sys, getopt
+import sys, os, getopt
 import math as mt
 import numpy as np
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
@@ -145,13 +145,14 @@ if __name__ == '__main__':
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
        SpectralElement, seOrder = parseCommandLine(sys.argv[1:])
-       
+
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
        varAdjaName = 'cell_edge_adjacency'
        
        # Set the name of the augmented mesh file and copy from original
-       outFileName = mesh_file + '_RIPPED'
+       mfname, mfext = os.path.splitext(mesh_file)
+       outFileName = "{0}_{1}{2}".format(mfname, "enhanced", mfext)
        shutil.copy(mesh_file, outFileName)
        
        #%% Mesh processing
