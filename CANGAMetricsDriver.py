@@ -80,6 +80,28 @@ def parseCommandLine(argv):
               isSourceSpectralElementMesh, isTargetSpectralElementMesh, \
               maxRemapIterations
               
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+
+
 def loadMeshData(mesh_file, mesh_config, SpectralElement):
        
        if mesh_config == 1:
@@ -334,8 +356,7 @@ if __name__ == '__main__':
 
        # Max number of remap iteration solutions to use in order to compute the metrics
        maxRemapIterations = 1
-
-
+       
        def print_usage():
               print('Command line not properly set:', \
                     'CANGAMEtricsDriver.py', \
@@ -346,6 +367,7 @@ if __name__ == '__main__':
                     '--data <fieldDataFile>', \
                     '--field <fieldName>', \
                     '--dimension <maxRemapIterations>', \
+                    '--output <metricsFileName>', \
                     '--<includeGradientMetrics>', \
                     '--<isSourceSpectralElementMesh>', \
                     '--<isTargetSpectralElementMesh>')
@@ -355,6 +377,7 @@ if __name__ == '__main__':
                                         ['ss=', 'st=', 'data=', 'field=', \
                                          'smc=', 'tmc=', \
                                          'dimension=', 'includeGradientMetrics', \
+                                         'output=', \
                                          'isSourceSpectralElementMesh', 'isTargetSpectralElementMesh'])
        except getopt.GetoptError:
               print_usage()
@@ -385,6 +408,8 @@ if __name__ == '__main__':
                      includeGradientMetrics = True
               elif opt == '--dimension':
                      maxRemapIterations = int(arg)
+              elif opt == '--output':
+                     outputMetricsFile = arg
                                    
        # Input checks
        if sourceMeshConfig > 3:
@@ -432,23 +457,33 @@ if __name__ == '__main__':
               gradTS = loadFieldGradient(sourceSampledFile, varGradientName, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
 
        #%%
-       df = dt.Frame({"Iteration": range(maxRemapIterations), "GC": np.zeros(maxRemapIterations, dtype='float64'), "GL1": np.zeros(maxRemapIterations, dtype='float64'), 
-       "GL2": np.zeros(maxRemapIterations, dtype='float64'), "GLinf": np.zeros(maxRemapIterations, dtype='float64'), "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), "GMinE": np.zeros(maxRemapIterations, dtype='float64'),
-       "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), 
-       "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), "LMinLm": np.zeros(maxRemapIterations, dtype='float64')})
+       df = dt.Frame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "GL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "GL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "GLinf": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "GMinE": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                        "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
+                    })
        if includeGradientMetrics:
-              df.cbind(dt.Frame({'H12': np.zeros(maxRemapIterations, dtype='float64'), 'H1': np.zeros(maxRemapIterations, dtype='float64')}))
-       df.cbind(dt.Frame({'CPUMetrics': np.zeros(maxRemapIterations, dtype='float64')}))
-       # Print out a table with metric results
-       print("Iterations, Global-Conservation, Global-L1, Global-L2, Global Linf, Global MaxE, Global MinE, Local Max-L1, Local Max-L2, Local Max-Lm, Local Min-L1, Local Min-L2, Local Min-Lm ", ', H1_2, H1' if includeGradientMetrics else '', 'CPU-Time')
-
+              df.cbind( dt.Frame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
+                                   'H1': np.zeros(maxRemapIterations, dtype='float64')})
+                      )
+       
+       # Print out a table with metric results. Let us print progress during iteration progress
+       print('\n')
+       printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
        for iteration in range(maxRemapIterations):
               # Read in field variable data
               varS2T, varT2S = loadDataField(fieldDataFile, fieldName, iteration)
 
               #%% Computing all metrics...
-              start = time.time()
 
               # Global conservation metric
               massS2T, massST, L_g = computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, areaT, jacobiansS, jacobiansT, isSourceSpectralElementMesh, isTargetSpectralElementMesh)
@@ -497,13 +532,13 @@ if __name__ == '__main__':
                      df[iteration, "H12"] = H1_2
                      df[iteration, "H1"] = H1
 
-              endt = time.time()
-              df[iteration, "CPUMetrics"] = (endt-start)
               #%%
               # Print out a table with metric results
-              print("%i, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e, %16.15e " % (iteration, L_g, L_1, L_2, L_inf, Lmax, Lmin, Lmax_1, Lmax_2, Lmax_inf, Lmin_1, Lmin_2, Lmin_inf), ', %16.15e, %16.15e' % (H1_2, H1) if includeGradientMetrics else '', endt - start)
+              printProgressBar(iteration + 1, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
-       df.to_csv("metrics.csv")
+       df.to_csv(outputMetricsFile)
+       print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS\n')
+       print(df)
 
 #%%
