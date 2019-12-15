@@ -256,10 +256,10 @@ def loadMeshJacobians(mesh_file, varJacoName, SpectralElement):
 def loadField(var_file, varName):
        start = time.time()
        # Open the .nc data files for reading
-       nc_fid = Dataset(var_file, 'r')
+       ncFieldFileHnd = Dataset(var_file, 'r')
        
        # Get the field data
-       varField = nc_fid.variables[varName][:]
+       varField = ncFieldFileHnd.variables[varName][:]
        
        # Check the extracted variables for dimensionality
        # If the variables are 2D then reshape along the longitude (ASSUMED)
@@ -268,7 +268,7 @@ def loadField(var_file, varName):
               varField = np.reshape(varField, VS[0] * VS[1])
               
        #%% Close original NetCDF file.
-       nc_fid.close()
+       ncFieldFileHnd.close()
        
        endt = time.time()
        print('Time to read NC and Exodus data (sec): ', endt - start)
@@ -276,19 +276,13 @@ def loadField(var_file, varName):
        return varField
 
 
-def loadDataField(var_file, varName, dimension):
+def loadDataField(ncFieldFileHnd, varName, dimension):
        srcvarName = varName + '_remap_src'
        tgtvarName = varName + '_remap_tgt'
 
-       # Open the .nc data files for reading
-       nc_fid = Dataset(var_file, 'r')
-       
        # Get the field data
-       varFieldSrc = nc_fid.variables[srcvarName][:,dimension]
-       varFieldTgt = nc_fid.variables[tgtvarName][:,dimension]
-       
-       #%% Close original NetCDF file.
-       nc_fid.close()
+       varFieldSrc = ncFieldFileHnd.variables[srcvarName][dimension,:]
+       varFieldTgt = ncFieldFileHnd.variables[tgtvarName][dimension,:]
        
        return varFieldTgt, varFieldSrc
 
@@ -299,12 +293,12 @@ def loadFieldGradient(var_file, varGradientName, varField, varConn, varCoord, va
        print('Computing or reading gradients for target sampled and regridded fields...')
        
        # Open data files for storage of gradient data
-       nc_fid = Dataset(var_file, 'a')
+       ncFieldFileHnd = Dataset(var_file, 'a')
         
        # Read in previously stored ST data if it exists, or compute it and store
        try:
-              if nc_fid.variables[varGradientName].name == varGradientName:
-                     gradField = nc_fid.variables[varGradientName][:]
+              if ncFieldFileHnd.variables[varGradientName].name == varGradientName:
+                     gradField = ncFieldFileHnd.variables[varGradientName][:]
        except KeyError:
               if SpectralElement:
                      # This comes from mesh preprocessing
@@ -317,13 +311,13 @@ def loadFieldGradient(var_file, varGradientName, varField, varConn, varCoord, va
                      
               # Store the gradients on target mesh
               try:
-                     gradFileOut = nc_fid.createDimension(numDims, 3)
-                     gradFileOut = nc_fid.createVariable(varGradientName, 'f8', (numDims, numDOFS))
+                     gradFileOut = ncFieldFileHnd.createDimension(numDims, 3)
+                     gradFileOut = ncFieldFileHnd.createVariable(varGradientName, 'f8', (numDims, numDOFS))
                      gradFileOut[:] = gradField
               except Exception as exc:
                      print('Gradient variable already exists in ST field data file or: ', exc)
        
-       nc_fid.close()
+       ncFieldFileHnd.close()
        endt = time.time()
        print('Time to compute/read gradients on target mesh (sec): ', endt - start)
        
@@ -344,7 +338,7 @@ if __name__ == '__main__':
        targetMeshConfig = 0
 
        # Field variable name and data file
-       fieldName = ''
+       fieldNames = ''
        fieldDataFile = ''
 
        # Spectral element specification
@@ -365,7 +359,7 @@ if __name__ == '__main__':
                     '--smc <sourceMeshConfiguration>', \
                     '--tmc <targetMeshConfiguration>', \
                     '--data <fieldDataFile>', \
-                    '--field <fieldName>', \
+                    '--field <fieldName;comma-separated list>', \
                     '--dimension <maxRemapIterations>', \
                     '--output <metricsFileName>', \
                     '--<includeGradientMetrics>', \
@@ -397,7 +391,7 @@ if __name__ == '__main__':
               elif opt == '--tmc':
                      targetMeshConfig = int(arg)
               elif opt == '--field':
-                     fieldName = arg
+                     fieldNames = arg
               elif opt == '--data':
                      fieldDataFile = arg
               elif opt == '--isSourceSpectralElementMesh':
@@ -418,6 +412,10 @@ if __name__ == '__main__':
        
        if targetMeshConfig > 3:
               print('ERROR: Invalid target mesh configuration (1-3)')
+              sys.exit(2)
+
+       if len(fieldNames) == 0:
+              print('ERROR: Invalid field name list')
               sys.exit(2)
 
        mesh_fileS = sourceSampledFile
@@ -448,97 +446,112 @@ if __name__ == '__main__':
        varConStenDexS = loadMeshAdjacencyMap(mesh_fileS, varAdjaName)
        varConStenDexT = loadMeshAdjacencyMap(mesh_fileT, varAdjaName)
 
-       varSS = loadField(sourceSampledFile, fieldName)
-       varST = loadField(targetSampledFile, fieldName)
-
-       # Read in or compute the respective gradients on target mesh
-       if includeGradientMetrics:
-              gradST = loadFieldGradient(targetSampledFile, varGradientName, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
-              gradTS = loadFieldGradient(sourceSampledFile, varGradientName, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
-
-       #%%
-       df = dt.Frame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "GL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "GL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "GLinf": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "GMinE": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                        "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
-                    })
-       if includeGradientMetrics:
-              df.cbind( dt.Frame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
-                                   'H1': np.zeros(maxRemapIterations, dtype='float64')})
-                      )
+       fieldNames = [x.strip() for x in fieldNames.split(',')]
        
-       # Print out a table with metric results. Let us print progress during iteration progress
-       print('\n')
-       printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
+       # Open the .nc data files for reading
+       ncFieldFileHnd = Dataset(fieldDataFile, 'r')
 
-       for iteration in range(maxRemapIterations):
-              # Read in field variable data
-              varS2T, varT2S = loadDataField(fieldDataFile, fieldName, iteration)
+       for fieldName in fieldNames:
 
-              #%% Computing all metrics...
+            print('Computing Field metrics for ', fieldName)
 
-              # Global conservation metric
-              massS2T, massST, L_g = computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, areaT, jacobiansS, jacobiansT, isSourceSpectralElementMesh, isTargetSpectralElementMesh)
+            varSS = loadField(sourceSampledFile, fieldName)
+            varST = loadField(targetSampledFile, fieldName)
 
-              # Locality measure (returns an array for each target DOF)
-              #L_local = computeLocalityMetric(varS2T, varST, varConn, varCoord)
+            # Read in or compute the respective gradients on target mesh
+            if includeGradientMetrics:
+                    gradST = loadFieldGradient(targetSampledFile, varGradientName, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
+                    gradTS = loadFieldGradient(sourceSampledFile, varGradientName, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
 
-              # Standard Error norms (L_1, L_2, L_inf)
-              L_1, L_2, L_inf = computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
+            #%%
+            df = dt.Frame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "GL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "GL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "GLinf": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "GMinE": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                                "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
+                            })
+            if includeGradientMetrics:
+                    df.cbind( dt.Frame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
+                                        'H1': np.zeros(maxRemapIterations, dtype='float64')})
+                            )
+            
+            # Print out a table with metric results. Let us print progress during iteration progress
+            print('\n')
+            printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
-              # Global Extrema preservation
-              Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
+            for iteration in range(maxRemapIterations):
+                    # Read in field variable data
+                    varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration+1)
+                    
+                    #%% Computing all metrics...
 
-              # Local Extrema preservation
-              Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
-              computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
+                    # Global conservation metric
+                    massS2T, massST, L_g = computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, areaT, jacobiansS, jacobiansT, isSourceSpectralElementMesh, isTargetSpectralElementMesh)
 
-              # Populate the datatable 
-              df[iteration,'GC'] = L_g
-              df[iteration,'GL1'] = L_1
-              df[iteration,'GL2'] = L_2
-              df[iteration,'GLinf'] = L_inf
-              df[iteration,'GMaxE'] = Lmax
-              df[iteration,'GMinE'] = Lmin
-              df[iteration,'LMaxL1'] = Lmax_1
-              df[iteration,'LMaxL2'] = Lmax_2
-              df[iteration,'LMaxLm'] = Lmax_inf
-              df[iteration,'LMinL1'] = Lmin_1
-              df[iteration,'LMinL2'] = Lmin_2
-              df[iteration,'LMinLm'] = Lmin_inf
+                    # Locality measure (returns an array for each target DOF)
+                    #L_local = computeLocalityMetric(varS2T, varST, varConn, varCoord)
 
-              # Read in or compute the respective gradients on target mesh
-              if includeGradientMetrics:
-                     gradS2T = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
-                     gradT2S = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
+                    # Standard Error norms (L_1, L_2, L_inf)
+                    L_1, L_2, L_inf = computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
 
-                     varsOnSM = [varSS, varT2S]
-                     varsOnTM = [varST, varS2T]
-                     gradientsOnSM = [gradTS, gradT2S]
-                     gradientsOnTM = [gradST, gradS2T]
+                    # Global Extrema preservation
+                    Lmin, Lmax = computeGlobalExtremaMetrics(varS2T, varST)
 
-                     # Gradient preservation
-                     H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
-                     # H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
+                    # Local Extrema preservation
+                    Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
+                    computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
 
-                     df[iteration, "H12"] = H1_2
-                     df[iteration, "H1"] = H1
+                    # Populate the datatable 
+                    df[iteration,'GC'] = L_g
+                    df[iteration,'GL1'] = L_1
+                    df[iteration,'GL2'] = L_2
+                    df[iteration,'GLinf'] = L_inf
+                    df[iteration,'GMaxE'] = Lmax
+                    df[iteration,'GMinE'] = Lmin
+                    df[iteration,'LMaxL1'] = Lmax_1
+                    df[iteration,'LMaxL2'] = Lmax_2
+                    df[iteration,'LMaxLm'] = Lmax_inf
+                    df[iteration,'LMinL1'] = Lmin_1
+                    df[iteration,'LMinL2'] = Lmin_2
+                    df[iteration,'LMinLm'] = Lmin_inf
 
-              #%%
-              # Print out a table with metric results
-              printProgressBar(iteration + 1, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                    # Read in or compute the respective gradients on target mesh
+                    if includeGradientMetrics:
+                            gradS2T = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
+                            gradT2S = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
+
+                            varsOnSM = [varSS, varT2S]
+                            varsOnTM = [varST, varS2T]
+                            gradientsOnSM = [gradTS, gradT2S]
+                            gradientsOnTM = [gradST, gradS2T]
+
+                            # Gradient preservation
+                            H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
+                            # H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
+
+                            df[iteration, "H12"] = H1_2
+                            df[iteration, "H1"] = H1
+
+                    #%%
+                    # Print out a table with metric results
+                    printProgressBar(iteration + 1, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
-       df.to_csv(outputMetricsFile)
-       print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS\n')
-       print(df)
+            def append_fieldname(filename):
+                    return "{0}_{2}.{1}".format(*filename.rsplit('.', 1) + [fieldName])
 
+            df.to_csv(append_fieldname(outputMetricsFile))
+            #print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS FOR Field=',fieldName,'\n')
+            #print(df)
+
+       #%% Close original NetCDF file.
+       ncFieldFileHnd.close()
+ 
 #%%
