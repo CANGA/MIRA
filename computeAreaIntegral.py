@@ -17,41 +17,16 @@ from scipy.linalg import norm
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
-       #""" 2nd order method
-       if order == 2:
-              GN = [-0.5773502691896257, \
-                    +0.5773502691896257]
+       
+       if order < 1:
+              print('INVALID QUADRATURE ORDER! SETTING ORDER 2.')
+              order = 2
+       elif order > 100:
+              print('QUADRATURE ORDER GREATER THAN 100... ARE YOU SURE?')
               
-              GW = [+1.0, \
-                    +1.0]
-       #""" 4th order method
-       if order == 4:
-              GN = [-0.8611363115940526, \
-                    -0.3399810435848563, \
-                    +0.3399810435848563, \
-                    +0.8611363115940526]
-              
-              GW = [0.3478548451374538, \
-                    0.6521451548625461, \
-                    0.6521451548625461, \
-                    0.3478548451374538]
-       #"""
-       #""" 6th order method
-       if order == 6:
-              GN = [-0.9324695142031521, \
-                    -0.6612093864662645, \
-                    -0.2386191860831969, \
-                    +0.2386191860831969, \
-                    +0.6612093864662645, \
-                    +0.9324695142031521]
-              
-              GW = [0.1713244923791704, \
-                    0.3607615730481386, \
-                    0.4679139345726910, \
-                    0.4679139345726910, \
-                    0.3607615730481386, \
-                    0.1713244923791704]
-       #"""
+       
+       # Arbitrary order Numpy implementation (reportedly good up to order = 200)
+       GN, GW = np.polynomial.legendre.leggauss(order)
        
        # Scale the points/weights to [0 1]
        ovec = np.ones(np.size(GN))

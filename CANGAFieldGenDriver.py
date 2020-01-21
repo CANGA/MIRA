@@ -400,7 +400,7 @@ if __name__ == '__main__':
               
               # Force the coefficients to have the same power as the given spectrum
               power_per_l = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, normalization='4pi', unit='per_l')
-              clmTPW.coeffs *= np.sqrt(psdTPW[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
+              clmTPW.coeffs *= np.sqrt(psdTPW[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
@@ -445,7 +445,7 @@ if __name__ == '__main__':
               
               # Force the coefficients to have the same power as the given spectrum
               power_per_l = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, normalization='4pi', unit='per_l')
-              clmCFR.coeffs *= np.sqrt(psdCFR[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
+              clmCFR.coeffs *= np.sqrt(psdCFR[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
@@ -493,7 +493,7 @@ if __name__ == '__main__':
               
               # Force the coefficients to have the same power as the given spectrum
               power_per_l = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, normalization='4pi', unit='per_l')
-              clmTPO.coeffs *= np.sqrt(psdTPO[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
+              clmTPO.coeffs *= np.sqrt(psdTPO[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
               
               # Combine the coefficients, low degree from data and high degree randomized
               clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
