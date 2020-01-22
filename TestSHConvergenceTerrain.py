@@ -34,8 +34,8 @@ nmodes = [32, 64, 128, 256]
 
 plt.plot(nmodes, errors); plt.yscale('log')
 #plt.title('Terrain Field by SH Convergence: Centroid Sampling')
-#plt.title('Terrain Field by SH Convergence: 2nd Order Sampling')
-plt.title('Terrain Field by SH Convergence: 4th Order Sampling')
+plt.title('Terrain Field by SH Convergence: 2nd Order Sampling')
+#plt.title('Terrain Field by SH Convergence: 4th Order Sampling')
 plt.xlabel('Number of SH Modes')
 plt.ylabel('L2 Error WRT N=512')
 plt.show()

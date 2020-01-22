@@ -31,16 +31,24 @@ import computeSphericalCartesianTransforms as sphcrt
 
 def computeSpectrum(ND, lfPower, hfPower, degIntersect):
        psd = np.zeros(ND)
-       # Compute power spectrum array from coefficients
+       # Compute power spectrum array from coefficients (Power Law assumed)
        degs = np.arange(ND, dtype=float)
        #degs[0] = np.inf
        degs[0] = 1.0E-8
+       
+       # Check that we aren't fitting a constant function (Terrain)
        for ii in range(ND):
               if degs[ii] < degIntersect:
-                     psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
+                     if lfPower[1] > -5.0:
+                            psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
+                     else:
+                            psd[ii] = lfPower[2]
               elif degs[ii] >= degIntersect:
-                     psd[ii] = hfPower[0] * np.power(degs[ii], hfPower[1]) + hfPower[2]
-       
+                     if hfPower[1] > -5.0:
+                            psd[ii] = hfPower[0] * np.power(degs[ii], hfPower[1]) + hfPower[2]
+                     else:
+                            psd[ii] = hfPower[2]
+                            
        return degs, psd
 
 def computeCentroids(varCon, varCoord):
@@ -269,7 +277,7 @@ if __name__ == '__main__':
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
        onlyFilename = stripDir[len(stripDir)-1]
-       data_file = 'testdata_' + (onlyFilename.split('.'))[0]
+       data_file = 'testdata_NM' + str(ND) + (onlyFilename.split('.'))[0]
        print('New data will be stored in (prefix): ', data_file)
        
        print('Number of SH degrees for sampling set to: ', ND)
