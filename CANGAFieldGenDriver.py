@@ -228,10 +228,10 @@ def parseCommandLine(argv):
                      if int(arg) == 1:
                             sampleCentroid = True
                      else:
-                            if int(arg)%2 == 0 and int(arg) < 7:
+                            if int(arg)%2 == 0 and int(arg) < 200:
                                 sampleOrder = int(arg)
                             else:
-                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be in [2, 4, 6]")
+                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be \in (0, 200)")
               elif opt == '--nm':
                      numModes = int(arg)
               elif opt == '--rseed':
@@ -257,7 +257,7 @@ def parseCommandLine(argv):
        if numModes > 512:
               print('Setting maximum number of expansion modes: 512.')
               numModes = 512
-                     
+
        # Check that only one configuration is chosen
        if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
               print('Expecting only ONE mesh configuration option!')
@@ -279,10 +279,10 @@ def parseCommandLine(argv):
               print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
-       
-       print('Welcome to CANGA remapping intercomparison metrics!')              
-       print('Mesh and Variable data must be in NETCDF format.')
-       
+
+       if 2*sampleOrder-1 < numModes:
+           print("WARNING: The quadrature sampling order of %d is insufficient to exactly integrate SPH expansions of order %d!" % (sampleOrder, numModes))
+
        return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
               EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \

@@ -17,14 +17,15 @@ from scipy.linalg import norm
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
-       #""" 2nd order method
+       """
+       # 2nd order method
        if order == 2:
               GN = [-0.5773502691896257, \
                     +0.5773502691896257]
               
               GW = [+1.0, \
                     +1.0]
-       #""" 4th order method
+       # 4th order method
        if order == 4:
               GN = [-0.8611363115940526, \
                     -0.3399810435848563, \
@@ -35,8 +36,8 @@ def getGaussNodesWeights(order):
                     0.6521451548625461, \
                     0.6521451548625461, \
                     0.3478548451374538]
-       #"""
-       #""" 6th order method
+       #
+       # 6th order method
        if order == 6:
               GN = [-0.9324695142031521, \
                     -0.6612093864662645, \
@@ -51,13 +52,20 @@ def getGaussNodesWeights(order):
                     0.4679139345726910, \
                     0.3607615730481386, \
                     0.1713244923791704]
-       #"""
+       #
        
+       ###
+       """
+
+       from numpy.polynomial.legendre import leggauss
+       GN, GW = leggauss(order)
+
        # Scale the points/weights to [0 1]
        ovec = np.ones(np.size(GN))
        GN = 0.5 * np.matrix(np.add(GN, ovec))
        GW = 0.5 * np.matrix(GW)
-       
+      
+       # print('Quadratures: ', GN, GW)
        return np.ravel(GN), \
               np.ravel(GW)
               
