@@ -135,6 +135,23 @@ def computeRandomizedCoefficients(ND):
               
        return coeffs
 
+def computeNormalizedCoefficients(N, psd, coeffsLD):
+       # Initialize SHCoeffs with a randomized realization of coefficients
+       clm = pyshtools.SHCoeffs.from_random(psd, seed=384)
+
+       # Compute the randomized coefficients and update instance of SHCoeffs
+       clm.coeffs = computeRandomizedCoefficients(ND)
+       
+       # Force the coefficients to have the same power as the given spectrum
+       power_per_l = pyshtools.spectralanalysis.spectrum(clm.coeffs, normalization='4pi', unit='per_l')
+       clm.coeffs *= np.sqrt(psd[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
+       
+       # Combine the coefficients, low degree from data and high degree randomized
+       clm.coeffs[0,0:4,0:4] = coeffsLD
+       
+       # Returns the SH coefficients object
+       return clm
+
 # Parse the command line
 def parseCommandLine(argv):
        
@@ -399,19 +416,9 @@ if __name__ == '__main__':
                               [4.00222122e+00, 2.39412571e+00, 0.0, 0.0], \
                               [-1.36433589e+01, 3.90520866e-03, 4.70350344e-01, 0.0], \
                               [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
-       
-              # Initialize SHCoeffs with a randomized realization of coefficients
-              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, seed=384)
-
-              # Compute the randomized coefficients and update instance of SHCoeffs
-              clmTPW.coeffs = computeRandomizedCoefficients(ND)
               
-              # Force the coefficients to have the same power as the given spectrum
-              power_per_l = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, normalization='4pi', unit='per_l')
-              clmTPW.coeffs *= np.sqrt(psdTPW[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
-              
-              # Combine the coefficients, low degree from data and high degree randomized
-              clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
+              # Make the SH coefficients object for this field
+              clmTPW = computeNormalizedCoefficients(ND, psdTPW, coeffsLD_TPW)
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
@@ -445,18 +452,8 @@ if __name__ == '__main__':
                               [5.72322008e-02, 3.41184683e-02, -7.71082815e-03, 0.0], \
                               [1.86562455e-02, 4.34697733e-04, 8.91735978e-03, -5.53756958e-03]])
        
-              # Initialize SHCoeffs with a randomized realization of coefficients
-              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, seed=384)
-              
-              # Compute the randomized coefficients and update instance of SHCoeffs
-              clmCFR.coeffs = computeRandomizedCoefficients(ND)
-              
-              # Force the coefficients to have the same power as the given spectrum
-              power_per_l = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, normalization='4pi', unit='per_l')
-              clmCFR.coeffs *= np.sqrt(psdCFR[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
-              
-              # Combine the coefficients, low degree from data and high degree randomized
-              clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
+              # Make the SH coefficients object for this field
+              clmCFR = computeNormalizedCoefficients(ND, psdCFR, coeffsLD_CFR)
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
@@ -493,18 +490,8 @@ if __name__ == '__main__':
                               [5.67394318e+02, 3.32672611e+02, -4.17639577e+02, 0.0], \
                               [1.57403492e+02, 1.52896988e+02, 4.47106726e+02, -1.40553447e+02]])
                          
-              # Initialize SHCoeffs with a randomized realization of coefficients
-              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, seed=384)
-              
-              # Compute the randomized coefficients and update instance of SHCoeffs
-              clmTPO.coeffs = computeRandomizedCoefficients(ND)
-              
-              # Force the coefficients to have the same power as the given spectrum
-              power_per_l = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, normalization='4pi', unit='per_l')
-              clmTPO.coeffs *= np.sqrt(psdTPO[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
-              
-              # Combine the coefficients, low degree from data and high degree randomized
-              clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
+              # Make the SH coefficients object for this field
+              clmTPO = computeNormalizedCoefficients(ND, psdTPO, coeffsLD_TPO)
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
