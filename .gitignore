@@ -80,3 +80,5 @@ meshes/CSne60_2_RLL1deg\.nc
 meshes/RLL1deg_2_CSne60_np4\.nc
 
 meshes/RLL1deg_2_CSne60\.g
+
+*.nc

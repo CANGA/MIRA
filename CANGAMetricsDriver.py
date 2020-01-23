@@ -35,7 +35,6 @@ REFERENCES
 #%%
 import sys, getopt
 import time
-import math as mt
 import numpy as np
 import datatable as dt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
@@ -50,25 +49,6 @@ from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
-
-def computeLL2Cart(cellCoord):
-       # Loop over the Lon/Lat coordinate array, extract Cartesian coords
-       # Input array is [lon, lat, radius] (radians)
-       NC = np.size(cellCoord, axis=0)
-       varCart = np.zeros((NC, 3))
-       for ii in range(NC):
-              RO = cellCoord[ii,2]
-              lon = cellCoord[ii,0]
-              lat = cellCoord[ii,1]
-              X = RO * mt.cos(lat) * mt.sin(lon)
-              Y = RO * mt.cos(lat) * mt.cos(lon)
-              Z = RO * mt.sin(lat)
-              RC = mt.sqrt(X**2 + Y**2 + Z**2)
-              varCart[ii,:] = [X, Y, Z]
-              varCart[ii,:] *= 1.0 / RC
-       
-       # INPUT IS IN RADIANS
-       return varCart
 
 # Parse the command line
 def parseCommandLine(argv):
