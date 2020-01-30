@@ -24,11 +24,12 @@ import plotly as py
 import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-from computeAreaIntegral import computeAreaIntegral
+from computeAreaIntegral import computeAreaIntegral, getGaussNodesWeights
 import computeSphericalCartesianTransforms as sphcrt
 
 import multiprocessing
 from multiprocessing import Process
+from itertools import repeat
 
 
 #%% Utility functions
@@ -101,13 +102,15 @@ def computeCellAverage(clm, varCon, varCoord, order, avg):
        NEL = np.size(varCon, 0)
        varSample = np.zeros(NEL,)
        
+       GN, GW = getGaussNodesWeights(order)
        # Loop over each cell and get cell average
-       for ii in range(NEL):
-              # Handle degeneracies with numpy.unique on connectivity
-              cdex = np.unique(varCon[ii,:]) - 1
-              thisCell = varCoord[:,cdex]
-                            
-              varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
+       pool = multiprocessing.Pool(processes=10)
+       results = pool.starmap(computeAreaIntegral, zip(repeat(clm), [varCoord[:,np.unique(varCon[ii,:]) - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(avg), repeat(False)))
+       pool.close()
+       pool.join()
+       varSample=np.array(results, dtype='f8')
+       #for i in range(NEL):
+       #       varSample[i] = computeAreaIntegral(clm, varCoord[:,np.unique(varCon[i,:]) - 1], GN, GW, order, avg, False)
        
        return varSample
 
@@ -447,6 +450,7 @@ if __name__ == '__main__':
               print('Time to compute TPW (mm): ', endt - start)
 
               return_dict['TPWvar'] = TPWvar
+              #return TPWvar
 
        #%%
        def Evaluate_CFR_Field():
@@ -488,6 +492,7 @@ if __name__ == '__main__':
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
 
               return_dict['CFRvar'] = CFRvar
+              #return CFRvar
 
        #%%
        def Evaluate_TPO_Field():
@@ -534,6 +539,7 @@ if __name__ == '__main__':
               print('Time to compute TPO (m): ', endt - start)
 
               return_dict['TPOvar'] = TPOvar
+              #return TPOvar
 
        #%%
 
@@ -563,15 +569,36 @@ if __name__ == '__main__':
               CFRvar = return_dict['CFRvar']
               TPOvar = return_dict['TPOvar']
               # runInParallel(Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field)
+              #TPWvar = Evaluate_TPW_Field()
+              #CFRvar = Evaluate_CFR_Field()
+              #TPOvar = Evaluate_TPO_Field()
        else:
-              if EvaluateTPW:
-                     Evaluate_TPW_Field()
+              manager = multiprocessing.Manager()
+              return_dict = manager.dict()
+              jobs = []
+              fn_list = list()
+              if (EvaluateTPW): 
+                      fn_list.append(Evaluate_TPW_Field)
+              if (EvaluateCFR):
+                      fn_list.append(Evaluate_CFR_Field)
+              if (EvaluateTPO):
+                      fn_list.append(Evaluate_TPO_Field)
+              for fn in fn_list:
+                     p = Process(target=fn)
+                     jobs.append(p)
+                     p.start()
+              for p in jobs:
+                     p.join()
 
-              if EvaluateCFR:
-                     Evaluate_CFR_Field()
-
-              if EvaluateTPO:
-                     Evaluate_TPO_Field()
+              if (EvaluateTPW): 
+                     TPWvar = return_dict['TPWvar']
+                     #TPWvar = Evaluate_TPW_Field()
+              if (EvaluateCFR):
+                     CFRvar = return_dict['CFRvar']
+                     #CFRvar = Evaluate_CFR_Field()
+              if (EvaluateTPO):
+                     TPOvar = return_dict['TPOvar']
+                     #TPOvar = Evaluate_TPO_Field()
               
        #%% Copy grid files and store the new test data (source and target)
        outFileName = data_file
