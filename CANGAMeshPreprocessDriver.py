@@ -268,19 +268,22 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing adjacency maps...')
        
-       print('Adjacency data computed/written to mesh file for the first time...')
-       
-       # Compute adjacency maps for both meshes (source stencil NOT needed)
-       edgeNodeMap, edgeNodeKDTree, varConStenDex = computeFastAdjacencyStencil(varCon)
-       # Get the starting index for the adjecency information in varConStenDexT
-       adex = np.size(varConStenDex,1) - np.size(varCon,1) 
-       
-       try:
-              meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
-              meshFileOut[:] = varConStenDex[:,adex:]
-       except RuntimeError:
-              print('Adjacency variable already exists in mesh data file')
-              
+       if not m_fid.variables[varAdjaName]:
+              try:
+                     meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
+
+                     print('Adjacency data computed/written to mesh file for the first time...')
+                     # Compute adjacency maps for both meshes (source stencil NOT needed)
+                     edgeNodeMap, edgeNodeKDTree, varConStenDex = computeFastAdjacencyStencil(varCon)
+                     # Get the starting index for the adjecency information in varConStenDexT
+                     adex = np.size(varConStenDex,1) - np.size(varCon,1) 
+
+                     meshFileOut[:] = varConStenDex[:,adex:]
+              except RuntimeError:
+                     print('Adjacency variable already exists in mesh data file')
+       else:
+              varConStenDex = m_fid.variables[varAdjaName]
+
        endt = time.time()
        print('Time to precompute adjacency maps (sec): ', endt - start)
        
@@ -288,22 +291,27 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing mesh areas...')
        
-       print('Cell areas computed/written to mesh file for the first time...')
-       # Precompute the area weights and then look them up in the integral below
-       NEL = len(varCon)
-       area = np.zeros((NEL,1))
-       for ii in range(NEL):
-              cdex = varCon[ii,:] - 1
-              thisCell = varCoord[:,cdex]
-              area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
-              
-       area = np.ravel(area)
-       
-       try:       
-              meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
-              meshFileOut[:] = area
-       except RuntimeError:
-              print('Source areas already exist in mesh data file.')
+       if not m_fid.variables[varAreaName]:
+
+              try:
+                     meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
+
+                     print('Cell areas computed/written to mesh file for the first time...')
+                     # Precompute the area weights and then look them up in the integral below
+                     NEL = len(varCon)
+                     area = np.zeros((NEL,1))
+                     for ii in range(NEL):
+                            cdex = varCon[ii,:] - 1
+                            thisCell = varCoord[:,cdex]
+                            area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
+
+                     area = np.ravel(area)
+
+                     meshFileOut[:] = area
+              except RuntimeError:
+                     print('Source areas already exist in mesh data file.')
+       else:
+              varConStenDex = m_fid.variables[varAreaName]
               
        endt = time.time()
        print('Time to precompute cell areas (sec): ', endt - start)
@@ -334,7 +342,7 @@ if __name__ == '__main__':
               edgeNodeMapGLL, varCoordGLL, varConGLL = \
                      computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
                      
-              try:   
+              try:
                      print('Storing GLL connectivity and coordinate arrays.')
                      numVertsGLL = 'grid_gll_size'
                      numNodesGLL = 'num_gll_per_el1'
