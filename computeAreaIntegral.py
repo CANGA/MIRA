@@ -109,14 +109,16 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
 
                             # Sample SH field at this quadrature point
                             # Convert dF to Lon/Lat
-                            if farea == False:
-                                   dFLonLat = computeCart2LL(dF)
+                            if farea:
+                                   # Sum up the integral of the field
+                                   dFunIntegral += dJacobianGWppqq
+                            else:
+                                   dFLonLatRad = trans.computePointCart2LL(dF)
+                                   # Convert to degrees for the SH expansion
+                                   dFLonLat = 180.0 / mt.pi * dFLonLatRad
                                    thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
                                    # Sum up the integral of the field
                                    dFunIntegral += thisVar * dJacobianGWppqq
-                            elif farea == True:
-                                   # Sum up the integral of the field
-                                   dFunIntegral += dJacobianGWppqq
 
        
        
@@ -125,7 +127,7 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
        
        # When a cell average is required
        if avg:
-              dFunIntegral = dFunAverage
-                            
-       return dFunIntegral
+              return dFunAverage
+       else:            
+              return dFunIntegral
 
