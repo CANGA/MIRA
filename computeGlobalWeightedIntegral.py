@@ -15,12 +15,12 @@ def computeGlobalWeightedIntegral(NEL, varCon, varF, areas, jacobians, SpectralE
        
        # Loop over each element and compute the sum
        INT = 0.0
-       for ii in range(NEL):
-              
-              if SpectralElement:
-                     gdex = varCon[ii,:] - 1
-                     INT += np.dot(jacobians[ii,:], varF[gdex.astype(int)])
-              else:
-                     INT += areas[ii] * varF[ii]
+       if not SpectralElement:
+              INT = np.dot(areas,varF)
+
+       else:
+             for ii in range(NEL):
+                    gdex = varCon[ii,:] - 1
+                    INT += np.dot(jacobians[ii,:], varF[gdex.astype(int)])
               
        return INT

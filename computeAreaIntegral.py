@@ -18,22 +18,22 @@ import computeSphericalCartesianTransforms as trans
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
-       
+      
        if order < 1:
               print('INVALID QUADRATURE ORDER! SETTING ORDER 2.')
               order = 2
        elif order > 100:
               print('QUADRATURE ORDER GREATER THAN 100... ARE YOU SURE?')
-              
-       
+
        # Arbitrary order Numpy implementation (reportedly good up to order = 200)
        GN, GW = np.polynomial.legendre.leggauss(order)
-       
+
        # Scale the points/weights to [0 1]
        ovec = np.ones(np.size(GN))
        GN = 0.5 * np.matrix(np.add(GN, ovec))
        GW = 0.5 * np.matrix(GW)
-       
+      
+       # print('Quadratures: ', GN, GW)
        return np.ravel(GN), \
               np.ravel(GW)
 
@@ -54,6 +54,9 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
        GN, GW = getGaussNodesWeights(order)
        NP = len(GW)
 
+       # Link: https://people.sc.fsu.edu/~jburkardt/f_src/stripack/stripack.f90
+       # Reference for function "areas" as an alternate implementation for cell areas
+       # on a spherical mesh
        for ii in range(NST):
               # Gather the coordinate components
               node1 = nodes[:,0]
@@ -83,14 +86,6 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
                             dF = np.dot(nDMatrix.T, dOmdBOmdA)
                             dF2 = dF**2
 
-                            # Sample SH field at this quadrature point
-                            # Convert dF to Lon/Lat
-                            if farea == False:
-                                   dFLonLat = computeCart2LL(dF)
-                                   thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
-                            elif farea == True:
-                                   thisVar = 1.0
-
                             dDaF = (dOmdB * nD21)
 
                             dDbF = (np.dot(nDMatrix.T, dAOmdA).T)[0]
@@ -100,23 +95,29 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
                             dDGMat = np.array([[(dF2[1] + dF2[2]), - dF[0] * dF[1], - dF[0] * dF[2]], \
                                                [- dF[1] * dF[0], (dF2[0] + dF2[2]), - dF[1] * dF[2]], \
                                                [- dF[2] * dF[0], - dF[2] * dF[1], (dF2[0] + dF2[1])]]) 
-                            
-                            dDaG = np.dot(dDGMat, dDaF)
-                            dDbG = np.dot(dDGMat, dDbF)
 
                             dDenomTerm = 1.0 / (dR**3)
                             
-                            # This happens to dDaG twice...
-                            dDaG *= dDenomTerm
-                            dDbG *= dDenomTerm
+                            dDaG = np.dot(dDGMat, dDaF) * dDenomTerm
+                            dDbG = np.dot(dDGMat, dDbF) * dDenomTerm
                             
                             dJV = np.cross(dDaG, dDbG)
                             dJacobianGWppqq = norm(dJV, 2) * GW[pp] * GW[qq]
                             
                             # Sum up the cell area
                             dFaceArea += dJacobianGWppqq
-                            # Sum up the integral of the field
-                            dFunIntegral += thisVar * dJacobianGWppqq
+
+                            # Sample SH field at this quadrature point
+                            # Convert dF to Lon/Lat
+                            if farea == False:
+                                   dFLonLat = computeCart2LL(dF)
+                                   thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
+                                   # Sum up the integral of the field
+                                   dFunIntegral += thisVar * dJacobianGWppqq
+                            elif farea == True:
+                                   # Sum up the integral of the field
+                                   dFunIntegral += dJacobianGWppqq
+
        
        
        # Compute the cell average                            

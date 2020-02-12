@@ -4,7 +4,7 @@ __pycache__/
 Grids/
 
 SHCoefficientsRaw_TPW_CFR_TOPO\.npz
-
+*.pyc
 *.html
 
 CSne30_2_RLL1deg\.g

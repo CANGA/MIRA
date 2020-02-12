@@ -27,6 +27,10 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeAreaIntegral import computeAreaIntegral
 import computeSphericalCartesianTransforms as sphcrt
 
+import multiprocessing
+from multiprocessing import Process
+
+
 #%% Utility functions
 
 def computeSpectrum(ND, lfPower, hfPower, degIntersect):
@@ -221,10 +225,10 @@ def parseCommandLine(argv):
                      if int(arg) == 1:
                             sampleCentroid = True
                      else:
-                            if int(arg)%2 == 0 and int(arg) < 7:
+                            if int(arg)%2 == 0 and int(arg) < 200:
                                 sampleOrder = int(arg)
                             else:
-                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be in [2, 4, 6]")
+                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be \in (0, 200)")
               elif opt == '--nm':
                      numModes = int(arg)
               elif opt == '--rseed':
@@ -250,7 +254,7 @@ def parseCommandLine(argv):
        if numModes > 512:
               print('Setting maximum number of expansion modes: 512.')
               numModes = 512
-                     
+
        # Check that only one configuration is chosen
        if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
               print('Expecting only ONE mesh configuration option!')
@@ -272,10 +276,10 @@ def parseCommandLine(argv):
               print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
-       
-       print('Welcome to CANGA remapping intercomparison metrics!')              
-       print('Mesh and Variable data must be in NETCDF format.')
-       
+
+       if 2*sampleOrder-1 < numModes:
+           print("WARNING: The quadrature sampling order of %d is insufficient to exactly integrate SPH expansions of order %d!" % (sampleOrder, numModes))
+
        return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
               EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
@@ -283,7 +287,7 @@ def parseCommandLine(argv):
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
-       print('Authors: Jorge Guerra, Paul Ullrich, 2019')
+       print('Authors: Jorge Guerra, Vijay Mahadevan, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ND, seed, sampleCentroid, sampleOrder, \
@@ -294,10 +298,11 @@ if __name__ == '__main__':
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
        onlyFilename = stripDir[len(stripDir)-1]
-       data_file = 'testdata_NM' + str(ND) + (onlyFilename.split('.'))[0]
+       data_file = 'testdata_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
+
        print('New data will be stored in (prefix): ', data_file)
-       
        print('Number of SH degrees for sampling set to: ', ND)
+       print('Maximum Gaussian quadrature order to be used: ', 2*sampleOrder-1)
        
        if ExodusSingleConn:
               
@@ -399,9 +404,14 @@ if __name__ == '__main__':
        varLonLat_deg = 180.0 / mt.pi * varLonLat
        
        m_fid.close()
-              
+
+       # Define our global variables for fields
+       TPWvar = np.zeros(3)
+       CFRvar = np.zeros(3)
+       TPOvar = np.zeros(3)
+
        #%% Begin the SH reconstructions
-       if EvaluateTPW or EvaluateAll:
+       def Evaluate_TPW_Field():
               start = time.time()
               print('Computing Total Precipitable Water on sampling mesh...')
               # Set the power spectrum coefficients
@@ -435,8 +445,11 @@ if __name__ == '__main__':
               TPWvar *= maxTPW / deltaTPW
               endt = time.time()
               print('Time to compute TPW (mm): ', endt - start)
-       #%%                     
-       if EvaluateCFR or EvaluateAll:
+
+              return_dict['TPWvar'] = TPWvar
+
+       #%%
+       def Evaluate_CFR_Field():
               start = time.time()
               print('Computing Cloud Fraction on sampling mesh...')
               # Set the power spectrum coefficients
@@ -473,8 +486,11 @@ if __name__ == '__main__':
               
               endt = time.time()
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
-       #%%       
-       if EvaluateTPO or EvaluateAll:
+
+              return_dict['CFRvar'] = CFRvar
+
+       #%%
+       def Evaluate_TPO_Field():
               start = time.time()
               print('Computing Terrain on sampling mesh...')
               # Set the power spectrum coefficients
@@ -516,6 +532,46 @@ if __name__ == '__main__':
               
               endt = time.time()
               print('Time to compute TPO (m): ', endt - start)
+
+              return_dict['TPOvar'] = TPOvar
+
+       #%%
+
+       def runInParallel(*fns):
+              proc = []
+              for fn in fns:
+                     p = Process(target=fn)
+                     p.start()
+                     proc.append(p)
+              for p in proc:
+                     p.join()
+
+       #%%
+
+       if EvaluateAll:
+              manager = multiprocessing.Manager()
+              return_dict = manager.dict()
+              jobs = []
+              for fn in [Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field]:
+                     p = Process(target=fn)
+                     jobs.append(p)
+                     p.start()
+              for p in jobs:
+                     p.join()
+              
+              TPWvar = return_dict['TPWvar']
+              CFRvar = return_dict['CFRvar']
+              TPOvar = return_dict['TPOvar']
+              # runInParallel(Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field)
+       else:
+              if EvaluateTPW:
+                     Evaluate_TPW_Field()
+
+              if EvaluateCFR:
+                     Evaluate_CFR_Field()
+
+              if EvaluateTPO:
+                     Evaluate_TPO_Field()
               
        #%% Copy grid files and store the new test data (source and target)
        outFileName = data_file
