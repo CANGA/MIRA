@@ -14,6 +14,7 @@ connect: int connectivity data
 import math as mt
 import numpy as np
 from scipy.linalg import norm
+import computeSphericalCartesianTransforms as trans
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
@@ -35,15 +36,6 @@ def getGaussNodesWeights(order):
        
        return np.ravel(GN), \
               np.ravel(GW)
-              
-def computeCart2LL(cellCoord):
-
-       RO = np.linalg.norm(cellCoord)
-       psi = mt.asin(1.0 / RO * cellCoord[2])
-       lam = mt.atan2(-cellCoord[0], -cellCoord[1]) + mt.pi
-       pointLonLat = [360.0 * lam / (2.0 * mt.pi), 180.0 * psi / mt.pi]
-              
-       return pointLonLat
 
 def computeAreaIntegral(clm, nodes, order, avg, farea):
        # avg = Boolean flag to take average of the function
