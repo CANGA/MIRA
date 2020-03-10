@@ -48,12 +48,15 @@ from computeGlobalConservation import computeGlobalConservation
 from computeStandardNorms import computeStandardNorms
 from computeGlobalExtremaMetrics import computeGlobalExtremaMetrics
 from computeLocalExtremaMetrics import computeLocalExtremaMetrics
+from computeAreaIntegral import computeAreaIntegral
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
+
+CSRES=32
+ICODRES=16
 
 # Parse the command line
 def parseCommandLine(argv):
-       
-       
+
        return sourceSampledFile, targetSampledFile, \
               sourceMeshConfig, targetMeshConfig, \
               fieldName, fieldDataFile, \
@@ -167,7 +170,7 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
        
        return varCoord, varConn, numEdges, numCells, numDims, numVerts
 
-def loadMeshAreas(mesh_file, varAreaName):
+def loadMeshAreas(mesh_file, varAreaName, varCon, varCoord):
        start = time.time()
        print('Reading mesh areas...')
               
@@ -178,8 +181,18 @@ def loadMeshAreas(mesh_file, varAreaName):
                      areas = m_fid.variables[varAreaName][:]
        
        except:
-              print('PRE-PROCESSING FOR AREAS NOT DONE ON TARGET MESH FILE!')
-              sys.exit()
+              print('PRE-PROCESSING FOR AREAS NOT DONE ON TARGET MESH FILE! Computing now.')
+              NEL = len(varCon)
+              area = np.zeros((NEL,1))
+              for ii in range(NEL):
+                     cdex = varCon[ii,:] - 1
+                     thisCell = varCoord[:,cdex]
+                     area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
+                     
+              area = np.ravel(area)
+              meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
+              meshFileOut[:] = area
+              # sys.exit()
               
        m_fid.close()
        
@@ -233,10 +246,39 @@ def loadMeshJacobians(mesh_file, varJacoName, SpectralElement):
               
        return jacobians
 
-def loadField(var_file, varName):
+def loadSField(var_file, varName):
        start = time.time()
        # Open the .nc data files for reading
-       ncFieldFileHnd = Dataset(var_file, 'r')
+       # ncFieldFileHnd = Dataset(var_file, 'r')
+       # ncFieldFileHnd = Dataset('Preprocessed/CS/testdata_outCSMesh_ne16_Psi_enhanced.nc', 'r')
+       # ncFieldFileHnd = Dataset('convergence/so1nm1/CS/testdata_NM4_outCSne'+str(CSRES)+'_TPW_CFR_TPO.nc', 'r')
+       ncFieldFileHnd = Dataset('convergence/so1nm1/CS/testdata_NM4_SO4_outCSne'+str(CSRES)+'_TPW.nc', 'r')
+       
+       # Get the field data
+       varField = ncFieldFileHnd.variables[varName][:]
+       
+       # Check the extracted variables for dimensionality
+       # If the variables are 2D then reshape along the longitude (ASSUMED)
+       VS = varField.shape
+       if len(VS) > 1:
+              varField = np.reshape(varField, VS[0] * VS[1])
+              
+       #%% Close original NetCDF file.
+       ncFieldFileHnd.close()
+       
+       endt = time.time()
+       print('Time to read NC and Exodus data (sec): ', endt - start)
+       
+       return varField
+
+def loadTField(var_file, varName):
+       start = time.time()
+       # Open the .nc data files for reading
+       # ncFieldFileHnd = Dataset(var_file, 'r')
+       # ncFieldFileHnd = Dataset('Preprocessed/ICOD/testdata_outICODMesh_ne128_Psi_enhanced.nc', 'r')
+       # ncFieldFileHnd = Dataset('Preprocessed/ICOD/testdata_outICODMesh128_neCS256_PsiProjected.nc', 'r')
+       # ncFieldFileHnd = Dataset('convergence/so1nm1/ICOD/testdata_NM4_outCS'+str(CSRES)+'ICOD'+str(ICODRES)+'_TPW_CFR_TPO_Projected.nc', 'r')
+       ncFieldFileHnd = Dataset('convergence/so1nm1/ICOD/testdata_NM4_SO4_outCS'+str(CSRES)+'ICOD'+str(ICODRES)+'_TPW_Projected.nc', 'r')
        
        # Get the field data
        varField = ncFieldFileHnd.variables[varName][:]
@@ -261,9 +303,11 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
        tgtvarName = varName + '_remap_tgt'
 
        # Get the field data
-       varFieldSrc = ncFieldFileHnd.variables[srcvarName][dimension,:]
-       varFieldTgt = ncFieldFileHnd.variables[tgtvarName][dimension,:]
-       
+       # varFieldSrc = ncFieldFileHnd.variables[srcvarName][dimension,:]
+       # varFieldTgt = ncFieldFileHnd.variables[tgtvarName][dimension,:]
+       varFieldSrc = 0#ncFieldFileHnd.variables[varName][:]
+       varFieldTgt = ncFieldFileHnd.variables[varName][:]
+
        return varFieldTgt, varFieldSrc
 
 
@@ -384,7 +428,7 @@ if __name__ == '__main__':
                      maxRemapIterations = int(arg)
               elif opt == '--output':
                      outputMetricsFile = arg
-                                   
+
        # Input checks
        if sourceMeshConfig > 3:
               print('ERROR: Invalid source mesh configuration (1-3)')
@@ -400,6 +444,12 @@ if __name__ == '__main__':
 
        mesh_fileS = sourceSampledFile
        mesh_fileT = targetSampledFile
+
+       print('Source sampled mesh :', sourceSampledFile)
+       print('Target sampled mesh :', targetSampledFile)
+       print('Projected data file :', fieldDataFile)
+       print('Field names         :', fieldNames)
+       print('Remap dimension     :', maxRemapIterations)
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
@@ -415,8 +465,8 @@ if __name__ == '__main__':
        loadMeshData(mesh_fileT, targetMeshConfig, isTargetSpectralElementMesh)
               
        # Read in source and target cell areas
-       areaS = loadMeshAreas(mesh_fileS, varAreaName)
-       areaT = loadMeshAreas(mesh_fileT, varAreaName)
+       areaS = loadMeshAreas(mesh_fileS, varAreaName, varConS, varCoordS)
+       areaT = loadMeshAreas(mesh_fileT, varAreaName, varConT, varCoordT)
               
        # Read in source and target Jacobian weights
        jacobiansS = loadMeshJacobians(mesh_fileS, varJacoName, isSourceSpectralElementMesh)
@@ -433,10 +483,10 @@ if __name__ == '__main__':
 
        for fieldName in fieldNames:
 
-            print('Computing Field metrics for ', fieldName)
+            print('\nComputing Field metrics for ', fieldName)
 
-            varSS = loadField(sourceSampledFile, fieldName)
-            varST = loadField(targetSampledFile, fieldName)
+            varSS = loadSField(sourceSampledFile, fieldName)
+            varST = loadTField(targetSampledFile, fieldName)
 
             # Read in or compute the respective gradients on target mesh
             if includeGradientMetrics:
@@ -469,6 +519,9 @@ if __name__ == '__main__':
             for iteration in range(maxRemapIterations):
                     # Read in field variable data
                     varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration+1)
+                    
+              #       print('Shapes: ', varSS.shape, varST.shape, varS2T.shape)
+              #       print('')
                     
                     #%% Computing all metrics...
 
@@ -528,6 +581,7 @@ if __name__ == '__main__':
                     return "{0}_{2}.{1}".format(*filename.rsplit('.', 1) + [fieldName])
 
             df.to_csv(append_fieldname(outputMetricsFile))
+            print('\nWriting metrics data for',fieldName,'field to', outputMetricsFile, '\n')
             #print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS FOR Field=',fieldName,'\n')
             #print(df)
 

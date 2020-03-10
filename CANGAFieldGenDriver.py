@@ -37,7 +37,7 @@ def computeSpectrum(ND, lfPower, hfPower, degIntersect):
        psd = np.zeros(ND)
        # Compute power spectrum array from coefficients (Power Law assumed)
        degs = np.arange(ND, dtype=float)
-       #degs[0] = np.inf
+       # degs[0] = np.inf
        degs[0] = 1.0E-8
        
        # Check that we aren't fitting a constant function (Terrain)
@@ -429,10 +429,16 @@ if __name__ == '__main__':
               
               # Make the SH coefficients object for this field
               clmTPW = computeNormalizedCoefficients(ND, psdTPW, coeffsLD_TPW)
+
+              # Evaluate actual spherical harmonic modes as solution; 
+              # change ls, ms below
+              # lmax = 100
+              # clmTPW = pyshtools.SHCoeffs.from_zeros(lmax)
+              # clmTPW.set_coeffs(values=[1], ls=[2], ms=[2])
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
-              if sampleCentroid or SpectralElement:              
+              if sampleCentroid or SpectralElement:
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True)
@@ -441,10 +447,12 @@ if __name__ == '__main__':
               minTPW = np.amin(TPWvar)
               maxTPW = np.amax(TPWvar)
               deltaTPW = abs(maxTPW - minTPW)
+              deltaTPW = deltaTPW if deltaTPW > 1e-10 else 1.0
               TPWvar = np.add(TPWvar, -minTPW)
               TPWvar *= maxTPW / deltaTPW
               endt = time.time()
               print('Time to compute TPW (mm): ', endt - start)
+              print('Global integral: ', np.sum(TPWvar))
 
               return_dict['TPWvar'] = TPWvar
 
@@ -479,6 +487,7 @@ if __name__ == '__main__':
               minCFR = np.amin(CFRvar)
               maxCFR = np.amax(CFRvar)
               deltaCFR = abs(maxCFR - minCFR)
+              deltaCFR = deltaCFR if deltaCFR > 1e-10 else 1.0
               CFRvar = np.add(CFRvar, -minCFR)
               CFRvar *= maxCFR / deltaCFR
               #  Set all values greater than 1.0 to 1.0 (creates discontinuities)
@@ -520,6 +529,7 @@ if __name__ == '__main__':
               minTPO = np.amin(TPOvar)
               maxTPO = np.amax(TPOvar)
               deltaTPO = abs(maxTPO - minTPO)
+              deltaTPO = deltaTPO if deltaTPO > 1e-10 else 1.0
               TPOvar = np.add(TPOvar, -0.5 * (maxTPO + minTPO))
               TPOvar *= 2.0 / deltaTPO
               
@@ -548,9 +558,9 @@ if __name__ == '__main__':
 
        #%%
 
+       manager = multiprocessing.Manager()
+       return_dict = manager.dict()
        if EvaluateAll:
-              manager = multiprocessing.Manager()
-              return_dict = manager.dict()
               jobs = []
               for fn in [Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field]:
                      p = Process(target=fn)
@@ -565,13 +575,28 @@ if __name__ == '__main__':
               # runInParallel(Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field)
        else:
               if EvaluateTPW:
-                     Evaluate_TPW_Field()
+                     jobs = Process(target=Evaluate_TPW_Field)
+                     jobs.start()
+                     jobs.join()
+
+                     TPWvar = return_dict['TPWvar']
+                     # Evaluate_TPW_Field()
 
               if EvaluateCFR:
-                     Evaluate_CFR_Field()
+                     jobs = Process(target=Evaluate_CFR_Field)
+                     jobs.start()
+                     jobs.join()
+
+                     # Evaluate_CFR_Field()
+                     CFRvar = return_dict['CFRvar']
 
               if EvaluateTPO:
-                     Evaluate_TPO_Field()
+                     jobs = Process(target=Evaluate_TPO_Field)
+                     jobs.start()
+                     jobs.join()
+
+                     # Evaluate_TPO_Field()
+                     TPOvar = return_dict['TPOvar']
               
        #%% Copy grid files and store the new test data (source and target)
        outFileName = data_file
@@ -589,7 +614,7 @@ if __name__ == '__main__':
               outFileName = outFileName + '_TPO.nc'
        else:
               outFileName = outFileName + '.nc'
-              
+
        shutil.copy(mesh_file, outFileName)
        
        # write lon, lat, and test data variables
@@ -613,9 +638,9 @@ if __name__ == '__main__':
               latNC = data_fid.createVariable('nlat', 'f8', (numCells,))
               latNC[:] = varLonLat_deg[:,1]
        else:
-              lonNC = data_fid.createVariable('lon', 'f8', (numCells,))
+              lonNC = data_fid.createVariable('lon', 'f8', (numCells,)) if not data_fid.variables['lon'] else data_fid.variables['lon']
               lonNC[:] = varLonLat_deg[:,0]
-              latNC = data_fid.createVariable('lat', 'f8', (numCells,))
+              latNC = data_fid.createVariable('lat', 'f8', (numCells,)) if not data_fid.variables['lat'] else data_fid.variables['lat']
               latNC[:] = varLonLat_deg[:,1]
        
        if rectilinear:
@@ -625,79 +650,82 @@ if __name__ == '__main__':
               data_fid.createDimension(slat, NLAT)
               
               if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon))
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon)) if not data_fid.variables['TotalPrecipWater'] else data_fid.variables['TotalPrecipWater']
                      field = np.reshape(TPWvar, (NLAT, NLON))
                      TPWNC[:] = field
               if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon))
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon)) if not data_fid.variables['CloudFraction'] else data_fid.variables['CloudFraction']
                      field = np.reshape(CFRvar, (NLAT, NLON))
                      CFRNC[:] = field
               if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon))
+                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon)) if not data_fid.variables['Topography'] else data_fid.variables['Topography']
                      field = np.reshape(TPOvar, (NLAT, NLON))
                      TPONC[:] = field
        else:
               if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,)) if not data_fid.variables['TotalPrecipWater'] else data_fid.variables['TotalPrecipWater']
                      TPWNC[:] = TPWvar
               if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,)) if not data_fid.variables['CloudFraction'] else data_fid.variables['CloudFraction']
                      CFRNC[:] = CFRvar
               if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
+                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,)) if not data_fid.variables['Topography'] else data_fid.variables['Topography']
                      TPONC[:] = TPOvar
        
        # Close the files out.
        data_fid.close()
 
+       showPlot = True
        #'''
        #%% Check the data with triangular surface plot
-       points2D = varLonLat
-       tri = Delaunay(points2D)
-       simplices = tri.simplices       
-       
-       #%% Plot Total Precipitable Water
-       if EvaluateTPW or EvaluateAll:
-              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
-                                       simplices=simplices, colormap="Portland", plot_edges=False, \
-                                       title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
-              py.offline.plot(fig1, filename='TPW' + data_file + '.html')
-       #%% Plot Cloud Fraction
-       if EvaluateCFR or EvaluateAll:
-              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
-                                       simplices=simplices, colormap="Portland", plot_edges=False, \
-                                       title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
-              py.offline.plot(fig1, filename='CFR' + data_file + '.html')
-       #%% Plot Topography
-       if EvaluateTPO or EvaluateAll:
-              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
-                                       simplices=simplices, colormap="Portland", plot_edges=False, \
-                                       title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
-              py.offline.plot(fig1, filename='TPO' + data_file + '.html')
-       #'''
-       #%% Check the evaluated spectra
-       '''
-       fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
-       # Plot the TPW spectrum
-       newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
-       ax0.plot(degsTPW, psdTPW, 'k')
-       ax0.plot(degsTPW, newPSD, 'r--')
-       ax0.set_title('Total Precipitable Water - Evaluated PSD')
-       ax0.set(yscale='log', xscale='log', ylabel='Power')
-       ax0.grid(b=True, which='both', axis='both')
-       # Plot the Cloud Fraction spectrum
-       newPSD = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, unit='per_l')
-       ax1.plot(degsCFR, psdCFR, 'k')
-       ax1.plot(degsCFR, newPSD, 'r--')
-       ax1.set_title('Global Cloud Fraction - Evaluated PSD')
-       ax1.set(yscale='log', xscale='log', ylabel='Power')
-       ax1.grid(b=True, which='both', axis='both')
-       # Plot the Topography spectrum
-       newPSD = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, unit='per_l')
-       ax2.plot(degsTPO, psdTPO, 'k')
-       ax2.plot(degsTPO, newPSD, 'r--')
-       ax2.set_title('Global Topography Data - Evaluated PSD')
-       ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
-       ax2.grid(b=True, which='both', axis='both')
-       plt.show()
-       '''      
+       if showPlot:
+              points2D = varLonLat
+              tri = Delaunay(points2D)
+              simplices = tri.simplices
+
+              #%% Plot Total Precipitable Water
+              if EvaluateTPW or EvaluateAll:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='TPW' + data_file + '.html')
+              #%% Plot Cloud Fraction
+              if EvaluateCFR or EvaluateAll:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='CFR' + data_file + '.html')
+              #%% Plot Topography
+              if EvaluateTPO or EvaluateAll:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='TPO' + data_file + '.html')
+              #'''
+
+              #%% Check the evaluated spectra
+              '''
+              fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
+              # Plot the TPW spectrum
+              newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
+              ax0.plot(degsTPW, psdTPW, 'k')
+              ax0.plot(degsTPW, newPSD, 'r--')
+              ax0.set_title('Total Precipitable Water - Evaluated PSD')
+              ax0.set(yscale='log', xscale='log', ylabel='Power')
+              ax0.grid(b=True, which='both', axis='both')
+              # Plot the Cloud Fraction spectrum
+              newPSD = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, unit='per_l')
+              ax1.plot(degsCFR, psdCFR, 'k')
+              ax1.plot(degsCFR, newPSD, 'r--')
+              ax1.set_title('Global Cloud Fraction - Evaluated PSD')
+              ax1.set(yscale='log', xscale='log', ylabel='Power')
+              ax1.grid(b=True, which='both', axis='both')
+              # Plot the Topography spectrum
+              newPSD = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, unit='per_l')
+              ax2.plot(degsTPO, psdTPO, 'k')
+              ax2.plot(degsTPO, newPSD, 'r--')
+              ax2.set_title('Global Topography Data - Evaluated PSD')
+              ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
+              ax2.grid(b=True, which='both', axis='both')
+              plt.show()
+              '''

@@ -63,7 +63,7 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
               node2 = nodes[:,ii+1]
               node3 = nodes[:,ii+2]
 
-              nDMatrix = np.array([ [node1[0], node1[1], node1[2]],
+              nDMatrix = np.array([  [node1[0], node1[1], node1[2]],
                                      [node2[0], node2[1], node2[2]],
                                      [node3[0], node3[1], node3[2]] ])
 
@@ -117,6 +117,8 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
                                    # Convert to degrees for the SH expansion
                                    dFLonLat = 180.0 / mt.pi * dFLonLatRad
                                    thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
+                                   # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
+                                   # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
                                    # Sum up the integral of the field
                                    dFunIntegral += thisVar * dJacobianGWppqq
 
