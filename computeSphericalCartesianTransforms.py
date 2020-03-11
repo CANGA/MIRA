@@ -28,7 +28,7 @@ def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
        NC = np.size(cellCoord, axis=0)
        varLonLat = np.zeros((NC, 2))
-       print(cellCoord)
+       # print(cellCoord)
        for ii in range(NC):
               RO = np.linalg.norm(cellCoord[ii,:])
               psi = mt.asin(1.0 / RO * cellCoord[ii,2])
