@@ -175,6 +175,8 @@ def parseCommandLine(argv):
        EvaluateTPW = False # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
+       EvaluateA1 = False # Analytical function 1
+       EvaluateA2 = False # Analytical function 2
        
        # Number of modes used up to 512
        numModes = 128
@@ -186,6 +188,7 @@ def parseCommandLine(argv):
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['pm=', 'so=', 'nm=', 'rseed=', 'EvaluateAll', \
                                          'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
+                                         'EvaluateA1', 'EvaluateA2', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
                                          'SCRIPwithConn', 'SpectralElement'])
        except getopt.GetoptError:
@@ -199,6 +202,8 @@ def parseCommandLine(argv):
                     '--<evaluateTotalPrecipWater>', \
                     '--<evaluateCloudFraction>', \
                     '--<evaluateGlobalTerrain>', \
+                    '--<evaluateA1>', \
+                    '--<evaluateA2>', \
                     '--<meshConfiguration>', \
                     '--<isSpectralElementMesh>')
               sys.exit(2)
@@ -216,6 +221,8 @@ def parseCommandLine(argv):
                            '--<evaluateTotalPrecipWater>', \
                            '--<evaluateCloudFraction>', \
                            '--<evaluateGlobalTerrain>', \
+                           '--<evaluateA1>', \
+                           '--<evaluateA2>', \
                            '--<meshConfiguration>', \
                            '--<isSpectralElementMesh>')
                      sys.exit()
@@ -241,6 +248,10 @@ def parseCommandLine(argv):
                      EvaluateCFR = True
               elif opt == '--EvaluateTPO':
                      EvaluateTPO = True
+              elif opt == '--EvaluateA1':
+                     EvaluateA1 = True
+              elif opt == '--EvaluateA2':
+                     EvaluateA2 = True
               elif opt == '--ExodusSingleConn':
                      ExodusSingleConn = True
               elif opt == '--SCRIPwithoutConn':
@@ -276,13 +287,17 @@ def parseCommandLine(argv):
               print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
+       
+       if EvaluateAll:
+              EvaluateTPW = EvaluateCFR = EvaluateTPO = EvaluateA1 = EvaluateA2 = True
 
        if 2*sampleOrder-1 < numModes:
            print("WARNING: The quadrature sampling order of %d is insufficient to exactly integrate SPH expansions of order %d!" % (sampleOrder, numModes))
 
        return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
-              EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+              EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+              EvaluateA1, EvaluateA2, \
               ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
 
 if __name__ == '__main__':
@@ -291,7 +306,8 @@ if __name__ == '__main__':
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ND, seed, sampleCentroid, sampleOrder, \
-       EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+       EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+       EvaluateA1, EvaluateA2, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
        = parseCommandLine(sys.argv[1:])
        
@@ -300,7 +316,20 @@ if __name__ == '__main__':
        onlyFilename = stripDir[len(stripDir)-1]
        data_file = 'testdata_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
 
-       print('New data will be stored in (prefix): ', data_file)
+       # Let us decipher what our final output file name should be with approrpriate suffixes
+       outFileName = data_file
+       
+       if SpectralElement:
+              outFileName += '_GLL'
+
+       if EvaluateTPW: outFileName += '_TPW'
+       if EvaluateCFR: outFileName += '_CFR'
+       if EvaluateTPO: outFileName += '_TPO'
+       if EvaluateA1:  outFileName += '_A1'
+       if EvaluateA2:  outFileName += '_A2'
+       outFileName += '.nc'
+
+       print('File name for sampled mesh data: ', outFileName)
        print('Number of SH degrees for sampling set to: ', ND)
        print('Maximum Gaussian quadrature order to be used: ', 2*sampleOrder-1)
        
@@ -398,7 +427,7 @@ if __name__ == '__main__':
               # Compute Lon/Lat coordinates from centroids
               varCent = computeCentroids(varCon, varCoord)
               varLonLat = sphcrt.computeCart2LL(varCent)
-       
+
        # Convert to degrees from radians
        varLonLat_deg = 180.0 / mt.pi * varLonLat
        varLonLat_deg = 180.0 / mt.pi * varLonLat
@@ -426,7 +455,7 @@ if __name__ == '__main__':
                               [4.00222122e+00, 2.39412571e+00, 0.0, 0.0], \
                               [-1.36433589e+01, 3.90520866e-03, 4.70350344e-01, 0.0], \
                               [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
-              
+
               # Make the SH coefficients object for this field
               clmTPW = computeNormalizedCoefficients(ND, psdTPW, coeffsLD_TPW)
 
@@ -442,6 +471,7 @@ if __name__ == '__main__':
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True)
+                     print('Global integral: ', np.sum(TPWvar))
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
@@ -452,7 +482,6 @@ if __name__ == '__main__':
               TPWvar *= maxTPW / deltaTPW
               endt = time.time()
               print('Time to compute TPW (mm): ', endt - start)
-              print('Global integral: ', np.sum(TPWvar))
 
               return_dict['TPWvar'] = TPWvar
 
@@ -482,6 +511,7 @@ if __name__ == '__main__':
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True)
+                     print('Global integral: ', np.sum(CFRvar))
  
               # Compute rescaled data from 0.0 to max
               minCFR = np.amin(CFRvar)
@@ -524,6 +554,7 @@ if __name__ == '__main__':
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True)
+                     print('Global integral: ', np.sum(TPOvar))
               
               # Rescale to -1.0 to 1.0
               minTPO = np.amin(TPOvar)
@@ -546,75 +577,95 @@ if __name__ == '__main__':
               return_dict['TPOvar'] = TPOvar
 
        #%%
+       def Evaluate_A1_Field():
+              start = time.time()
+              print('Computing Analytical Field 1 sampling on mesh...')
+              
+              # Evaluate actual spherical harmonic modes as solution; 
+              # change ls, ms below
+              lmax = 100
+              clmA1 = pyshtools.SHCoeffs.from_zeros(lmax)
+              # This evaluates P_3^3
+              clmA1.set_coeffs(values=[1], ls=[3], ms=[2])
+              clmA1.set_coeffs(values=[1], ls=[3], ms=[3])
+              
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
+              # Expand the coefficients and check the field
+              if sampleCentroid or SpectralElement:
+                     A1var = clmA1.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+              else:
+                     A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True)
+                     print('Global integral: ', np.sum(A1var))
+              
+              # Compute rescaled data from 0.0 to max
+              minA1 = np.amin(A1var)
+              maxA1 = np.amax(A1var)
+              deltaA1 = abs(maxA1 - minA1)
+              deltaA1 = deltaA1 if deltaA1 > 1e-10 else 1.0
+              A1var = np.add(A1var, -minA1)
+              A1var *= maxA1 / deltaA1
+              endt = time.time()
+              print('Time to compute TPW (mm): ', endt - start)
 
-       def runInParallel(*fns):
-              proc = []
-              for fn in fns:
-                     p = Process(target=fn)
-                     p.start()
-                     proc.append(p)
-              for p in proc:
-                     p.join()
+              return_dict['A1var'] = A1var
+
+       #%%
+       def Evaluate_A2_Field():
+              start = time.time()
+              print('Computing Analytical Field 2 sampling on mesh...')
+
+              def evaluate_field_a2(lon, lat):
+                     # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
+                     # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
+                     return (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon))
+
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
+              # Expand the coefficients and check the field
+              if sampleCentroid or SpectralElement:
+                     A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+              else:
+                     A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
+                     print('Global integral: ', np.sum(A2var))
+              
+              # Compute rescaled data from 0.0 to max
+              minA2 = np.amin(A2var)
+              maxA2 = np.amax(A2var)
+              deltaA2 = abs(maxA2 - minA2)
+              deltaA2 = deltaA2 if deltaA2 > 1e-10 else 1.0
+              A2var = np.add(A2var, -minA2)
+              A2var *= maxA2 / deltaA2
+              endt = time.time()
+              print('Time to compute TPW (mm): ', endt - start)
+
+              return_dict['A2var'] = A2var
 
        #%%
 
        manager = multiprocessing.Manager()
        return_dict = manager.dict()
-       if EvaluateAll:
-              jobs = []
-              for fn in [Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field]:
-                     p = Process(target=fn)
-                     jobs.append(p)
-                     p.start()
-              for p in jobs:
-                     p.join()
-              
-              TPWvar = return_dict['TPWvar']
-              CFRvar = return_dict['CFRvar']
-              TPOvar = return_dict['TPOvar']
-              # runInParallel(Evaluate_TPW_Field, Evaluate_CFR_Field, Evaluate_TPO_Field)
-       else:
-              if EvaluateTPW:
-                     jobs = Process(target=Evaluate_TPW_Field)
-                     jobs.start()
-                     jobs.join()
+       # Let us aggregate all the jobs that need to be done and then
+       # let the multiprocessing manager take care of it.
+       jobs = []
+       evaluation_routines = []
+       if EvaluateTPW: evaluation_routines.append(Evaluate_TPW_Field)
+       if EvaluateCFR: evaluation_routines.append(Evaluate_CFR_Field)
+       if EvaluateTPO: evaluation_routines.append(Evaluate_TPO_Field)
+       if EvaluateA1: evaluation_routines.append(Evaluate_A1_Field)
+       if EvaluateA2: evaluation_routines.append(Evaluate_A2_Field)
+       for fn in evaluation_routines:
+              p = Process(target=fn)
+              jobs.append(p)
+              p.start()
+       for p in jobs:
+              p.join()
+       
+       if EvaluateTPW: TPWvar = return_dict['TPWvar']
+       if EvaluateCFR: CFRvar = return_dict['CFRvar']
+       if EvaluateTPO: TPOvar = return_dict['TPOvar']
+       if EvaluateA1: A1var = return_dict['A1var']
+       if EvaluateA2: A2var = return_dict['A2var']
 
-                     TPWvar = return_dict['TPWvar']
-                     # Evaluate_TPW_Field()
-
-              if EvaluateCFR:
-                     jobs = Process(target=Evaluate_CFR_Field)
-                     jobs.start()
-                     jobs.join()
-
-                     # Evaluate_CFR_Field()
-                     CFRvar = return_dict['CFRvar']
-
-              if EvaluateTPO:
-                     jobs = Process(target=Evaluate_TPO_Field)
-                     jobs.start()
-                     jobs.join()
-
-                     # Evaluate_TPO_Field()
-                     TPOvar = return_dict['TPOvar']
-              
        #%% Copy grid files and store the new test data (source and target)
-       outFileName = data_file
-       
-       if SpectralElement:
-              outFileName = outFileName + 'GLL'
-       
-       if EvaluateAll:
-              outFileName = outFileName + '_TPW_CFR_TPO.nc'
-       elif EvaluateTPW:
-              outFileName = outFileName + '_TPW.nc'
-       elif EvaluateCFR:
-              outFileName = outFileName + '_CFR.nc'
-       elif EvaluateTPO:
-              outFileName = outFileName + '_TPO.nc'
-       else:
-              outFileName = outFileName + '.nc'
-
        shutil.copy(mesh_file, outFileName)
        
        # write lon, lat, and test data variables
@@ -638,9 +689,9 @@ if __name__ == '__main__':
               latNC = data_fid.createVariable('nlat', 'f8', (numCells,))
               latNC[:] = varLonLat_deg[:,1]
        else:
-              lonNC = data_fid.createVariable('lon', 'f8', (numCells,)) if not data_fid.variables['lon'] else data_fid.variables['lon']
+              lonNC = data_fid.createVariable('lon', 'f8', (numCells,)) if 'lon' not in data_fid.variables.keys() else data_fid.variables['lon']
               lonNC[:] = varLonLat_deg[:,0]
-              latNC = data_fid.createVariable('lat', 'f8', (numCells,)) if not data_fid.variables['lat'] else data_fid.variables['lat']
+              latNC = data_fid.createVariable('lat', 'f8', (numCells,)) if 'lat' not in data_fid.variables.keys() else data_fid.variables['lat']
               latNC[:] = varLonLat_deg[:,1]
        
        if rectilinear:
@@ -649,28 +700,42 @@ if __name__ == '__main__':
               data_fid.createDimension(slon, NLON)
               data_fid.createDimension(slat, NLAT)
               
-              if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon)) if not data_fid.variables['TotalPrecipWater'] else data_fid.variables['TotalPrecipWater']
+              if EvaluateTPW:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon)) if 'TotalPrecipWater' not in data_fid.variables.keys() else data_fid.variables['TotalPrecipWater']
                      field = np.reshape(TPWvar, (NLAT, NLON))
                      TPWNC[:] = field
-              if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon)) if not data_fid.variables['CloudFraction'] else data_fid.variables['CloudFraction']
+              if EvaluateCFR:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon)) if 'CloudFraction' not in data_fid.variables.keys() else data_fid.variables['CloudFraction']
                      field = np.reshape(CFRvar, (NLAT, NLON))
                      CFRNC[:] = field
-              if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon)) if not data_fid.variables['Topography'] else data_fid.variables['Topography']
+              if EvaluateTPO:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon)) if 'Topography' not in data_fid.variables.keys() else data_fid.variables['Topography']
                      field = np.reshape(TPOvar, (NLAT, NLON))
                      TPONC[:] = field
+              if EvaluateA1:
+                     A1NC = data_fid.createVariable('AnalyticalFun1', 'f8', (slat, slon)) if 'AnalyticalFun1' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun1']
+                     field = np.reshape(A1var, (NLAT, NLON))
+                     A1NC[:] = field
+              if EvaluateA2:
+                     A2NC = data_fid.createVariable('AnalyticalFun2', 'f8', (slat, slon)) if 'AnalyticalFun2' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun2']
+                     field = np.reshape(A2var, (NLAT, NLON))
+                     A2NC[:] = field
        else:
-              if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,)) if not data_fid.variables['TotalPrecipWater'] else data_fid.variables['TotalPrecipWater']
+              if EvaluateTPW:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,)) if 'TotalPrecipWater' not in data_fid.variables.keys() else data_fid.variables['TotalPrecipWater']
                      TPWNC[:] = TPWvar
-              if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,)) if not data_fid.variables['CloudFraction'] else data_fid.variables['CloudFraction']
+              if EvaluateCFR:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,)) if 'CloudFraction' not in data_fid.variables.keys() else data_fid.variables['CloudFraction']
                      CFRNC[:] = CFRvar
-              if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,)) if not data_fid.variables['Topography'] else data_fid.variables['Topography']
+              if EvaluateTPO:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,)) if 'Topography' not in data_fid.variables.keys() else data_fid.variables['Topography']
                      TPONC[:] = TPOvar
+              if EvaluateA1:
+                     A1NC = data_fid.createVariable('AnalyticalFun1', 'f8', (numCells,)) if 'AnalyticalFun1' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun1']
+                     A1NC[:] = A1var
+              if EvaluateA2:
+                     A2NC = data_fid.createVariable('AnalyticalFun2', 'f8', (numCells,)) if 'AnalyticalFun2' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun2']
+                     A2NC[:] = A2var
        
        # Close the files out.
        data_fid.close()
@@ -684,23 +749,37 @@ if __name__ == '__main__':
               simplices = tri.simplices
 
               #%% Plot Total Precipitable Water
-              if EvaluateTPW or EvaluateAll:
+              if EvaluateTPW:
                      fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
                                           simplices=simplices, colormap="Portland", plot_edges=False, \
                                           title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
                      py.offline.plot(fig1, filename='TPW' + data_file + '.html')
               #%% Plot Cloud Fraction
-              if EvaluateCFR or EvaluateAll:
+              if EvaluateCFR:
                      fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
                                           simplices=simplices, colormap="Portland", plot_edges=False, \
                                           title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
                      py.offline.plot(fig1, filename='CFR' + data_file + '.html')
               #%% Plot Topography
-              if EvaluateTPO or EvaluateAll:
+              if EvaluateTPO:
                      fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
                                           simplices=simplices, colormap="Portland", plot_edges=False, \
                                           title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
                      py.offline.plot(fig1, filename='TPO' + data_file + '.html')
+              #'''
+              #%% Plot Topography
+              if EvaluateA1:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=A1var, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Analytical Function 1 (SPH(3,3))", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='A1' + data_file + '.html')
+              #'''
+              #%% Plot Topography
+              if EvaluateA2:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=A2var, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Analytical Function 2: (2.0 + cos^2(lat) * cos(2.0 * lon))", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='A2' + data_file + '.html')
               #'''
 
               #%% Check the evaluated spectra

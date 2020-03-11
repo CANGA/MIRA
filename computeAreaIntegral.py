@@ -114,9 +114,12 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
                                    dFunIntegral += dJacobianGWppqq
                             else:
                                    dFLonLatRad = trans.computePointCart2LL(dF)
-                                   # Convert to degrees for the SH expansion
-                                   dFLonLat = 180.0 / mt.pi * dFLonLatRad
-                                   thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
+                                   if callable(clm): # if this is a closed form functional, evaluate directly
+                                          thisVar = clm(lon=dFLonLatRad[0], lat=dFLonLatRad[1])
+                                   else:
+                                          # Convert to degrees for the SH expansion
+                                          dFLonLat = 180.0 / mt.pi * dFLonLatRad
+                                          thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
                                    # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
                                    # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
                                    # Sum up the integral of the field
