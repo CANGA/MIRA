@@ -175,24 +175,19 @@ def parseCommandLine(argv):
        EvaluateTPW = False # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
-       EvaluateA1 = False # Analytical function 1
-       EvaluateA2 = False # Analytical function 2
-       
+       EvaluateA1 = False  # Analytical function 1
+       EvaluateA2 = False  # Analytical function 2
+
+       ShowPlots = False # Whether we want to show the profile plots for variables
+
        # Number of modes used up to 512
-       numModes = 128
+       numModes = 32
        
        # Pseudo-random number generator seed
        seed = 384
-       
-       try:
-              opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['pm=', 'so=', 'nm=', 'rseed=', 'EvaluateAll', \
-                                         'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
-                                         'EvaluateA1', 'EvaluateA2', \
-                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn', 'SpectralElement'])
-       except getopt.GetoptError:
-              print('Command line not properly set:', \
+
+       def usage():
+              print('Driver Usage:\n', \
                     'CANGAFieldGenDriver.py', \
                     '--pm <sampleMeshFile>', \
                     '--so <sampleOrderInteger>', \
@@ -204,27 +199,26 @@ def parseCommandLine(argv):
                     '--<evaluateGlobalTerrain>', \
                     '--<evaluateA1>', \
                     '--<evaluateA2>', \
+                    '--<showPlots>', \
                     '--<meshConfiguration>', \
-                    '--<isSpectralElementMesh>')
+                    '--<SpectralElementMesh>')
+       
+       try:
+              opts, args = getopt.getopt(argv, 'hv:', \
+                                        ['pm=', 'so=', 'nm=', 'rseed=', 'evaluateAllFields', \
+                                         'evaluateTotalPrecipWater', 'evaluateCloudFraction', 'evaluateGlobalTerrain', \
+                                         'evaluateA1', 'evaluateA2', 'showPlots', \
+                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
+                                         'SCRIPwithConn', 'SpectralElementMesh'])
+       except getopt.GetoptError:
+              print('Command line arguments were not properly set or error in parsing.\n')
+              usage()
               sys.exit(2)
               
        for opt, arg in opts:
               # Request for usage help
               if opt == '-h':
-                     print('Command line not properly set:', \
-                           'CANGAFieldGenDriver.py', \
-                           '--pm <sampleMeshFile>', \
-                           '--so <sampleOrderInteger>', \
-                           '--nm <numberSHModesMax768>', \
-                           '--rseed <randnumSeed>', \
-                           '--<evaluateAllFields>', \
-                           '--<evaluateTotalPrecipWater>', \
-                           '--<evaluateCloudFraction>', \
-                           '--<evaluateGlobalTerrain>', \
-                           '--<evaluateA1>', \
-                           '--<evaluateA2>', \
-                           '--<meshConfiguration>', \
-                           '--<isSpectralElementMesh>')
+                     usage()
                      sys.exit()
               elif opt == '--pm':
                      sampleMesh = arg
@@ -240,17 +234,17 @@ def parseCommandLine(argv):
                      numModes = int(arg)
               elif opt == '--rseed':
                      seed = int(arg)
-              elif opt == '--EvaluateAll':
+              elif opt == '--evaluateAllFields':
                      EvaluateAll = True
-              elif opt == '--EvaluateTPW':
+              elif opt == '--evaluateTotalPrecipWater':
                      EvaluateTPW = True
-              elif opt == '--EvaluateCFR':
+              elif opt == '--evaluateCloudFraction':
                      EvaluateCFR = True
-              elif opt == '--EvaluateTPO':
+              elif opt == '--evaluateGlobalTerrain':
                      EvaluateTPO = True
-              elif opt == '--EvaluateA1':
+              elif opt == '--evaluateA1':
                      EvaluateA1 = True
-              elif opt == '--EvaluateA2':
+              elif opt == '--evaluateA2':
                      EvaluateA2 = True
               elif opt == '--ExodusSingleConn':
                      ExodusSingleConn = True
@@ -258,8 +252,10 @@ def parseCommandLine(argv):
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
                      SCRIPwithConn = True
-              elif opt == '--SpectralElement':
+              elif opt == '--SpectralElementMesh':
                      SpectralElement = True
+              elif opt == '--showPlots':
+                     ShowPlots = True
                      
        # Check that the number of modes requested doesn't exceed 512
        if numModes > 512:
@@ -297,7 +293,7 @@ def parseCommandLine(argv):
        return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
               EvaluateTPW, EvaluateCFR, EvaluateTPO, \
-              EvaluateA1, EvaluateA2, \
+              EvaluateA1, EvaluateA2, ShowPlots, \
               ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
 
 if __name__ == '__main__':
@@ -307,7 +303,7 @@ if __name__ == '__main__':
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ND, seed, sampleCentroid, sampleOrder, \
        EvaluateTPW, EvaluateCFR, EvaluateTPO, \
-       EvaluateA1, EvaluateA2, \
+       EvaluateA1, EvaluateA2, ShowPlots, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
        = parseCommandLine(sys.argv[1:])
        
@@ -740,10 +736,9 @@ if __name__ == '__main__':
        # Close the files out.
        data_fid.close()
 
-       showPlot = True
        #'''
        #%% Check the data with triangular surface plot
-       if showPlot:
+       if ShowPlots:
               points2D = varLonLat
               tri = Delaunay(points2D)
               simplices = tri.simplices
