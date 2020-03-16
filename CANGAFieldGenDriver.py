@@ -310,7 +310,7 @@ if __name__ == '__main__':
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
        onlyFilename = stripDir[len(stripDir)-1]
-       data_file = 'testdata_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
+       data_file = 'sample_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
 
        # Let us decipher what our final output file name should be with approrpriate suffixes
        outFileName = data_file
@@ -467,7 +467,7 @@ if __name__ == '__main__':
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True)
-                     print('Global integral: ', np.sum(TPWvar))
+                     print('Total Precipitable Water Global integral: ', np.sum(TPWvar))
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
@@ -507,7 +507,7 @@ if __name__ == '__main__':
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True)
-                     print('Global integral: ', np.sum(CFRvar))
+                     print('Cloud Fraction Global integral: ', np.sum(CFRvar))
  
               # Compute rescaled data from 0.0 to max
               minCFR = np.amin(CFRvar)
@@ -527,7 +527,7 @@ if __name__ == '__main__':
        #%%
        def Evaluate_TPO_Field():
               start = time.time()
-              print('Computing Terrain on sampling mesh...')
+              print('Computing Global Terrain on sampling mesh...')
               # Set the power spectrum coefficients
               lfPower = [1.79242815e+05, -4.28193211e+01,  7.68040558e+05]
               hfPower = [9.56198160e+06, -1.85485966e+00, -2.63553217e+01]
@@ -550,7 +550,7 @@ if __name__ == '__main__':
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True)
-                     print('Global integral: ', np.sum(TPOvar))
+                     print('Global Terrain Global integral: ', np.sum(TPOvar))
               
               # Rescale to -1.0 to 1.0
               minTPO = np.amin(TPOvar)
@@ -591,7 +591,7 @@ if __name__ == '__main__':
                      A1var = clmA1.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True)
-                     print('Global integral: ', np.sum(A1var))
+                     print('Analytical Solution 1 Global integral: ', np.sum(A1var))
               
               # Compute rescaled data from 0.0 to max
               minA1 = np.amin(A1var)
@@ -601,7 +601,7 @@ if __name__ == '__main__':
               A1var = np.add(A1var, -minA1)
               A1var *= maxA1 / deltaA1
               endt = time.time()
-              print('Time to compute TPW (mm): ', endt - start)
+              print('Time to compute A1 Field: ', endt - start)
 
               return_dict['A1var'] = A1var
 
@@ -621,7 +621,7 @@ if __name__ == '__main__':
                      A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
-                     print('Global integral: ', np.sum(A2var))
+                     print('Analytical Solution 2 Global integral: ', np.sum(A2var))
               
               # Compute rescaled data from 0.0 to max
               minA2 = np.amin(A2var)
@@ -631,7 +631,7 @@ if __name__ == '__main__':
               A2var = np.add(A2var, -minA2)
               A2var *= maxA2 / deltaA2
               endt = time.time()
-              print('Time to compute TPW (mm): ', endt - start)
+              print('Time to compute A2 Field: ', endt - start)
 
               return_dict['A2var'] = A2var
 
