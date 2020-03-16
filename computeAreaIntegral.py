@@ -38,6 +38,11 @@ def getGaussNodesWeights(order):
               np.ravel(GW)
 
 def computeAreaIntegral(clm, nodes, order, avg, farea):
+       GN, GW = getGaussNodesWeights(order)
+
+       return computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea)
+
+def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
        # avg = Boolean flag to take average of the function
        # farea = Boolean flag to compute only the area integral (ignore field)
        
@@ -51,7 +56,7 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
        NST = np.size(nodes, axis=1) - 2
        
        # Loop over the subtriangles and add up the areas
-       GN, GW = getGaussNodesWeights(order)
+       # GN, GW = getGaussNodesWeights(order)
        NP = len(GW)
 
        # Link: https://people.sc.fsu.edu/~jburkardt/f_src/stripack/stripack.f90

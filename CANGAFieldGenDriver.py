@@ -24,11 +24,12 @@ import plotly as py
 import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-from computeAreaIntegral import computeAreaIntegral
+from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
 import computeSphericalCartesianTransforms as sphcrt
 
 import multiprocessing
 from multiprocessing import Process
+from itertools import repeat
 
 
 #%% Utility functions
@@ -96,11 +97,11 @@ def computeCentroidsLL(conLon, conLat):
        
        return cellCoord
 
-def computeCellAverage(clm, varCon, varCoord, order, avg):
+def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
        # Compute the number of cells and initialize
        NEL = np.size(varCon, 0)
        varSample = np.zeros(NEL,)
-       
+
        # Loop over each cell and get cell average
        for ii in range(NEL):
               # Handle degeneracies with numpy.unique on connectivity
@@ -110,6 +111,27 @@ def computeCellAverage(clm, varCon, varCoord, order, avg):
               varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
        
        return varSample
+if callable(clm): # if this is a closed form functional, evaluate directly
+
+def computeCellAverage(clm, varCon, varCoord, order, avg):
+
+       # return computeCellAverageSerial(clm, varCon, varCoord, order, avg)
+
+       # Compute the number of cells and initialize
+       NEL = np.size(varCon, 0)
+       varSample = np.zeros(NEL,)
+
+       GN, GW = getGaussNodesWeights(order)
+
+       # Loop over each cell and get cell average
+       pool = multiprocessing.Pool(processes=4)
+       results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(clm), [varCoord[:,np.unique(varCon[ii,:]) - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(avg), repeat(False)))
+       pool.close()
+       pool.join()
+       varSample=np.array(results, dtype='f8')
+
+       return varSample
+
 
 def computeRandomizedCoefficients(ND):
        # Initialize the coefficients array
@@ -620,7 +642,7 @@ if __name__ == '__main__':
               if sampleCentroid or SpectralElement:
                      A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
+                     A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
                      print('Analytical Solution 2 Global integral: ', np.sum(A2var))
               
               # Compute rescaled data from 0.0 to max
