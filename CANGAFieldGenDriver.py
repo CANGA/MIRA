@@ -111,7 +111,7 @@ def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
               varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
        
        return varSample
-if callable(clm): # if this is a closed form functional, evaluate directly
+
 
 def computeCellAverage(clm, varCon, varCoord, order, avg):
 
@@ -215,15 +215,15 @@ def parseCommandLine(argv):
                     '--so <sampleOrderInteger>', \
                     '--nm <numberSHModesMax768>', \
                     '--rseed <randnumSeed>', \
-                    '--<evaluateAllFields>', \
-                    '--<evaluateTotalPrecipWater>', \
-                    '--<evaluateCloudFraction>', \
-                    '--<evaluateGlobalTerrain>', \
-                    '--<evaluateA1>', \
-                    '--<evaluateA2>', \
-                    '--<showPlots>', \
-                    '--<meshConfiguration>', \
-                    '--<SpectralElementMesh>')
+                    '--evaluateAllFields', \
+                    '--evaluateTotalPrecipWater', \
+                    '--evaluateCloudFraction', \
+                    '--evaluateGlobalTerrain', \
+                    '--evaluateA1', \
+                    '--evaluateA2', \
+                    '--showPlots', \
+                    '--meshConfiguration', \
+                    '--SpectralElementMesh')
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
@@ -771,6 +771,25 @@ if __name__ == '__main__':
                                           simplices=simplices, colormap="Portland", plot_edges=False, \
                                           title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
                      py.offline.plot(fig1, filename='TPW' + data_file + '.html')
+
+                     '''
+                     import matplotlib.pyplot as plt
+                     from mpl_toolkits.basemap import Basemap
+
+                     fig = plt.figure(figsize=(10, 8))
+                     m = Basemap(projection='lcc', resolution='c',
+                            width=8E6, height=8E6, 
+                            lat_0=45, lon_0=-100,)
+                     m.shadedrelief(scale=0.5)
+                     m.pcolormesh(varLonLat[:,0], varLonLat[:,1], TPWvar,
+                            latlon=True, cmap='RdBu_r')
+                     plt.clim(-8, 8)
+                     m.drawcoastlines(color='lightgray')
+
+                     plt.title('January 2014 Temperature Anomaly')
+                     plt.colorbar(label='temperature anomaly (°C)');
+                     '''
+
               #%% Plot Cloud Fraction
               if EvaluateCFR:
                      fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
