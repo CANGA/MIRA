@@ -51,9 +51,6 @@ from computeLocalExtremaMetrics import computeLocalExtremaMetrics
 from computeAreaIntegral import computeAreaIntegral
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
 
-CSRES=32
-ICODRES=16
-
 # Parse the command line
 def parseCommandLine(argv):
 
@@ -249,10 +246,7 @@ def loadMeshJacobians(mesh_file, varJacoName, SpectralElement):
 def loadSField(var_file, varName):
        start = time.time()
        # Open the .nc data files for reading
-       # ncFieldFileHnd = Dataset(var_file, 'r')
-       # ncFieldFileHnd = Dataset('Preprocessed/CS/testdata_outCSMesh_ne16_Psi_enhanced.nc', 'r')
-       # ncFieldFileHnd = Dataset('convergence/so1nm1/CS/testdata_NM4_outCSne'+str(CSRES)+'_TPW_CFR_TPO.nc', 'r')
-       ncFieldFileHnd = Dataset('convergence/so1nm1/CS/testdata_NM4_SO4_outCSne'+str(CSRES)+'_TPW.nc', 'r')
+       ncFieldFileHnd = Dataset(var_file, 'r')
        
        # Get the field data
        varField = ncFieldFileHnd.variables[varName][:]
@@ -274,11 +268,7 @@ def loadSField(var_file, varName):
 def loadTField(var_file, varName):
        start = time.time()
        # Open the .nc data files for reading
-       # ncFieldFileHnd = Dataset(var_file, 'r')
-       # ncFieldFileHnd = Dataset('Preprocessed/ICOD/testdata_outICODMesh_ne128_Psi_enhanced.nc', 'r')
-       # ncFieldFileHnd = Dataset('Preprocessed/ICOD/testdata_outICODMesh128_neCS256_PsiProjected.nc', 'r')
-       # ncFieldFileHnd = Dataset('convergence/so1nm1/ICOD/testdata_NM4_outCS'+str(CSRES)+'ICOD'+str(ICODRES)+'_TPW_CFR_TPO_Projected.nc', 'r')
-       ncFieldFileHnd = Dataset('convergence/so1nm1/ICOD/testdata_NM4_SO4_outCS'+str(CSRES)+'ICOD'+str(ICODRES)+'_TPW_Projected.nc', 'r')
+       ncFieldFileHnd = Dataset(var_file, 'r')
        
        # Get the field data
        varField = ncFieldFileHnd.variables[varName][:]
@@ -303,10 +293,10 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
        tgtvarName = varName + '_remap_tgt'
 
        # Get the field data
-       # varFieldSrc = ncFieldFileHnd.variables[srcvarName][dimension,:]
-       # varFieldTgt = ncFieldFileHnd.variables[tgtvarName][dimension,:]
-       varFieldSrc = 0#ncFieldFileHnd.variables[varName][:]
-       varFieldTgt = ncFieldFileHnd.variables[varName][:]
+       varFieldSrc = ncFieldFileHnd.variables[srcvarName][dimension,:]
+       varFieldTgt = ncFieldFileHnd.variables[tgtvarName][dimension,:]
+       # varFieldSrc = 0#ncFieldFileHnd.variables[varName][:]
+       # varFieldTgt = ncFieldFileHnd.variables[varName][:]
 
        return varFieldTgt, varFieldSrc
 
@@ -519,10 +509,7 @@ if __name__ == '__main__':
             for iteration in range(maxRemapIterations):
                     # Read in field variable data
                     varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration+1)
-                    
-              #       print('Shapes: ', varSS.shape, varST.shape, varS2T.shape)
-              #       print('')
-                    
+
                     #%% Computing all metrics...
 
                     # Global conservation metric
