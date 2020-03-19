@@ -23,24 +23,37 @@ import numpy as np
 import plotly as py
 import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
-import matplotlib.pyplot as plt
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
-from computeAreaIntegral import computeAreaIntegral
+from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
+import computeSphericalCartesianTransforms as sphcrt
+
+import multiprocessing
+from multiprocessing import Process
+from itertools import repeat
+
 
 #%% Utility functions
 
 def computeSpectrum(ND, lfPower, hfPower, degIntersect):
        psd = np.zeros(ND)
-       # Compute power spectrum array from coefficients
+       # Compute power spectrum array from coefficients (Power Law assumed)
        degs = np.arange(ND, dtype=float)
-       #degs[0] = np.inf
+       # degs[0] = np.inf
        degs[0] = 1.0E-8
+       
+       # Check that we aren't fitting a constant function (Terrain)
        for ii in range(ND):
               if degs[ii] < degIntersect:
-                     psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
+                     if lfPower[1] > -5.0:
+                            psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
+                     else:
+                            psd[ii] = lfPower[2]
               elif degs[ii] >= degIntersect:
-                     psd[ii] = hfPower[0] * np.power(degs[ii], hfPower[1]) + hfPower[2]
-       
+                     if hfPower[1] > -5.0:
+                            psd[ii] = hfPower[0] * np.power(degs[ii], hfPower[1]) + hfPower[2]
+                     else:
+                            psd[ii] = hfPower[2]
+                            
        return degs, psd
 
 def computeCentroids(varCon, varCoord):
@@ -66,38 +79,6 @@ def computeCentroids(varCon, varCoord):
        
        return cellCoord
 
-def computeCart2LL(cellCoord):
-       # Loop over each cell centroid, extract (lon, lat)
-       NC = np.size(cellCoord, axis=0)
-       varLonLat = np.zeros((NC, 2))
-       for ii in range(NC):
-              RO = np.linalg.norm(cellCoord[ii,:])
-              psi = mt.asin(1.0 / RO * cellCoord[ii,2])
-              lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
-              varLonLat[ii,:] = [lam, psi]
-       
-       # OUTPUT IS IN RADIANS       
-       return varLonLat
-
-def computeLL2Cart(cellCoord):
-       # Loop over the Lon/Lat coordinate array, extract Cartesian coords
-       # Input array is [lon, lat, radius]
-       NC = np.size(cellCoord, axis=0)
-       varCart = np.zeros((NC, 3))
-       for ii in range(NC):
-              RO = cellCoord[ii,2]
-              lon = cellCoord[ii,0]
-              lat = cellCoord[ii,1]
-              X = RO * mt.cos(lat) * mt.sin(lon)
-              Y = RO * mt.cos(lat) * mt.cos(lon)
-              Z = RO * mt.sin(lat)
-              RC = mt.sqrt(X**2 + Y**2 + Z**2)
-              varCart[ii,:] = [X, Y, Z]
-              varCart[ii,:] *= 1.0 / RC
-       
-       # INPUT IS IN RADIANS
-       return varCart
-
 def computeCentroidsLL(conLon, conLat):
        # Loop over rows of the corner array and get centroid
        NC = np.size(conLon, axis=0)
@@ -116,11 +97,11 @@ def computeCentroidsLL(conLon, conLat):
        
        return cellCoord
 
-def computeCellAverage(clm, varCon, varCoord, order, avg):
+def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
        # Compute the number of cells and initialize
        NEL = np.size(varCon, 0)
        varSample = np.zeros(NEL,)
-       
+
        # Loop over each cell and get cell average
        for ii in range(NEL):
               # Handle degeneracies with numpy.unique on connectivity
@@ -130,6 +111,27 @@ def computeCellAverage(clm, varCon, varCoord, order, avg):
               varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
        
        return varSample
+
+
+def computeCellAverage(clm, varCon, varCoord, order, avg):
+
+       # return computeCellAverageSerial(clm, varCon, varCoord, order, avg)
+
+       # Compute the number of cells and initialize
+       NEL = np.size(varCon, 0)
+       varSample = np.zeros(NEL,)
+
+       GN, GW = getGaussNodesWeights(order)
+
+       # Loop over each cell and get cell average
+       pool = multiprocessing.Pool(processes=4)
+       results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(clm), [varCoord[:,np.unique(varCon[ii,:]) - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(avg), repeat(False)))
+       pool.close()
+       pool.join()
+       varSample=np.array(results, dtype='f8')
+
+       return varSample
+
 
 def computeRandomizedCoefficients(ND):
        # Initialize the coefficients array
@@ -159,6 +161,23 @@ def computeRandomizedCoefficients(ND):
               
        return coeffs
 
+def computeNormalizedCoefficients(N, psd, coeffsLD):
+       # Initialize SHCoeffs with a randomized realization of coefficients
+       clm = pyshtools.SHCoeffs.from_random(psd, seed=384)
+
+       # Compute the randomized coefficients and update instance of SHCoeffs
+       clm.coeffs = computeRandomizedCoefficients(ND)
+       
+       # Force the coefficients to have the same power as the given spectrum
+       power_per_l = pyshtools.spectralanalysis.spectrum(clm.coeffs, normalization='4pi', unit='per_l')
+       clm.coeffs *= np.sqrt(psd[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
+       
+       # Combine the coefficients, low degree from data and high degree randomized
+       clm.coeffs[0,0:4,0:4] = coeffsLD
+       
+       # Returns the SH coefficients object
+       return clm
+
 # Parse the command line
 def parseCommandLine(argv):
        
@@ -178,49 +197,50 @@ def parseCommandLine(argv):
        EvaluateTPW = False # Total Precipitable Water
        EvaluateCFR = False # Global Cloud Fraction
        EvaluateTPO = False # Global topography
-       
+       EvaluateA1 = False  # Analytical function 1
+       EvaluateA2 = False  # Analytical function 2
+
+       ShowPlots = False # Whether we want to show the profile plots for variables
+
        # Number of modes used up to 512
-       numModes = 128
+       numModes = 32
        
        # Pseudo-random number generator seed
        seed = 384
-       
-       try:
-              opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['pm=', 'so=', 'nm=', 'rseed=', 'EvaluateAll', \
-                                         'EvaluateTPW', 'EvaluateCFR', 'EvaluateTPO', \
-                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn', 'SpectralElement'])
-       except getopt.GetoptError:
-              print('Command line not properly set:', \
+
+       def usage():
+              print('Driver Usage:\n', \
                     'CANGAFieldGenDriver.py', \
                     '--pm <sampleMeshFile>', \
                     '--so <sampleOrderInteger>', \
                     '--nm <numberSHModesMax768>', \
                     '--rseed <randnumSeed>', \
-                    '--<evaluateAllFields>', \
-                    '--<evaluateTotalPrecipWater>', \
-                    '--<evaluateCloudFraction>', \
-                    '--<evaluateGlobalTerrain>', \
-                    '--<meshConfiguration>', \
-                    '--<isSpectralElementMesh>')
+                    '--evaluateAllFields', \
+                    '--evaluateTotalPrecipWater', \
+                    '--evaluateCloudFraction', \
+                    '--evaluateGlobalTerrain', \
+                    '--evaluateA1', \
+                    '--evaluateA2', \
+                    '--showPlots', \
+                    '--meshConfiguration', \
+                    '--SpectralElementMesh')
+       
+       try:
+              opts, args = getopt.getopt(argv, 'hv:', \
+                                        ['pm=', 'so=', 'nm=', 'rseed=', 'evaluateAllFields', \
+                                         'evaluateTotalPrecipWater', 'evaluateCloudFraction', 'evaluateGlobalTerrain', \
+                                         'evaluateA1', 'evaluateA2', 'showPlots', \
+                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
+                                         'SCRIPwithConn', 'SpectralElementMesh'])
+       except getopt.GetoptError:
+              print('Command line arguments were not properly set or error in parsing.\n')
+              usage()
               sys.exit(2)
               
        for opt, arg in opts:
               # Request for usage help
               if opt == '-h':
-                     print('Command line not properly set:', \
-                           'CANGAFieldGenDriver.py', \
-                           '--pm <sampleMeshFile>', \
-                           '--so <sampleOrderInteger>', \
-                           '--nm <numberSHModesMax768>', \
-                           '--rseed <randnumSeed>', \
-                           '--<evaluateAllFields>', \
-                           '--<evaluateTotalPrecipWater>', \
-                           '--<evaluateCloudFraction>', \
-                           '--<evaluateGlobalTerrain>', \
-                           '--<meshConfiguration>', \
-                           '--<isSpectralElementMesh>')
+                     usage()
                      sys.exit()
               elif opt == '--pm':
                      sampleMesh = arg
@@ -228,36 +248,42 @@ def parseCommandLine(argv):
                      if int(arg) == 1:
                             sampleCentroid = True
                      else:
-                            if int(arg)%2 == 0 and int(arg) < 7:
+                            if int(arg)%2 == 0 and int(arg) < 200:
                                 sampleOrder = int(arg)
                             else:
-                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be in [2, 4, 6]")
+                                sys.exit("[FATAL] Error in option passed for --so. Sample order must be \in (0, 200)")
               elif opt == '--nm':
                      numModes = int(arg)
               elif opt == '--rseed':
                      seed = int(arg)
-              elif opt == '--EvaluateAll':
+              elif opt == '--evaluateAllFields':
                      EvaluateAll = True
-              elif opt == '--EvaluateTPW':
+              elif opt == '--evaluateTotalPrecipWater':
                      EvaluateTPW = True
-              elif opt == '--EvaluateCFR':
+              elif opt == '--evaluateCloudFraction':
                      EvaluateCFR = True
-              elif opt == '--EvaluateTPO':
+              elif opt == '--evaluateGlobalTerrain':
                      EvaluateTPO = True
+              elif opt == '--evaluateA1':
+                     EvaluateA1 = True
+              elif opt == '--evaluateA2':
+                     EvaluateA2 = True
               elif opt == '--ExodusSingleConn':
                      ExodusSingleConn = True
               elif opt == '--SCRIPwithoutConn':
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
                      SCRIPwithConn = True
-              elif opt == '--SpectralElement':
+              elif opt == '--SpectralElementMesh':
                      SpectralElement = True
+              elif opt == '--showPlots':
+                     ShowPlots = True
                      
        # Check that the number of modes requested doesn't exceed 512
        if numModes > 512:
               print('Setting maximum number of expansion modes: 512.')
               numModes = 512
-                     
+
        # Check that only one configuration is chosen
        if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
               print('Expecting only ONE mesh configuration option!')
@@ -280,31 +306,50 @@ def parseCommandLine(argv):
               print('None of the options are set.')
               sys.exit(2)
        
-       print('Welcome to CANGA remapping intercomparison metrics!')              
-       print('Mesh and Variable data must be in NETCDF format.')
-       
+       if EvaluateAll:
+              EvaluateTPW = EvaluateCFR = EvaluateTPO = EvaluateA1 = EvaluateA2 = True
+
+       if 2*sampleOrder-1 < numModes:
+           print("WARNING: The quadrature sampling order of %d is insufficient to exactly integrate SPH expansions of order %d!" % (sampleOrder, numModes))
+
        return sampleMesh, numModes, seed, \
               sampleCentroid, sampleOrder, \
-              EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+              EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+              EvaluateA1, EvaluateA2, ShowPlots, \
               ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison field generator!')
-       print('Authors: Jorge Guerra, Paul Ullrich, 2019')
+       print('Authors: Jorge Guerra, Vijay Mahadevan, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ND, seed, sampleCentroid, sampleOrder, \
-       EvaluateAll, EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+       EvaluateTPW, EvaluateCFR, EvaluateTPO, \
+       EvaluateA1, EvaluateA2, ShowPlots, \
        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
        = parseCommandLine(sys.argv[1:])
        
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
        onlyFilename = stripDir[len(stripDir)-1]
-       data_file = 'testdata_' + (onlyFilename.split('.'))[0]
-       print('New data will be stored in (prefix): ', data_file)
+       data_file = 'sample_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
+
+       # Let us decipher what our final output file name should be with approrpriate suffixes
+       outFileName = data_file
        
+       if SpectralElement:
+              outFileName += '_GLL'
+
+       if EvaluateTPW: outFileName += '_TPW'
+       if EvaluateCFR: outFileName += '_CFR'
+       if EvaluateTPO: outFileName += '_TPO'
+       if EvaluateA1:  outFileName += '_A1'
+       if EvaluateA2:  outFileName += '_A2'
+       outFileName += '.nc'
+
+       print('File name for sampled mesh data: ', outFileName)
        print('Number of SH degrees for sampling set to: ', ND)
+       print('Maximum Gaussian quadrature order to be used: ', 2*sampleOrder-1)
        
        if ExodusSingleConn:
               
@@ -395,20 +440,25 @@ if __name__ == '__main__':
        
        if SpectralElement:
               # Compute Lon/Lat coordinates from GLL nodes
-              varLonLat = computeCart2LL(varCoord.T)
+              varLonLat = sphcrt.computeCart2LL(varCoord.T)
        else:
               # Compute Lon/Lat coordinates from centroids
               varCent = computeCentroids(varCon, varCoord)
-              varLonLat = computeCart2LL(varCent)
-       
+              varLonLat = sphcrt.computeCart2LL(varCent)
+
        # Convert to degrees from radians
        varLonLat_deg = 180.0 / mt.pi * varLonLat
        varLonLat_deg = 180.0 / mt.pi * varLonLat
        
        m_fid.close()
-              
+
+       # Define our global variables for fields
+       TPWvar = np.zeros(3)
+       CFRvar = np.zeros(3)
+       TPOvar = np.zeros(3)
+
        #%% Begin the SH reconstructions
-       if EvaluateTPW or EvaluateAll:
+       def Evaluate_TPW_Field():
               start = time.time()
               print('Computing Total Precipitable Water on sampling mesh...')
               # Set the power spectrum coefficients
@@ -423,37 +473,38 @@ if __name__ == '__main__':
                               [4.00222122e+00, 2.39412571e+00, 0.0, 0.0], \
                               [-1.36433589e+01, 3.90520866e-03, 4.70350344e-01, 0.0], \
                               [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
-       
-              # Initialize SHCoeffs with a randomized realization of coefficients
-              clmTPW = pyshtools.SHCoeffs.from_random(psdTPW, seed=384)
 
-              # Compute the randomized coefficients and update instance of SHCoeffs
-              clmTPW.coeffs = computeRandomizedCoefficients(ND)
-              
-              # Force the coefficients to have the same power as the given spectrum
-              power_per_l = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, normalization='4pi', unit='per_l')
-              clmTPW.coeffs *= np.sqrt(psdTPW[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
-              
-              # Combine the coefficients, low degree from data and high degree randomized
-              clmTPW.coeffs[0,0:4,0:4] = coeffsLD_TPW
+              # Make the SH coefficients object for this field
+              clmTPW = computeNormalizedCoefficients(ND, psdTPW, coeffsLD_TPW)
+
+              # Evaluate actual spherical harmonic modes as solution; 
+              # change ls, ms below
+              # lmax = 100
+              # clmTPW = pyshtools.SHCoeffs.from_zeros(lmax)
+              # clmTPW.set_coeffs(values=[1], ls=[2], ms=[2])
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
-              if sampleCentroid or SpectralElement:              
+              if sampleCentroid or SpectralElement:
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True)
+                     print('Total Precipitable Water Global integral: ', np.sum(TPWvar))
               
               # Compute rescaled data from 0.0 to max
               minTPW = np.amin(TPWvar)
               maxTPW = np.amax(TPWvar)
               deltaTPW = abs(maxTPW - minTPW)
+              deltaTPW = deltaTPW if deltaTPW > 1e-10 else 1.0
               TPWvar = np.add(TPWvar, -minTPW)
               TPWvar *= maxTPW / deltaTPW
               endt = time.time()
               print('Time to compute TPW (mm): ', endt - start)
-       #%%                     
-       if EvaluateCFR or EvaluateAll:
+
+              return_dict['TPWvar'] = TPWvar
+
+       #%%
+       def Evaluate_CFR_Field():
               start = time.time()
               print('Computing Cloud Fraction on sampling mesh...')
               # Set the power spectrum coefficients
@@ -469,18 +520,8 @@ if __name__ == '__main__':
                               [5.72322008e-02, 3.41184683e-02, -7.71082815e-03, 0.0], \
                               [1.86562455e-02, 4.34697733e-04, 8.91735978e-03, -5.53756958e-03]])
        
-              # Initialize SHCoeffs with a randomized realization of coefficients
-              clmCFR = pyshtools.SHCoeffs.from_random(psdCFR, seed=384)
-              
-              # Compute the randomized coefficients and update instance of SHCoeffs
-              clmCFR.coeffs = computeRandomizedCoefficients(ND)
-              
-              # Force the coefficients to have the same power as the given spectrum
-              power_per_l = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, normalization='4pi', unit='per_l')
-              clmCFR.coeffs *= np.sqrt(psdCFR[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
-              
-              # Combine the coefficients, low degree from data and high degree randomized
-              clmCFR.coeffs[0,0:4,0:4] = coeffsLD_CFR
+              # Make the SH coefficients object for this field
+              clmCFR = computeNormalizedCoefficients(ND, psdCFR, coeffsLD_CFR)
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
@@ -488,11 +529,13 @@ if __name__ == '__main__':
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True)
+                     print('Cloud Fraction Global integral: ', np.sum(CFRvar))
  
               # Compute rescaled data from 0.0 to max
               minCFR = np.amin(CFRvar)
               maxCFR = np.amax(CFRvar)
               deltaCFR = abs(maxCFR - minCFR)
+              deltaCFR = deltaCFR if deltaCFR > 1e-10 else 1.0
               CFRvar = np.add(CFRvar, -minCFR)
               CFRvar *= maxCFR / deltaCFR
               #  Set all values greater than 1.0 to 1.0 (creates discontinuities)
@@ -500,10 +543,13 @@ if __name__ == '__main__':
               
               endt = time.time()
               print('Time to compute CFR (0.0 to 1.0): ', endt - start)
-       #%%       
-       if EvaluateTPO or EvaluateAll:
+
+              return_dict['CFRvar'] = CFRvar
+
+       #%%
+       def Evaluate_TPO_Field():
               start = time.time()
-              print('Computing Terrain on sampling mesh...')
+              print('Computing Global Terrain on sampling mesh...')
               # Set the power spectrum coefficients
               lfPower = [1.79242815e+05, -4.28193211e+01,  7.68040558e+05]
               hfPower = [9.56198160e+06, -1.85485966e+00, -2.63553217e+01]
@@ -517,18 +563,8 @@ if __name__ == '__main__':
                               [5.67394318e+02, 3.32672611e+02, -4.17639577e+02, 0.0], \
                               [1.57403492e+02, 1.52896988e+02, 4.47106726e+02, -1.40553447e+02]])
                          
-              # Initialize SHCoeffs with a randomized realization of coefficients
-              clmTPO = pyshtools.SHCoeffs.from_random(psdTPO, seed=384)
-              
-              # Compute the randomized coefficients and update instance of SHCoeffs
-              clmTPO.coeffs = computeRandomizedCoefficients(ND)
-              
-              # Force the coefficients to have the same power as the given spectrum
-              power_per_l = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, normalization='4pi', unit='per_l')
-              clmTPO.coeffs *= np.sqrt(psdTPO[0:ND] / power_per_l)[np.newaxis, :, np.newaxis]
-              
-              # Combine the coefficients, low degree from data and high degree randomized
-              clmTPO.coeffs[0,0:4,0:4] = coeffsLD_TPO
+              # Make the SH coefficients object for this field
+              clmTPO = computeNormalizedCoefficients(ND, psdTPO, coeffsLD_TPO)
               
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
@@ -536,11 +572,13 @@ if __name__ == '__main__':
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
                      TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True)
+                     print('Global Terrain Global integral: ', np.sum(TPOvar))
               
               # Rescale to -1.0 to 1.0
               minTPO = np.amin(TPOvar)
               maxTPO = np.amax(TPOvar)
               deltaTPO = abs(maxTPO - minTPO)
+              deltaTPO = deltaTPO if deltaTPO > 1e-10 else 1.0
               TPOvar = np.add(TPOvar, -0.5 * (maxTPO + minTPO))
               TPOvar *= 2.0 / deltaTPO
               
@@ -553,24 +591,99 @@ if __name__ == '__main__':
               
               endt = time.time()
               print('Time to compute TPO (m): ', endt - start)
+
+              return_dict['TPOvar'] = TPOvar
+
+       #%%
+       def Evaluate_A1_Field():
+              start = time.time()
+              print('Computing Analytical Field 1 sampling on mesh...')
               
+              # Evaluate actual spherical harmonic modes as solution; 
+              # change ls, ms below
+              lmax = 100
+              clmA1 = pyshtools.SHCoeffs.from_zeros(lmax)
+              # This evaluates P_3^3
+              clmA1.set_coeffs(values=[1], ls=[3], ms=[2])
+              clmA1.set_coeffs(values=[1], ls=[3], ms=[3])
+              
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
+              # Expand the coefficients and check the field
+              if sampleCentroid or SpectralElement:
+                     A1var = clmA1.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+              else:
+                     A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True)
+                     print('Analytical Solution 1 Global integral: ', np.sum(A1var))
+              
+              # Compute rescaled data from 0.0 to max
+              minA1 = np.amin(A1var)
+              maxA1 = np.amax(A1var)
+              deltaA1 = abs(maxA1 - minA1)
+              deltaA1 = deltaA1 if deltaA1 > 1e-10 else 1.0
+              A1var = np.add(A1var, -minA1)
+              A1var *= maxA1 / deltaA1
+              endt = time.time()
+              print('Time to compute A1 Field: ', endt - start)
+
+              return_dict['A1var'] = A1var
+
+       #%%
+       def Evaluate_A2_Field():
+              start = time.time()
+              print('Computing Analytical Field 2 sampling on mesh...')
+
+              def evaluate_field_a2(lon, lat):
+                     # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
+                     # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
+                     return (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon))
+
+              # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
+              # Expand the coefficients and check the field
+              if sampleCentroid or SpectralElement:
+                     A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+              else:
+                     A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
+                     print('Analytical Solution 2 Global integral: ', np.sum(A2var))
+              
+              # Compute rescaled data from 0.0 to max
+              minA2 = np.amin(A2var)
+              maxA2 = np.amax(A2var)
+              deltaA2 = abs(maxA2 - minA2)
+              deltaA2 = deltaA2 if deltaA2 > 1e-10 else 1.0
+              A2var = np.add(A2var, -minA2)
+              A2var *= maxA2 / deltaA2
+              endt = time.time()
+              print('Time to compute A2 Field: ', endt - start)
+
+              return_dict['A2var'] = A2var
+
+       #%%
+
+       manager = multiprocessing.Manager()
+       return_dict = manager.dict()
+       # Let us aggregate all the jobs that need to be done and then
+       # let the multiprocessing manager take care of it.
+       jobs = []
+       evaluation_routines = []
+       if EvaluateTPW: evaluation_routines.append(Evaluate_TPW_Field)
+       if EvaluateCFR: evaluation_routines.append(Evaluate_CFR_Field)
+       if EvaluateTPO: evaluation_routines.append(Evaluate_TPO_Field)
+       if EvaluateA1: evaluation_routines.append(Evaluate_A1_Field)
+       if EvaluateA2: evaluation_routines.append(Evaluate_A2_Field)
+       for fn in evaluation_routines:
+              p = Process(target=fn)
+              jobs.append(p)
+              p.start()
+       for p in jobs:
+              p.join()
+       
+       if EvaluateTPW: TPWvar = return_dict['TPWvar']
+       if EvaluateCFR: CFRvar = return_dict['CFRvar']
+       if EvaluateTPO: TPOvar = return_dict['TPOvar']
+       if EvaluateA1: A1var = return_dict['A1var']
+       if EvaluateA2: A2var = return_dict['A2var']
+
        #%% Copy grid files and store the new test data (source and target)
-       outFileName = data_file
-       
-       if SpectralElement:
-              outFileName = outFileName + 'GLL'
-       
-       if EvaluateAll:
-              outFileName = outFileName + '_TPW_CFR_TPO.nc'
-       elif EvaluateTPW:
-              outFileName = outFileName + '_TPW.nc'
-       elif EvaluateCFR:
-              outFileName = outFileName + '_CFR.nc'
-       elif EvaluateTPO:
-              outFileName = outFileName + '_TPO.nc'
-       else:
-              outFileName = outFileName + '.nc'
-              
        shutil.copy(mesh_file, outFileName)
        
        # write lon, lat, and test data variables
@@ -594,9 +707,9 @@ if __name__ == '__main__':
               latNC = data_fid.createVariable('nlat', 'f8', (numCells,))
               latNC[:] = varLonLat_deg[:,1]
        else:
-              lonNC = data_fid.createVariable('lon', 'f8', (numCells,))
+              lonNC = data_fid.createVariable('lon', 'f8', (numCells,)) if 'lon' not in data_fid.variables.keys() else data_fid.variables['lon']
               lonNC[:] = varLonLat_deg[:,0]
-              latNC = data_fid.createVariable('lat', 'f8', (numCells,))
+              latNC = data_fid.createVariable('lat', 'f8', (numCells,)) if 'lat' not in data_fid.variables.keys() else data_fid.variables['lat']
               latNC[:] = varLonLat_deg[:,1]
        
        if rectilinear:
@@ -605,80 +718,129 @@ if __name__ == '__main__':
               data_fid.createDimension(slon, NLON)
               data_fid.createDimension(slat, NLAT)
               
-              if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon))
+              if EvaluateTPW:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (slat, slon)) if 'TotalPrecipWater' not in data_fid.variables.keys() else data_fid.variables['TotalPrecipWater']
                      field = np.reshape(TPWvar, (NLAT, NLON))
                      TPWNC[:] = field
-              if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon))
+              if EvaluateCFR:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (slat, slon)) if 'CloudFraction' not in data_fid.variables.keys() else data_fid.variables['CloudFraction']
                      field = np.reshape(CFRvar, (NLAT, NLON))
                      CFRNC[:] = field
-              if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon))
+              if EvaluateTPO:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (slat, slon)) if 'Topography' not in data_fid.variables.keys() else data_fid.variables['Topography']
                      field = np.reshape(TPOvar, (NLAT, NLON))
                      TPONC[:] = field
+              if EvaluateA1:
+                     A1NC = data_fid.createVariable('AnalyticalFun1', 'f8', (slat, slon)) if 'AnalyticalFun1' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun1']
+                     field = np.reshape(A1var, (NLAT, NLON))
+                     A1NC[:] = field
+              if EvaluateA2:
+                     A2NC = data_fid.createVariable('AnalyticalFun2', 'f8', (slat, slon)) if 'AnalyticalFun2' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun2']
+                     field = np.reshape(A2var, (NLAT, NLON))
+                     A2NC[:] = field
        else:
-              if EvaluateTPW or EvaluateAll:
-                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,))
+              if EvaluateTPW:
+                     TPWNC = data_fid.createVariable('TotalPrecipWater', 'f8', (numCells,)) if 'TotalPrecipWater' not in data_fid.variables.keys() else data_fid.variables['TotalPrecipWater']
                      TPWNC[:] = TPWvar
-              if EvaluateCFR or EvaluateAll:
-                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,))
+              if EvaluateCFR:
+                     CFRNC = data_fid.createVariable('CloudFraction', 'f8', (numCells,)) if 'CloudFraction' not in data_fid.variables.keys() else data_fid.variables['CloudFraction']
                      CFRNC[:] = CFRvar
-              if EvaluateTPO or EvaluateAll:
-                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,))
+              if EvaluateTPO:
+                     TPONC = data_fid.createVariable('Topography', 'f8', (numCells,)) if 'Topography' not in data_fid.variables.keys() else data_fid.variables['Topography']
                      TPONC[:] = TPOvar
+              if EvaluateA1:
+                     A1NC = data_fid.createVariable('AnalyticalFun1', 'f8', (numCells,)) if 'AnalyticalFun1' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun1']
+                     A1NC[:] = A1var
+              if EvaluateA2:
+                     A2NC = data_fid.createVariable('AnalyticalFun2', 'f8', (numCells,)) if 'AnalyticalFun2' not in data_fid.variables.keys() else data_fid.variables['AnalyticalFun2']
+                     A2NC[:] = A2var
        
        # Close the files out.
        data_fid.close()
 
        #'''
        #%% Check the data with triangular surface plot
-       points2D = varLonLat
-       tri = Delaunay(points2D)
-       simplices = tri.simplices       
-       
-       #%% Plot Total Precipitable Water
-       if EvaluateTPW or EvaluateAll:
-              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
-                                       simplices=simplices, colormap="Portland", plot_edges=False, \
-                                       title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
-              py.offline.plot(fig1, filename='TPW' + data_file + '.html')
-       #%% Plot Cloud Fraction
-       if EvaluateCFR or EvaluateAll:
-              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
-                                       simplices=simplices, colormap="Portland", plot_edges=False, \
-                                       title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
-              py.offline.plot(fig1, filename='CFR' + data_file + '.html')
-       #%% Plot Topography
-       if EvaluateTPO or EvaluateAll:
-              fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
-                                       simplices=simplices, colormap="Portland", plot_edges=False, \
-                                       title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
-              py.offline.plot(fig1, filename='TPO' + data_file + '.html')
-       #'''
-       #%% Check the evaluated spectra
-       '''
-       fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
-       # Plot the TPW spectrum
-       newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
-       ax0.plot(degsTPW, psdTPW, 'k')
-       ax0.plot(degsTPW, newPSD, 'r--')
-       ax0.set_title('Total Precipitable Water - Evaluated PSD')
-       ax0.set(yscale='log', xscale='log', ylabel='Power')
-       ax0.grid(b=True, which='both', axis='both')
-       # Plot the Cloud Fraction spectrum
-       newPSD = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, unit='per_l')
-       ax1.plot(degsCFR, psdCFR, 'k')
-       ax1.plot(degsCFR, newPSD, 'r--')
-       ax1.set_title('Global Cloud Fraction - Evaluated PSD')
-       ax1.set(yscale='log', xscale='log', ylabel='Power')
-       ax1.grid(b=True, which='both', axis='both')
-       # Plot the Topography spectrum
-       newPSD = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, unit='per_l')
-       ax2.plot(degsTPO, psdTPO, 'k')
-       ax2.plot(degsTPO, newPSD, 'r--')
-       ax2.set_title('Global Topography Data - Evaluated PSD')
-       ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
-       ax2.grid(b=True, which='both', axis='both')
-       plt.show()
-       '''      
+       if ShowPlots:
+              points2D = varLonLat
+              tri = Delaunay(points2D)
+              simplices = tri.simplices
+
+              #%% Plot Total Precipitable Water
+              if EvaluateTPW:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPWvar, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Total Precipitable Water Check (mm)", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='TPW' + data_file + '.html')
+
+                     '''
+                     import matplotlib.pyplot as plt
+                     from mpl_toolkits.basemap import Basemap
+
+                     fig = plt.figure(figsize=(10, 8))
+                     m = Basemap(projection='lcc', resolution='c',
+                            width=8E6, height=8E6, 
+                            lat_0=45, lon_0=-100,)
+                     m.shadedrelief(scale=0.5)
+                     m.pcolormesh(varLonLat[:,0], varLonLat[:,1], TPWvar,
+                            latlon=True, cmap='RdBu_r')
+                     plt.clim(-8, 8)
+                     m.drawcoastlines(color='lightgray')
+
+                     plt.title('January 2014 Temperature Anomaly')
+                     plt.colorbar(label='temperature anomaly (°C)');
+                     '''
+
+              #%% Plot Cloud Fraction
+              if EvaluateCFR:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=CFRvar, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Cloud Fraction Check (0.0-1.0)", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='CFR' + data_file + '.html')
+              #%% Plot Topography
+              if EvaluateTPO:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=TPOvar, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Global Topography (m)", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='TPO' + data_file + '.html')
+              #'''
+              #%% Plot Topography
+              if EvaluateA1:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=A1var, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Analytical Function 1 (SPH(3,3))", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='A1' + data_file + '.html')
+              #'''
+              #%% Plot Topography
+              if EvaluateA2:
+                     fig1 = FF.create_trisurf(x=varLonLat[:,0], y=varLonLat[:,1], z=A2var, height=800, width=1200, \
+                                          simplices=simplices, colormap="Portland", plot_edges=False, \
+                                          title="Analytical Function 2: (2.0 + cos^2(lat) * cos(2.0 * lon))", aspectratio=dict(x=1, y=1, z=0.3))
+                     py.offline.plot(fig1, filename='A2' + data_file + '.html')
+              #'''
+
+              #%% Check the evaluated spectra
+              '''
+              fig, (ax0, ax1, ax2) = plt.subplots(nrows=3, figsize=(12, 10), tight_layout=True)
+              # Plot the TPW spectrum
+              newPSD = pyshtools.spectralanalysis.spectrum(clmTPW.coeffs, unit='per_l')
+              ax0.plot(degsTPW, psdTPW, 'k')
+              ax0.plot(degsTPW, newPSD, 'r--')
+              ax0.set_title('Total Precipitable Water - Evaluated PSD')
+              ax0.set(yscale='log', xscale='log', ylabel='Power')
+              ax0.grid(b=True, which='both', axis='both')
+              # Plot the Cloud Fraction spectrum
+              newPSD = pyshtools.spectralanalysis.spectrum(clmCFR.coeffs, unit='per_l')
+              ax1.plot(degsCFR, psdCFR, 'k')
+              ax1.plot(degsCFR, newPSD, 'r--')
+              ax1.set_title('Global Cloud Fraction - Evaluated PSD')
+              ax1.set(yscale='log', xscale='log', ylabel='Power')
+              ax1.grid(b=True, which='both', axis='both')
+              # Plot the Topography spectrum
+              newPSD = pyshtools.spectralanalysis.spectrum(clmTPO.coeffs, unit='per_l')
+              ax2.plot(degsTPO, psdTPO, 'k')
+              ax2.plot(degsTPO, newPSD, 'r--')
+              ax2.set_title('Global Topography Data - Evaluated PSD')
+              ax2.set(yscale='log', xscale='log', xlabel='Spherical harmonic degree', ylabel='Power')
+              ax2.grid(b=True, which='both', axis='both')
+              plt.show()
+              '''

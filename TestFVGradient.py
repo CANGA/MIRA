@@ -4,7 +4,7 @@
 Created on Tue Feb  5 11:42:40 2019
 
 Tests the computation of gradients on target meshes. Assumes that data is loaded
-into the workspace by running CANGAMetricsDriver.py CHECKS ON RLL.
+into the workspace by running CANGAMetricsDriver.py CHECKS ON RLL1deg.
 
 @author: jeguerra
 """
