@@ -56,47 +56,6 @@ def computeSpectrum(ND, lfPower, hfPower, degIntersect):
                             
        return degs, psd
 
-def computeCentroids(varCon, varCoord):
-       # Loop over cells and get centroid vectors
-       NC = np.size(varCon, axis=0)
-       NP = np.size(varCon, axis=1)
-       cellCoord = np.zeros((NC, 3))
-       for ii in range(NC):
-              # Centroid by averaging corner sphere-center vectors
-              centroid = np.mat([0.0, 0.0, 0.0])
-              for pp in range(NP):
-                     ndex = varCon[ii,pp] - 1
-                     centroid += varCoord[:,ndex]
-                     
-              centroid *= 1.0 / NP
-       
-              # Renormalize the centroid vector
-              RO = np.linalg.norm(centroid)
-              centroid *= 1.0 / RO
-              
-              # Store this centroid
-              cellCoord[ii,:] = centroid 
-       
-       return cellCoord
-
-def computeCentroidsLL(conLon, conLat):
-       # Loop over rows of the corner array and get centroid
-       NC = np.size(conLon, axis=0)
-       NP = np.size(conLon, axis=1)
-       cellCoord = np.zeros((NC, 2))
-       for ii in range(NC):
-              # Centroid by averaging corner sphere-center vectors
-              centroid = np.mat([0.0, 0.0])
-              for pp in range(NP):
-                     centroid += [conLon[ii,pp], conLat[ii,pp]]
-                     
-              centroid *= 1.0 / NP
-              
-              # Store this centroid
-              cellCoord[ii,:] = centroid 
-       
-       return cellCoord
-
 def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
        # Compute the number of cells and initialize
        NEL = np.size(varCon, 0)
@@ -443,7 +402,7 @@ if __name__ == '__main__':
               varLonLat = sphcrt.computeCart2LL(varCoord.T)
        else:
               # Compute Lon/Lat coordinates from centroids
-              varCent = computeCentroids(varCon, varCoord)
+              varCent = sphcrt.computeCentroids(varCon, varCoord)
               varLonLat = sphcrt.computeCart2LL(varCent)
 
        # Convert to degrees from radians
