@@ -16,6 +16,8 @@ import computeSphericalCartesianTransforms as sphcrt
 
 # Flag to use SH expansions (True) or evaluate directly (False)
 USESH = True
+# RUN: meshes/MakeConvergenceMeshesTempestRemap.sh (Change location of tempestremap executables)
+# Change the following variable to the path of the meshes created above
 meshesFolder = '/Users/TempestGuerra/Desktop/Remapping-Intercomparison/convergenceMeshes/'
 
 #%% ANALYTICAL TEST FUNCTIONALS (PASSED INTO AREA INTEGRAL FUNCTION)
@@ -117,7 +119,7 @@ for mm in range(4):
                            np.abs(thisAreas2 - thisValues2)))
        print('Computed differences for CSne' + meshRes[mm] + '...DONE!')
        
-#%% COMPUTE NORMS OF DIFFERENCES AND PLOT
+#%% COMPUTE INFINITY NORMS OF DIFFERENCES
 
 ii = 0
 Linf_test1 = []
