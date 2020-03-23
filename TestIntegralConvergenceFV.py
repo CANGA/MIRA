@@ -15,6 +15,11 @@ from computeStandardNorms import computeStandardNorms
 
 #%% USER INPUT! ** CHANGE THESE TO RUN **
 
+# Flags to compute different norms
+L1NormBool = False
+L2NormBool = False
+LiNormBool = True
+
 # Flag to use SH expansions (True) or evaluate directly (False)
 USESH = False
 # RUN: meshes/MakeConvergenceMeshesTempestRemap.sh (Change location of tempestremap executables)
@@ -140,9 +145,20 @@ thisNorm_test1 = []
 thisNorm_test2 = []
 for diff in differences:
        
-       # Compute L1 Norm as a first example
-       thisNorm_test1.append(diff[0].dot(areas[ii]) / (references[ii][0]).dot(areas[ii]))
-       thisNorm_test2.append(diff[1].dot(areas[ii]) / (references[ii][1]).dot(areas[ii]))       
+       if L1NormBool:       
+              # Compute L1 Norm
+              thisNorm_test1.append(diff[0].dot(areas[ii]) / (references[ii][0]).dot(areas[ii]))
+              thisNorm_test2.append(diff[1].dot(areas[ii]) / (references[ii][1]).dot(areas[ii]))
+              
+       if L2NormBool:
+              # Compute L2 Norm
+              thisNorm_test1.append(np.power(diff[0],2.0).dot(areas[ii]) / (np.power(references[ii][0],2.0)).dot(areas[ii]))
+              thisNorm_test2.append(np.power(diff[1],2.0).dot(areas[ii]) / (np.power(references[ii][1],2.0)).dot(areas[ii]))
+              
+       if LiNormBool:
+              # Compute max Norm
+              thisNorm_test1.append(np.amax(diff[0] * areas[ii]) / np.amax(references[ii][0] * areas[ii]))
+              thisNorm_test2.append(np.amax(diff[1] * areas[ii]) / np.amax(references[ii][1] * areas[ii]))
        
        print(meshRes[ii], thisNorm_test1[ii], thisNorm_test2[ii])
        ii += 1
