@@ -11,11 +11,12 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 from computeAreaIntegral import computeAreaIntegral
 import computeSphericalCartesianTransforms as sphcrt
+from computeStandardNorms import computeStandardNorms
 
 #%% USER INPUT! ** CHANGE THESE TO RUN **
 
 # Flag to use SH expansions (True) or evaluate directly (False)
-USESH = True
+USESH = False
 # RUN: meshes/MakeConvergenceMeshesTempestRemap.sh (Change location of tempestremap executables)
 # Change the following variable to the path of the meshes created above
 meshesFolder = '/Users/TempestGuerra/Desktop/Remapping-Intercomparison/convergenceMeshes/'
@@ -75,6 +76,8 @@ for ff in range(4):
 #%% COMPUTE CENTROID VALUE AND CELL AVERAGES (6th order quadrature) FOR EACH MESH
 
 differences = []
+references = []
+areas = []
 NC = []
 order = 4
 
@@ -83,15 +86,15 @@ for mm in range(4):
        thisCoord = meshCoords[mm]
        thisCell = meshCells[mm]
        thisCentroids = sphcrt.computeCentroids(thisCell, thisCoord)
-       thisCentroidsLL = sphcrt.computeCart2LL(thisCentroids)
-       thisCentroidsLL_RAD = mt.pi / 180.0 * thisCentroidsLL
+       thisCentroidsLL_RAD = sphcrt.computeCart2LL(thisCentroids)
+       thisCentroidsLL_DEG = 180.0 / mt.pi * thisCentroidsLL_RAD
        numCells = len(thisCell)
        NC.append(numCells)
        
-       # Get the centroid values directly from SH expansion
+       # Get the centroid values directly from SH expansion or NOT
        if USESH:
-              thisValues1 = clm1.expand(lon=thisCentroidsLL[:,0], lat=thisCentroidsLL[:,1])
-              thisValues2 = clm2.expand(lon=thisCentroidsLL[:,0], lat=thisCentroidsLL[:,1])
+              thisValues1 = clm1.expand(lon=thisCentroidsLL_DEG[:,0], lat=thisCentroidsLL_DEG[:,1])
+              thisValues2 = clm2.expand(lon=thisCentroidsLL_DEG[:,0], lat=thisCentroidsLL_DEG[:,1])
        else:
               thisValues1 = np.zeros(numCells)
               thisValues2 = np.zeros(numCells)
@@ -100,45 +103,57 @@ for mm in range(4):
                      thisValues2[cc] = test2(thisCentroidsLL_RAD[cc,0], thisCentroidsLL_RAD[cc,1])
        
        # Get the area cell averages for the functions
-       thisAreas1 = np.zeros(numCells)
-       thisAreas2 = np.zeros(numCells)
+       thisAvgs1 = np.zeros(numCells)
+       thisAvgs2 = np.zeros(numCells)
+       thisAreas = np.zeros(numCells)
        for cc in range(numCells):
               cdex = thisCell[cc,:] - 1
               aCell = thisCoord[:,cdex.astype(int)]
               
               # Get the area average of each function
               if USESH:
-                     thisAreas1[cc] = computeAreaIntegral(clm1, aCell, order, True, False)
-                     thisAreas2[cc] = computeAreaIntegral(clm2, aCell, order, True, False)
+                     thisAvgs1[cc] = computeAreaIntegral(clm1, aCell, order, True, False)
+                     thisAvgs2[cc] = computeAreaIntegral(clm2, aCell, order, True, False)
               else:
-                     thisAreas1[cc] = computeAreaIntegral(test1, aCell, order, True, False)
-                     thisAreas2[cc] = computeAreaIntegral(test2, aCell, order, True, False)
+                     thisAvgs1[cc] = computeAreaIntegral(test1, aCell, order, True, False)
+                     thisAvgs2[cc] = computeAreaIntegral(test2, aCell, order, True, False)
               
-       # Now store the differences in tuples
-       differences.append((np.abs(thisAreas1 - thisValues1), \
-                           np.abs(thisAreas2 - thisValues2)))
+              # Compute the areas
+              thisAreas[cc] = computeAreaIntegral(None, aCell, order, False, True)
+       
+       # Store the differences in tuples
+       differences.append((np.abs(thisAvgs1 - thisValues1), \
+                           np.abs(thisAvgs2 - thisValues2)))
+              
+       # Store the reference (high order cell averages)
+       references.append((np.abs(thisAvgs1), np.abs(thisAvgs2)))
+       
+       # Store the areas
+       areas.append(thisAreas)
+       
        print('Computed differences for CSne' + meshRes[mm] + '...DONE!')
        
 #%% COMPUTE INFINITY NORMS OF DIFFERENCES
 
 ii = 0
-Linf_test1 = []
-Linf_test2 = []
-for res in differences:
-       # Compute L_inf norm for each test on each mesh
-       Linf_test1.append((1.0 / NC[ii]) * np.linalg.norm(res[0], ord=np.inf))
-       Linf_test2.append((1.0 / NC[ii]) * np.linalg.norm(res[1], ord=np.inf))
+thisNorm_test1 = []
+thisNorm_test2 = []
+for diff in differences:
        
-       print(meshRes[ii], Linf_test1[ii], Linf_test2[ii])
+       # Compute L1 Norm as a first example
+       thisNorm_test1.append(diff[0].dot(areas[ii]) / (references[ii][0]).dot(areas[ii]))
+       thisNorm_test2.append(diff[1].dot(areas[ii]) / (references[ii][1]).dot(areas[ii]))       
+       
+       print(meshRes[ii], thisNorm_test1[ii], thisNorm_test2[ii])
        ii += 1
 
 #%% MAKE THE CONVERGENCE PLOTS (FINGERS CROSSED...)
 meshDelta = np.array([1.0, 0.5, 0.25, 0.125])
-scale = 0.5 * (Linf_test1[0] + Linf_test2[0])
+scale = 0.5 * (thisNorm_test1[0] + thisNorm_test2[0])
 order2 = scale * np.power(meshDelta,2.0)
 plt.plot(meshDelta, order2, 'k--')
-plt.plot(meshDelta, Linf_test1, 'bs-')
-plt.plot(meshDelta, Linf_test2, 'r+-')
+plt.plot(meshDelta, thisNorm_test1, 'bs-')
+plt.plot(meshDelta, thisNorm_test2, 'r+-')
 plt.gca().invert_xaxis()
 plt.xscale('log')
 plt.yscale('log')
