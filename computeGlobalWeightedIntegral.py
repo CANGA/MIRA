@@ -16,7 +16,7 @@ def computeGlobalWeightedIntegral(NEL, varCon, varF, areas, jacobians, SpectralE
        # Loop over each element and compute the sum
        INT = 0.0
        if not SpectralElement:
-              INT = np.dot(areas,varF)
+              INT = varF.dot(areas)
 
        else:
              for ii in range(NEL):
