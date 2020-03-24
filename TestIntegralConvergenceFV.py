@@ -15,10 +15,8 @@ from computeStandardNorms import computeStandardNorms
 
 #%% USER INPUT! ** CHANGE THESE TO RUN **
 
-# Flags to compute different norms
-L1NormBool = False
-L2NormBool = False
-LiNormBool = True
+# Flag to set norm computation
+byStandardNorms = False
 
 # Flag to use SH expansions (True) or evaluate directly (False)
 USESH = False
@@ -81,6 +79,7 @@ for ff in range(4):
 #%% COMPUTE CENTROID VALUE AND CELL AVERAGES (6th order quadrature) FOR EACH MESH
 
 differences = []
+values = []
 references = []
 areas = []
 NC = []
@@ -130,46 +129,82 @@ for mm in range(4):
        differences.append((np.abs(thisAvgs1 - thisValues1), \
                            np.abs(thisAvgs2 - thisValues2)))
               
+       #Store the low order evaluation
+       values.append((thisValues1, thisValues2))
+              
        # Store the reference (high order cell averages)
-       references.append((np.abs(thisAvgs1), np.abs(thisAvgs2)))
+       references.append((thisAvgs1, thisAvgs2))
        
        # Store the areas
        areas.append(thisAreas)
        
        print('Computed differences for CSne' + meshRes[mm] + '...DONE!')
        
-#%% COMPUTE INFINITY NORMS OF DIFFERENCES
-
-ii = 0
-thisNorm_test1 = []
-thisNorm_test2 = []
-for diff in differences:
+#%% COMPUTE STANDARD NORMS
+if byStandardNorms:
+       ii = 0
+       L1_test1 = []
+       L1_test2 = []
+       L2_test1 = []
+       L2_test2 = []
+       Li_test1 = []
+       Li_test2 = []
        
-       if L1NormBool:       
+       for diff in differences:
+              # Compute standard norms for tests 1 and 2
+              L1_t1, L2_t1, Li_t1 = computeStandardNorms(meshCells[ii], values[ii][0], references[ii][0], areas[ii], None, False)
+              L1_t2, L2_t2, Li_t2 = computeStandardNorms(meshCells[ii], values[ii][1], references[ii][1], areas[ii], None, False)
+              
+              L1_test1.append(L1_t1)
+              L1_test2.append(L1_t2)
+              
+              L2_test1.append(L2_t1)
+              L2_test2.append(L2_t2)
+              
+              Li_test1.append(Li_t1)
+              Li_test2.append(Li_t2)
+              
+              print('L1 Norms by computeStandardNorms()...')
+              print(meshRes[ii], L1_test1[ii], L1_test2[ii])
+              ii += 1
+else:
+       #% COMPUTE STANDARD NORMS OF DIFFERENCES (BY INDEPENDENT MEANS...)
+       ii = 0
+       L1_test1 = []
+       L1_test2 = []
+       L2_test1 = []
+       L2_test2 = []
+       Li_test1 = []
+       Li_test2 = []
+       
+       for diff in differences:
+              
               # Compute L1 Norm
-              thisNorm_test1.append(diff[0].dot(areas[ii]) / (references[ii][0]).dot(areas[ii]))
-              thisNorm_test2.append(diff[1].dot(areas[ii]) / (references[ii][1]).dot(areas[ii]))
+              L1_test1.append(diff[0].dot(areas[ii]) / (references[ii][0]).dot(areas[ii]))
+              L1_test2.append(diff[1].dot(areas[ii]) / (references[ii][1]).dot(areas[ii]))
               
-       if L2NormBool:
               # Compute L2 Norm
-              thisNorm_test1.append(np.power(diff[0],2.0).dot(areas[ii]) / (np.power(references[ii][0],2.0)).dot(areas[ii]))
-              thisNorm_test2.append(np.power(diff[1],2.0).dot(areas[ii]) / (np.power(references[ii][1],2.0)).dot(areas[ii]))
+              L2_test1.append(np.power(diff[0],2.0).dot(areas[ii]) / (np.power(references[ii][0],2.0)).dot(areas[ii]))
+              L2_test2.append(np.power(diff[1],2.0).dot(areas[ii]) / (np.power(references[ii][1],2.0)).dot(areas[ii]))
               
-       if LiNormBool:
               # Compute max Norm
-              thisNorm_test1.append(np.amax(diff[0] * areas[ii]) / np.amax(references[ii][0] * areas[ii]))
-              thisNorm_test2.append(np.amax(diff[1] * areas[ii]) / np.amax(references[ii][1] * areas[ii]))
-       
-       print(meshRes[ii], thisNorm_test1[ii], thisNorm_test2[ii])
-       ii += 1
+              Li_test1.append(np.amax(diff[0] * areas[ii]) / np.amax(references[ii][0] * areas[ii]))
+              Li_test2.append(np.amax(diff[1] * areas[ii]) / np.amax(references[ii][1] * areas[ii]))
+              
+              print('L1 Norms by independent code...')
+              print(meshRes[ii], L1_test1[ii], L1_test2[ii])
+              ii += 1
 
 #%% MAKE THE CONVERGENCE PLOTS (FINGERS CROSSED...)
 meshDelta = np.array([1.0, 0.5, 0.25, 0.125])
-scale = 0.5 * (thisNorm_test1[0] + thisNorm_test2[0])
+
+# L1 Norm plot
+plt.figure()
+scale = 0.5 * (L1_test1[0] + L1_test2[0])
 order2 = scale * np.power(meshDelta,2.0)
 plt.plot(meshDelta, order2, 'k--')
-plt.plot(meshDelta, thisNorm_test1, 'bs-')
-plt.plot(meshDelta, thisNorm_test2, 'r+-')
+plt.plot(meshDelta, L1_test1, 'bs-')
+plt.plot(meshDelta, L1_test2, 'r+-')
 plt.gca().invert_xaxis()
 plt.xscale('log')
 plt.yscale('log')
@@ -177,4 +212,36 @@ plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidt
 plt.legend(('2nd Order', 'Test 1', 'Test 2'), loc='upper right')
 plt.title('Grid Convergence Test: Centroid Sample to 4th Order Quadrature')
 plt.xlabel('Normalized Grid Spacing')
-plt.ylabel('Infinity Norm Error')
+plt.ylabel('L1 Norm Error')
+
+# L2 Norm plot
+plt.figure()
+scale = 0.5 * (L2_test1[0] + L2_test2[0])
+order2 = scale * np.power(meshDelta,2.0)
+plt.plot(meshDelta, order2, 'k--')
+plt.plot(meshDelta, L2_test1, 'bs-')
+plt.plot(meshDelta, L2_test2, 'r+-')
+plt.gca().invert_xaxis()
+plt.xscale('log')
+plt.yscale('log')
+plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidth=0.5)
+plt.legend(('2nd Order', 'Test 1', 'Test 2'), loc='upper right')
+plt.title('Grid Convergence Test: Centroid Sample to 4th Order Quadrature')
+plt.xlabel('Normalized Grid Spacing')
+plt.ylabel('L2 Norm Error')
+
+# Li Norm plot
+plt.figure()
+scale = 0.5 * (Li_test1[0] + Li_test2[0])
+order2 = scale * np.power(meshDelta,2.0)
+plt.plot(meshDelta, order2, 'k--')
+plt.plot(meshDelta, Li_test1, 'bs-')
+plt.plot(meshDelta, Li_test2, 'r+-')
+plt.gca().invert_xaxis()
+plt.xscale('log')
+plt.yscale('log')
+plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidth=0.5)
+plt.legend(('2nd Order', 'Test 1', 'Test 2'), loc='upper right')
+plt.title('Grid Convergence Test: Centroid Sample to 4th Order Quadrature')
+plt.xlabel('Normalized Grid Spacing')
+plt.ylabel('Linf Norm Error')
