@@ -17,7 +17,7 @@ def computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, SpectralElem
        NT = varConT.shape[0]
        
        # Compute the difference
-       varDiff = np.abs(np.substract(varST,varS2T))
+       varDiff = np.abs(np.subtract(varST,varS2T))
        varDiff2 = np.power(varDiff, 2)
        varST2 = np.power(varST, 2)
        
