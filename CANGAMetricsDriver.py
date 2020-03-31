@@ -36,7 +36,7 @@ REFERENCES
 import sys, getopt
 import time
 import numpy as np
-import datatable as dt
+import pandas as pd
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 
 # Bring in all the different metric modules
@@ -484,23 +484,23 @@ if __name__ == '__main__':
                     gradTS = loadFieldGradient(sourceSampledFile, varGradientName, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
 
             #%%
-            df = dt.Frame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "GL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "GL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "GLinf": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "GMinE": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                                "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
-                            })
+            df = pd.DataFrame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "GL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "GL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "GLinf": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "GMinE": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), \
+                                 "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
+                              })
             if includeGradientMetrics:
-                    df.cbind( dt.Frame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
-                                        'H1': np.zeros(maxRemapIterations, dtype='float64')})
-                            )
+                    df = df.concat(pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                  'H1': np.zeros(maxRemapIterations, dtype='float64') 
+                                                }))
             
             # Print out a table with metric results. Let us print progress during iteration progress
             print('\n')
@@ -529,18 +529,18 @@ if __name__ == '__main__':
                     computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
 
                     # Populate the datatable 
-                    df[iteration,'GC'] = L_g
-                    df[iteration,'GL1'] = L_1
-                    df[iteration,'GL2'] = L_2
-                    df[iteration,'GLinf'] = L_inf
-                    df[iteration,'GMaxE'] = Lmax
-                    df[iteration,'GMinE'] = Lmin
-                    df[iteration,'LMaxL1'] = Lmax_1
-                    df[iteration,'LMaxL2'] = Lmax_2
-                    df[iteration,'LMaxLm'] = Lmax_inf
-                    df[iteration,'LMinL1'] = Lmin_1
-                    df[iteration,'LMinL2'] = Lmin_2
-                    df[iteration,'LMinLm'] = Lmin_inf
+                    df.loc[iteration,'GC'] = L_g
+                    df.loc[iteration,'GL1'] = L_1
+                    df.loc[iteration,'GL2'] = L_2
+                    df.loc[iteration,'GLinf'] = L_inf
+                    df.loc[iteration,'GMaxE'] = Lmax
+                    df.loc[iteration,'GMinE'] = Lmin
+                    df.loc[iteration,'LMaxL1'] = Lmax_1
+                    df.loc[iteration,'LMaxL2'] = Lmax_2
+                    df.loc[iteration,'LMaxLm'] = Lmax_inf
+                    df.loc[iteration,'LMinL1'] = Lmin_1
+                    df.loc[iteration,'LMinL2'] = Lmin_2
+                    df.loc[iteration,'LMinLm'] = Lmin_inf
 
                     # Read in or compute the respective gradients on target mesh
                     if includeGradientMetrics:
@@ -556,8 +556,8 @@ if __name__ == '__main__':
                             H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
                             # H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
 
-                            df[iteration, "H12"] = H1_2
-                            df[iteration, "H1"] = H1
+                            df.loc[iteration, "H12"] = H1_2
+                            df.loc[iteration, "H1"] = H1
 
                     #%%
                     # Print out a table with metric results
@@ -567,7 +567,7 @@ if __name__ == '__main__':
             def append_fieldname(filename):
                     return "{0}_{2}.{1}".format(*filename.rsplit('.', 1) + [fieldName])
 
-            df.to_csv(append_fieldname(outputMetricsFile))
+            df.to_csv(append_fieldname(outputMetricsFile), index=False)
             print('\nWriting metrics data for',fieldName,'field to', outputMetricsFile, '\n')
             #print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS FOR Field=',fieldName,'\n')
             #print(df)

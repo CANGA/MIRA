@@ -120,7 +120,8 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
                             else:
                                    dFLonLatRad = trans.computePointCart2LL(dF)
                                    if callable(clm): # if this is a closed form functional, evaluate directly
-                                          thisVar = clm(lon=dFLonLatRad[0], lat=dFLonLatRad[1])
+                                          #thisVar = clm(lon=dFLonLatRad[0], lat=dFLonLatRad[1])
+                                          thisVar = clm(dFLonLatRad[0], dFLonLatRad[1])
                                    else:
                                           # Convert to degrees for the SH expansion
                                           dFLonLat = 180.0 / mt.pi * dFLonLatRad
