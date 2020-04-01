@@ -17,8 +17,9 @@ def computePointCart2LL(pointCoord):
        
        # extract (lon, lat)
        RO = np.linalg.norm(pointCoord)
-       psi = mt.asin(1.0 / RO * pointCoord[2])
-       lam = mt.atan2(-pointCoord[0], -pointCoord[1]) + mt.pi
+       psi = mt.asin(pointCoord[2] / RO)
+       lam = mt.atan2(pointCoord[1]/RO, pointCoord[0]/RO)
+       if (lam < 0.0): lam += 2 * mt.pi
        varLonLat = [lam, psi]
        
        # OUTPUT IS IN RADIANS       
@@ -31,8 +32,9 @@ def computeCart2LL(cellCoord):
        # print(cellCoord)
        for ii in range(NC):
               RO = np.linalg.norm(cellCoord[ii,:])
-              psi = mt.asin(1.0 / RO * cellCoord[ii,2])
-              lam = mt.atan2(-cellCoord[ii,0], -cellCoord[ii,1]) + mt.pi
+              psi = mt.asin(cellCoord[ii,2] / RO)
+              lam = mt.atan2(cellCoord[ii,1]/RO, cellCoord[ii,0]/RO)
+              if (lam < 0.0): lam += 2 * mt.pi
               varLonLat[ii,:] = [lam, psi]
        
        # OUTPUT IS IN RADIANS       
@@ -47,8 +49,10 @@ def computeLL2Cart(cellCoord):
               RO = cellCoord[ii,2]
               lon = cellCoord[ii,0]
               lat = cellCoord[ii,1]
-              X = RO * mt.cos(lat) * mt.sin(lon)
-              Y = RO * mt.cos(lat) * mt.cos(lon)
+              if (lat > 0.5 * mt.pi): lat = 0.5 * mt.pi
+              if (lat < -0.5 * mt.pi): lat = -0.5 * mt.pi
+              X = RO * mt.cos(lon) * mt.cos(lat)
+              Y = RO * mt.sin(lon) * mt.cos(lat)
               Z = RO * mt.sin(lat)
               RC = mt.sqrt(X**2 + Y**2 + Z**2)
               varCart[ii,:] = [X, Y, Z]
