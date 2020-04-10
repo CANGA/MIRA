@@ -63,8 +63,8 @@ def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
 
        # Loop over each cell and get cell average
        for ii in range(NEL):
-              # Handle degeneracies with numpy.unique on connectivity
-              cdex = np.unique(varCon[ii,:]) - 1
+              # NP.UNIQUE SORTS AND DESTROYS CONNECTIVITY CELL NORMALS!!!
+              cdex = varCon[ii,:] - 1
               thisCell = varCoord[:,cdex]
                             
               varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
@@ -407,7 +407,6 @@ if __name__ == '__main__':
               varLonLat = sphcrt.computeCart2LL(varCent)
 
        # Convert to degrees from radians
-       varLonLat_deg = 180.0 / mt.pi * varLonLat
        varLonLat_deg = 180.0 / mt.pi * varLonLat
        
        m_fid.close()

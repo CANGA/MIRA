@@ -276,7 +276,7 @@ if __name__ == '__main__':
        
        if not m_fid.variables[varAdjaName] or forceRecompute:
               try:
-                     if not m_fid.variables[varAdjaName]:
+                     if not varInFile:
                             meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
                      else:
                             meshFileOut = m_fid.variables[varAdjaName]
@@ -304,7 +304,7 @@ if __name__ == '__main__':
 
               try:
                      NEL = len(varCon)
-                     if not m_fid.variables[varAreaName]:
+                     if not varInFile:
                             meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
                             area = np.zeros((NEL))
                      else:
