@@ -570,17 +570,11 @@ if __name__ == '__main__':
               # Expand the coefficients and check the field
               if sampleCentroid or SpectralElement:
                      A1var = clmA1.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+                     print('Analytical Solution 1 Global sum: ', np.sum(A1var))
               else:
                      A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True)
                      print('Analytical Solution 1 Global integral: ', np.sum(A1var))
-              
-              # Compute rescaled data from 0.0 to max
-              minA1 = np.amin(A1var)
-              maxA1 = np.amax(A1var)
-              deltaA1 = abs(maxA1 - minA1)
-              deltaA1 = deltaA1 if deltaA1 > 1e-10 else 1.0
-              A1var = np.add(A1var, -minA1)
-              A1var *= maxA1 / deltaA1
+
               endt = time.time()
               print('Time to compute A1 Field: ', endt - start)
 
@@ -594,23 +588,19 @@ if __name__ == '__main__':
               def evaluate_field_a2(lon, lat):
                      # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
                      # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
+                     # print(lon, lat, (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon)))
                      return (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon))
 
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
+              # if sampleCentroid or SpectralElement:
               if sampleCentroid or SpectralElement:
-                     A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+                     A2var = evaluate_field_a2(lon=varLonLat[:,0], lat=varLonLat[:,1])
+                     print('Analytical Solution 2 Global sum: ', np.sum(A2var))
               else:
                      A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
                      print('Analytical Solution 2 Global integral: ', np.sum(A2var))
-              
-              # Compute rescaled data from 0.0 to max
-              minA2 = np.amin(A2var)
-              maxA2 = np.amax(A2var)
-              deltaA2 = abs(maxA2 - minA2)
-              deltaA2 = deltaA2 if deltaA2 > 1e-10 else 1.0
-              A2var = np.add(A2var, -minA2)
-              A2var *= maxA2 / deltaA2
+
               endt = time.time()
               print('Time to compute A2 Field: ', endt - start)
 
