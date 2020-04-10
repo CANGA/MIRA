@@ -63,8 +63,8 @@ def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
 
        # Loop over each cell and get cell average
        for ii in range(NEL):
-              # Handle degeneracies with numpy.unique on connectivity
-              cdex = np.unique(varCon[ii,:]) - 1
+              # NP.UNIQUE SORTS AND DESTROYS CONNECTIVITY CELL NORMALS!!!
+              cdex = varCon[ii,:] - 1
               thisCell = varCoord[:,cdex]
                             
               varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
@@ -408,7 +408,6 @@ if __name__ == '__main__':
 
        # Convert to degrees from radians
        varLonLat_deg = 180.0 / mt.pi * varLonLat
-       varLonLat_deg = 180.0 / mt.pi * varLonLat
        
        m_fid.close()
 
@@ -600,7 +599,7 @@ if __name__ == '__main__':
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
               if sampleCentroid or SpectralElement:
-                     A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+                     A2var = evaluate_field_a2(lon=varLonLat[:,0], lat=varLonLat[:,1])
               else:
                      A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
                      print('Analytical Solution 2 Global integral: ', np.sum(A2var))
