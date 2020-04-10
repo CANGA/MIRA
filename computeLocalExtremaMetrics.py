@@ -123,8 +123,8 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
        
        NT = varCon.shape[0]
        varST2 = np.power(varST, 2)
-       minDiff = np.zeros((NT,1))
-       maxDiff = np.zeros((NT,1))
+       minDiff = np.zeros(varST.shape)
+       maxDiff = np.zeros(varST.shape)
        
        # Compute a KDtree for the source coordinates
        #coordTreeS = cKDTree(varCoordS.T, leafsize=kdleafs)
@@ -144,41 +144,26 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
        
        # Compute normalization integrals
        L1Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST), areaT, jacobiansT, SpectralElement)
-       L2Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST2), areaT, jacobiansT, SpectralElement)
+       L2Den = computeGlobalWeightedIntegral(NT, varCon, varST2, areaT, jacobiansT, SpectralElement)
        LinfDen = np.amax(varST) - np.amin(varST)
+       if LinfDen < 1E-14: LinfDen = 1.0 # max and min values are same
        
        # Compute numerators for minima
-       varDiff = minDiff
-       varDiff2 = np.power(minDiff, 2)
-       L1Num = computeGlobalWeightedIntegral(NT, varCon, varDiff, areaT, jacobiansT, SpectralElement)
-       L2Num = computeGlobalWeightedIntegral(NT, varCon, varDiff2, areaT, jacobiansT, SpectralElement)
-       LinfNum = np.amax(varDiff)
+       L1Num = computeGlobalWeightedIntegral(NT, varCon, minDiff, areaT, jacobiansT, SpectralElement)
+       L2Num = computeGlobalWeightedIntegral(NT, varCon, np.power(minDiff, 2), areaT, jacobiansT, SpectralElement)
+       LinfNum = np.amax(minDiff)
 
-       LareaDen = computeGlobalWeightedIntegral(NT, varCon, np.ones(varST.shape), areaT, jacobiansT, SpectralElement)
-       
-       if SpectralElement:
-              Lmin_1 = np.asscalar(L1Num / L1Den)
-              Lmin_2 = mt.sqrt(L2Num / L2Den)
-              Lmin_inf = LinfNum / LinfDen
-       else:
-              Lmin_1 = np.asscalar(L1Num / NT / LinfDen / LareaDen)
-              Lmin_2 = mt.sqrt(L2Num / NT) / LinfDen / LareaDen
-              Lmin_inf = LinfNum / LinfDen
+       Lmin_1 = np.asscalar(L1Num / L1Den)
+       Lmin_2 = mt.sqrt(L2Num / L2Den)
+       Lmin_inf = LinfNum / LinfDen
 
        # Compute numerators for maxima
-       varDiff = maxDiff
-       varDiff2 = np.power(maxDiff, 2)
-       L1Num = computeGlobalWeightedIntegral(NT, varCon, varDiff, areaT, jacobiansT, SpectralElement)
-       L2Num = computeGlobalWeightedIntegral(NT, varCon, varDiff2, areaT, jacobiansT, SpectralElement)
-       LinfNum = np.amax(varDiff)
+       L1Num = computeGlobalWeightedIntegral(NT, varCon, maxDiff, areaT, jacobiansT, SpectralElement)
+       L2Num = computeGlobalWeightedIntegral(NT, varCon, np.power(maxDiff, 2), areaT, jacobiansT, SpectralElement)
+       LinfNum = np.amax(maxDiff)
        
-       if SpectralElement:
-              Lmax_1 = np.asscalar(L1Num / L1Den)
-              Lmax_2 = mt.sqrt(L2Num / L2Den)
-              Lmax_inf = LinfNum / LinfDen
-       else:
-              Lmax_1 = np.asscalar(L1Num / NT / LinfDen / LareaDen)
-              Lmax_2 = mt.sqrt(L2Num / NT) / LinfDen / LareaDen
-              Lmax_inf = LinfNum / LinfDen
+       Lmax_1 = np.asscalar(L1Num / L1Den)
+       Lmax_2 = mt.sqrt(L2Num / L2Den)
+       Lmax_inf = LinfNum / LinfDen
        
        return Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf
