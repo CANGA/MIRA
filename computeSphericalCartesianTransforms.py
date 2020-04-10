@@ -16,14 +16,14 @@ def computePointCart2LL(pointCoord):
               return [0.0, 0.0]
        
        # extract (lon, lat)
-       RO = np.linalg.norm(pointCoord)
-       psi = mt.asin(pointCoord[2] / RO)
-       lam = mt.atan2(pointCoord[1]/RO, pointCoord[0]/RO)
-       if (lam < 0.0): lam += 2 * mt.pi
-       varLonLat = [lam, psi]
-       
-       # OUTPUT IS IN RADIANS       
-       return np.array(varLonLat)
+       ccoords = pointCoord/np.linalg.norm(pointCoord, ord=2)
+       lat = mt.asin(ccoords[2])
+       lon = mt.atan2(ccoords[1], ccoords[0])
+       if (lon < 0.0): lon += 2 * mt.pi
+       varLonLat = np.array([lon, lat])
+
+       # OUTPUT IS IN RADIANS
+       return varLonLat
 
 def computeCart2LL(cellCoord):
        # Loop over each cell centroid, extract (lon, lat)
@@ -31,11 +31,11 @@ def computeCart2LL(cellCoord):
        varLonLat = np.zeros((NC, 2))
        # print(cellCoord)
        for ii in range(NC):
-              RO = np.linalg.norm(cellCoord[ii,:])
-              psi = mt.asin(cellCoord[ii,2] / RO)
-              lam = mt.atan2(cellCoord[ii,1]/RO, cellCoord[ii,0]/RO)
-              if (lam < 0.0): lam += 2 * mt.pi
-              varLonLat[ii,:] = [lam, psi]
+              ccoords = cellCoord[ii,:]/np.linalg.norm(cellCoord[ii,:], ord=2)
+              lat = mt.asin(ccoords[2])
+              lon = mt.atan2(ccoords[1], ccoords[0])
+              if (lon < 0.0): lon += 2 * mt.pi
+              varLonLat[ii,:] = [lon, lat]
        
        # OUTPUT IS IN RADIANS       
        return varLonLat
@@ -55,8 +55,7 @@ def computeLL2Cart(cellCoord):
               Y = RO * mt.sin(lon) * mt.cos(lat)
               Z = RO * mt.sin(lat)
               RC = mt.sqrt(X**2 + Y**2 + Z**2)
-              varCart[ii,:] = [X, Y, Z]
-              varCart[ii,:] *= 1.0 / RC
+              varCart[ii,:] = [X, Y, Z] / RC
        
        # INPUT IS IN RADIANS
        return varCart
@@ -68,19 +67,13 @@ def computeCentroids(varCon, varCoord):
        cellCoord = np.zeros((NC, 3))
        for ii in range(NC):
               # Centroid by averaging corner sphere-center vectors
-              centroid = np.mat([0.0, 0.0, 0.0])
+              centroid = np.array([0.0, 0.0, 0.0])
               for pp in range(NP):
                      ndex = varCon[ii,pp] - 1
                      centroid += varCoord[:,ndex]
-                     
-              centroid *= 1.0 / NP
-       
-              # Renormalize the centroid vector
-              RO = np.linalg.norm(centroid)
-              centroid *= 1.0 / RO
-              
+
               # Store this centroid
-              cellCoord[ii,:] = centroid 
+              cellCoord[ii,:] = centroid[:] / NP
        
        return cellCoord
 
