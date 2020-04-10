@@ -205,6 +205,7 @@ def parseCommandLine(argv):
                      sampleMesh = arg
               elif opt == '--so':
                      if int(arg) == 1:
+                            sampleOrder = int(arg)
                             sampleCentroid = True
                      else:
                             if int(arg)%2 == 0 and int(arg) < 200:
@@ -291,7 +292,7 @@ if __name__ == '__main__':
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
        onlyFilename = stripDir[len(stripDir)-1]
-       data_file = 'sample_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
+       data_file = 'sample_NM' + str(ND) + '_O' + str(sampleOrder) + '_' + (onlyFilename.split('.'))[0]
 
        # Let us decipher what our final output file name should be with approrpriate suffixes
        outFileName = data_file
