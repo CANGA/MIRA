@@ -268,7 +268,13 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing adjacency maps...')
        
-       if not m_fid.variables[varAdjaName]:
+       try:
+              tempVar = m_fid.variables[varAdjaName]
+              varInFile = True
+       except KeyError:
+              varInFile = False
+       
+       if not varInFile:
               try:
                      meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
 
@@ -291,7 +297,13 @@ if __name__ == '__main__':
        start = time.time()
        print('Computing mesh areas...')
        
-       if not m_fid.variables[varAreaName]:
+       try:
+              tempVar = m_fid.variables[varAreaName]
+              varInFile = True
+       except KeyError:
+              varInFile = False
+       
+       if not varInFile:
 
               try:
                      meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
