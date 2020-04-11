@@ -273,8 +273,13 @@ if __name__ == '__main__':
        
        start = time.time()
        print('Computing adjacency maps...')
-       
-       if not m_fid.variables[varAdjaName] or forceRecompute:
+       try:
+              tempVar = m_fid.variables[varAdjaName]
+              varInFile = True
+       except KeyError:
+              varInFile = False
+
+       if not varInFile or forceRecompute:
               try:
                      if not varInFile:
                             meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
@@ -299,8 +304,13 @@ if __name__ == '__main__':
        #%% Area processing for FV models
        start = time.time()
        print('Computing mesh areas...')
-       
-       if not m_fid.variables[varAreaName] or forceRecompute:
+       try:
+              tempVar = m_fid.variables[varAreaName]
+              varInFile = True
+       except KeyError:
+              varInFile = False
+
+       if not varInFile or forceRecompute:
 
               try:
                      NEL = len(varCon)
