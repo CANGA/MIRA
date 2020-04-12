@@ -26,9 +26,15 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
-from computeAreaIntegral import computeAreaIntegral
+from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
 from computeAreaIntegralSE import computeAreaIntegralSE
 import computeSphericalCartesianTransforms as sphcrt
+
+import multiprocessing
+from multiprocessing import Process
+from itertools import repeat
+
+NTASKS = 8
 
 # Parse the command line
 def parseCommandLine(argv):
@@ -321,16 +327,16 @@ if __name__ == '__main__':
                             meshFileOut = m_fid.variables[varAreaName]
                             area = np.zeros(meshFileOut.shape)
 
-                     print('Cell areas computed/written to mesh file for the first time...')
-                     # Precompute the area weights and then look them up in the integral below
-                     for ii in range(NEL):
-                            cdex = varCon[ii,:] - 1
-                            thisCell = varCoord[:,cdex]
-                            area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
+                     GN, GW = getGaussNodesWeights(6)
 
-                     area = np.ravel(area)
+                     # Loop over each cell and get cell average
+                     pool = multiprocessing.Pool(processes=NTASKS)
+                     results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(1.0), [varCoord[:, varCon[ii,:] - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(False), repeat(True)))
+                     pool.close()
+                     pool.join()
+                     varAreas  = np.array(results, dtype='f8')[:, 1]
 
-                     meshFileOut[:] = area[:]
+                     meshFileOut[:] = np.ravel(varAreas)
               except RuntimeError:
                      print('Source areas already exist in mesh data file.')
        else:
