@@ -19,7 +19,7 @@ _TYPE_MAP = [("f8", "i4"), ("f8", "i8")]
 NB_OPTS = {"nogil": True, "cache": True}
 
 
-def compute_sphere_int(xs, elems, f_D = lambda _ : 1.0):
+def compute_sphere_int(xs, elems, f_D = lambda _ : 1.0, tag = True):
     """Find cell integration for test function f on sphere of a mixed mesh.
     It is a hybrid method which will automatically use the best setting.
 
@@ -28,6 +28,7 @@ def compute_sphere_int(xs, elems, f_D = lambda _ : 1.0):
     xs:             n-by-3 array single or double, coordinates of vertices
     elems:          n-by-m array integer, connectivity table
     f_D:            a function handle that takes a coordinate and a value
+    tag:            a tag to decide if we need to get to machine precision
 
     Returns
     ----------
@@ -49,8 +50,8 @@ def compute_sphere_int(xs, elems, f_D = lambda _ : 1.0):
         h = _compute_max_edge_length(xs[elems[fid, :nhe+1]])
 
         if(h<0.004):
-            cell_int[fid], area_cell[fid] = _cell_average_sphere_mix2(xs, elems[fid].reshape((1, -1)), f_D, 8)
-        elif(h<0.09):
+            cell_int[fid], area_cell[fid] = _cell_average_sphere_mix2(xs, elems[fid].reshape((1, -1)), f_D, 4)
+        elif(h<0.09 or not tag):
             cell_int[fid], area_cell[fid] = _cell_average_sphere_mix2(xs, elems[fid].reshape((1, -1)), f_D, 8)
         else:
             cell_int[fid], area_cell[fid] = _cell_average_sphere_mix_split(xs, elems[fid].reshape((1, -1)), f_D, 8)
