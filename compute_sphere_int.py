@@ -453,3 +453,62 @@ def _compute_max_edge_length(xs):
         h = max(h, _compute_norm(xs[leid] - xs[next_id[leid]]))
 
     return h
+
+
+def compute_centroid(xs, elems, deg=4):
+    """Find cell centroid coordinate on sphere of a mixed mesh.
+
+    Parameters
+    ----------
+    xs:             n-by-3 array single or double, coordinates of vertices
+    elems:          n-by-m array integer, connectivity table
+    deg:            integer, degree
+
+    Returns
+    ----------
+    cens:           n-by-3 array single or double, centroids of elements
+    """
+
+    nf = elems.shape[0]
+    nv_surf = elems.shape[1]
+
+    cens = np.zeros((nf, 3), dtype=xs.dtype)
+    pnts_q = np.zeros(3)
+    ws, cs0 = _fe2_quadrule(deg)
+    nqp = ws.shape[0]
+    # cs=[ones(nqp,1)-cs(:,1)-cs(:,2), cs];
+    # cs = np.array([[1 - cs0[row1, 0] - cs0[row1, 1], cs0[row1, 0], cs0[row1, 1]] for row1 in range(nqp)])
+    cs = np.zeros((nqp, 3))
+    for qid in range(nqp):
+        cs[qid, 0] = 1.0 - cs0[qid, 0] - cs0[qid, 1]
+        cs[qid, 1] = cs0[qid, 0]
+        cs[qid, 2] = cs0[qid, 1]
+
+    for fid in range(nf):
+        nhe = nv_surf-1
+        while(elems[fid, nhe] < 0):
+            nhe -= 1
+        if( nhe < 2 ):
+            continue
+
+        for j in range(1, nhe):
+            # absulute value of triple product of x1, x2, x3.
+            tri_pro = abs(_compute_dot(xs[elems[fid, 0]], 
+                _cross(xs[elems[fid, j]], xs[elems[fid, j+1]])))
+    
+            # global coordinate of quadrature points on triangle x1x2x3
+            for q in range(nqp):
+                pnts_q = cs[q, 0]*xs[elems[fid, 0]] + \
+                    cs[q, 1]*xs[elems[fid, j]] + \
+                    cs[q, 2]*xs[elems[fid, j+1]]
+
+                nrm_q = _compute_norm(pnts_q)
+                # project quadrature points on sphere
+                sph_q = pnts_q/nrm_q
+                # weights x Jacobi
+                w_j = ws[q] * tri_pro/(nrm_q**3)
+                cens[fid] = cens[fid] + w_j*sph_q
+
+        cens[fid] = cens[fid]/_compute_norm(cens[fid])
+
+    return cens
