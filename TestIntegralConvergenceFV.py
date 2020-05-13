@@ -113,7 +113,7 @@ for mm in range(4):
        thisAvgs2 = np.zeros(numCells)
        thisAreas = np.zeros(numCells)
        for cc in range(numCells):
-              cdex = thisCell[cc,:] - 1 ######### NP.UNIQUE BUG #######
+              cdex = thisCell[cc,:] - 1
               aCell = thisCoord[:,cdex.astype(int)]
               
               # Get the area average of each function
