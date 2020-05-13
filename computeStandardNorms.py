@@ -26,7 +26,7 @@ def computeStandardNorms(varConT, varS2T, varST, areaT, jacobiansT, SpectralElem
        L2Num = computeGlobalWeightedIntegral(NT, varConT, varDiff2, areaT, jacobiansT, SpectralElement)
        LinfNum = np.amax(varDiff)
        # Compute normalizations
-       L1Den = computeGlobalWeightedIntegral(NT, varConT, varST, areaT, jacobiansT, SpectralElement)
+       L1Den = computeGlobalWeightedIntegral(NT, varConT, np.abs(varST), areaT, jacobiansT, SpectralElement)
        L2Den = computeGlobalWeightedIntegral(NT, varConT, varST2, areaT, jacobiansT, SpectralElement)
        LinfDen = np.amax(np.abs(varST))
        
