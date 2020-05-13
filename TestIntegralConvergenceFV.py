@@ -16,7 +16,7 @@ from computeStandardNorms import computeStandardNorms
 #%% USER INPUT! ** CHANGE THESE TO RUN **
 
 # Flag to set norm computation
-byStandardNorms = False
+byStandardNorms = True
 
 # Flag to use SH expansions (True) or evaluate directly (False)
 USESH = False
@@ -27,9 +27,9 @@ meshesFolder = '/Users/TempestGuerra/Desktop/Remapping-Intercomparison/convergen
 #%% ANALYTICAL TEST FUNCTIONALS (PASSED INTO AREA INTEGRAL FUNCTION)
 
 def test1(lonRAD, latRAD):
-       val = (2.0 + mt.cos(latRAD * \
+       val = (2.0 + mt.cos(latRAD) * \
               mt.cos(latRAD) * \
-              mt.cos(2.0 * lonRAD)))
+              mt.cos(2.0 * lonRAD))
               
        return val
 
@@ -69,7 +69,7 @@ meshRes = ('16','32','64','128')
 meshCoords = []
 meshCells = []
 for ff in range(4):
-       thisMeshFile = meshesFolder + 'outCSne' + meshRes[ff] + '.g'
+       thisMeshFile = meshesFolder + 'outCSne' + meshRes[ff] + '_enhanced.g'
        thisFid = Dataset(thisMeshFile,'r')
        meshCoords.append(thisFid.variables['coord'][:])
        meshCells.append(thisFid.variables['connect1'][:])
@@ -90,8 +90,10 @@ for mm in range(4):
        thisCoord = meshCoords[mm]
        thisCell = meshCells[mm]
        thisCentroids = sphcrt.computeCentroids(thisCell, thisCoord)
+              
        thisCentroidsLL_RAD = sphcrt.computeCart2LL(thisCentroids)
        thisCentroidsLL_DEG = 180.0 / mt.pi * thisCentroidsLL_RAD
+              
        numCells = len(thisCell)
        NC.append(numCells)
        
@@ -125,6 +127,7 @@ for mm in range(4):
               # Compute the areas
               thisAreas[cc] = computeAreaIntegral(None, aCell, order, False, True)
        
+              
        # Store the differences in tuples
        differences.append((np.abs(thisAvgs1 - thisValues1), \
                            np.abs(thisAvgs2 - thisValues2)))

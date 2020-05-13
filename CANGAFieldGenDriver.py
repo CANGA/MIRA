@@ -56,19 +56,25 @@ def computeSpectrum(ND, lfPower, hfPower, degIntersect):
                             
        return degs, psd
 
+def evaluate_field_a2(lon, lat):
+       # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
+       # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
+       # print(lon, lat, (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon)))
+       return (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon))
+
 def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
        # Compute the number of cells and initialize
        NEL = np.size(varCon, 0)
-       varSample = np.zeros(NEL,)
+       varSample = np.zeros(NEL)
 
        # Loop over each cell and get cell average
        for ii in range(NEL):
-              # Handle degeneracies with numpy.unique on connectivity
-              cdex = np.unique(varCon[ii,:]) - 1
+              # NP.UNIQUE SORTS AND DESTROYS CONNECTIVITY CELL NORMALS!!!
+              cdex = varCon[ii,:] - 1
               thisCell = varCoord[:,cdex]
-                            
+
               varSample[ii] = computeAreaIntegral(clm, thisCell, order, avg, False)
-       
+
        return varSample
 
 
@@ -84,10 +90,11 @@ def computeCellAverage(clm, varCon, varCoord, order, avg):
 
        # Loop over each cell and get cell average
        pool = multiprocessing.Pool(processes=4)
-       results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(clm), [varCoord[:,np.unique(varCon[ii,:]) - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(avg), repeat(False)))
+       results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(clm), [varCoord[:, varCon[ii,:] - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(avg), repeat(False)))
        pool.close()
        pool.join()
-       varSample=np.array(results, dtype='f8')
+       varSample = np.array(results, dtype='f8')[:, 0]
+       varAreas  = np.array(results, dtype='f8')[:, 1]
 
        return varSample
 
@@ -205,6 +212,7 @@ def parseCommandLine(argv):
                      sampleMesh = arg
               elif opt == '--so':
                      if int(arg) == 1:
+                            sampleOrder = int(arg)
                             sampleCentroid = True
                      else:
                             if int(arg)%2 == 0 and int(arg) < 200:
@@ -291,7 +299,7 @@ if __name__ == '__main__':
        # Set the name for the new data file
        stripDir = mesh_file.split('/')
        onlyFilename = stripDir[len(stripDir)-1]
-       data_file = 'sample_NM' + str(ND) + '_' + (onlyFilename.split('.'))[0]
+       data_file = 'sample_NM' + str(ND) + '_O' + str(sampleOrder) + '_' + (onlyFilename.split('.'))[0]
 
        # Let us decipher what our final output file name should be with approrpriate suffixes
        outFileName = data_file
@@ -406,7 +414,6 @@ if __name__ == '__main__':
               varLonLat = sphcrt.computeCart2LL(varCent)
 
        # Convert to degrees from radians
-       varLonLat_deg = 180.0 / mt.pi * varLonLat
        varLonLat_deg = 180.0 / mt.pi * varLonLat
        
        m_fid.close()
@@ -540,7 +547,7 @@ if __name__ == '__main__':
               deltaTPO = deltaTPO if deltaTPO > 1e-10 else 1.0
               TPOvar = np.add(TPOvar, -0.5 * (maxTPO + minTPO))
               TPOvar *= 2.0 / deltaTPO
-              
+
               # Rescale topography to real Earth max/min
               minTPO = -10994.0 # Depth at Challenger Deep
               maxTPO = 8848.0 # Elevation of Mt. Everest ASL
@@ -570,17 +577,11 @@ if __name__ == '__main__':
               # Expand the coefficients and check the field
               if sampleCentroid or SpectralElement:
                      A1var = clmA1.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+                     print('Analytical Solution 1 Global sum: ', np.sum(A1var)/A1var.shape[0])
               else:
                      A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True)
-                     print('Analytical Solution 1 Global integral: ', np.sum(A1var))
-              
-              # Compute rescaled data from 0.0 to max
-              minA1 = np.amin(A1var)
-              maxA1 = np.amax(A1var)
-              deltaA1 = abs(maxA1 - minA1)
-              deltaA1 = deltaA1 if deltaA1 > 1e-10 else 1.0
-              A1var = np.add(A1var, -minA1)
-              A1var *= maxA1 / deltaA1
+                     print('Analytical Solution 1 Global integral: ', np.sum(A1var)/A1var.shape[0])
+
               endt = time.time()
               print('Time to compute A1 Field: ', endt - start)
 
@@ -591,26 +592,17 @@ if __name__ == '__main__':
               start = time.time()
               print('Computing Analytical Field 2 sampling on mesh...')
 
-              def evaluate_field_a2(lon, lat):
-                     # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
-                     # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
-                     return (2.0 + np.cos(lat) * np.cos(lat) * np.cos(2.0 * lon))
-
               # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
               # Expand the coefficients and check the field
+              # if sampleCentroid or SpectralElement:
               if sampleCentroid or SpectralElement:
-                     A2var = evaluate_field_a2(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
+                     A2var = evaluate_field_a2(lon=varLonLat[:,0], lat=varLonLat[:,1])
+                     print('Analytical Solution 2 Global sum: ', np.sum(A2var)/A2var.shape[0])
               else:
-                     A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
-                     print('Analytical Solution 2 Global integral: ', np.sum(A2var))
-              
-              # Compute rescaled data from 0.0 to max
-              minA2 = np.amin(A2var)
-              maxA2 = np.amax(A2var)
-              deltaA2 = abs(maxA2 - minA2)
-              deltaA2 = deltaA2 if deltaA2 > 1e-10 else 1.0
-              A2var = np.add(A2var, -minA2)
-              A2var *= maxA2 / deltaA2
+                     # A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
+                     A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
+                     print('Analytical Solution 2 Global integral: ', np.sum(A2var)/A2var.shape[0])
+
               endt = time.time()
               print('Time to compute A2 Field: ', endt - start)
 

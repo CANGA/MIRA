@@ -26,9 +26,15 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
-from computeAreaIntegral import computeAreaIntegral
+from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
 from computeAreaIntegralSE import computeAreaIntegralSE
 import computeSphericalCartesianTransforms as sphcrt
+
+import multiprocessing
+from multiprocessing import Process
+from itertools import repeat
+
+NTASKS = 8
 
 # Parse the command line
 def parseCommandLine(argv):
@@ -39,12 +45,14 @@ def parseCommandLine(argv):
        SCRIPwithoutConn = False
        SCRIPwithConn = False
        SpectralElement = False
+       forceRecompute = False
        # Polynomial order for spectral elements
        seOrder = 4
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
-                                        ['mesh=',
+                                        ['mesh=', \
+                                         'force', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
                                          'SCRIPwithConn', 'SpectralElement', 'seorder='])
        except getopt.GetoptError:
@@ -53,6 +61,7 @@ def parseCommandLine(argv):
                     '--mesh <meshFile>', \
                     '--<meshConfiguration>', \
                     '--<makeSEGrid>', \
+                    '--force', \
                     '--seorder <polyOrder>')
               sys.exit(2)
               
@@ -68,6 +77,8 @@ def parseCommandLine(argv):
                      sys.exit()
               elif opt == '--mesh':
                      sampleMesh = arg
+              elif opt == '--force':
+                     forceRecompute = True
               elif opt == '--ExodusSingleConn':
                      ExodusSingleConn = True
               elif opt == '--SCRIPwithoutConn':
@@ -105,7 +116,7 @@ def parseCommandLine(argv):
               sys.exit(2)
        
        return sampleMesh, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
-              SpectralElement, seOrder
+              SpectralElement, seOrder, forceRecompute
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison mesh pre-processor!')
@@ -113,7 +124,7 @@ if __name__ == '__main__':
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
        mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
-       SpectralElement, seOrder = parseCommandLine(sys.argv[1:])
+       SpectralElement, seOrder, forceRecompute = parseCommandLine(sys.argv[1:])
 
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
@@ -245,7 +256,7 @@ if __name__ == '__main__':
               varCoord = sphcrt.computeLL2Cart(varCoordLL)
               varCoord = varCoord.T
               
-              try:   
+              try:
                      print('Storing connectivity and coordinate arrays from raw SCRIP')
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
@@ -260,6 +271,7 @@ if __name__ == '__main__':
               
        # Close the mesh file
        m_fid.close()
+
        # Open the mesh file for new data
        m_fid = Dataset(outFileName, 'a')
               
@@ -267,10 +279,18 @@ if __name__ == '__main__':
        
        start = time.time()
        print('Computing adjacency maps...')
-       
-       if not m_fid.variables[varAdjaName]:
+       try:
+              tempVar = m_fid.variables[varAdjaName]
+              varInFile = True
+       except KeyError:
+              varInFile = False
+
+       if not varInFile or forceRecompute:
               try:
-                     meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
+                     if not varInFile:
+                            meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
+                     else:
+                            meshFileOut = m_fid.variables[varAdjaName]
 
                      print('Adjacency data computed/written to mesh file for the first time...')
                      # Compute adjacency maps for both meshes (source stencil NOT needed)
@@ -290,24 +310,33 @@ if __name__ == '__main__':
        #%% Area processing for FV models
        start = time.time()
        print('Computing mesh areas...')
-       
-       if not m_fid.variables[varAreaName]:
+       try:
+              tempVar = m_fid.variables[varAreaName]
+              varInFile = True
+       except KeyError:
+              varInFile = False
+
+       if not varInFile or forceRecompute:
 
               try:
-                     meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
-
-                     print('Cell areas computed/written to mesh file for the first time...')
-                     # Precompute the area weights and then look them up in the integral below
                      NEL = len(varCon)
-                     area = np.zeros((NEL,1))
-                     for ii in range(NEL):
-                            cdex = varCon[ii,:] - 1
-                            thisCell = varCoord[:,cdex]
-                            area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
+                     if not varInFile:
+                            meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
+                            area = np.zeros((NEL))
+                     else:
+                            meshFileOut = m_fid.variables[varAreaName]
+                            area = np.zeros(meshFileOut.shape)
 
-                     area = np.ravel(area)
+                     GN, GW = getGaussNodesWeights(6)
 
-                     meshFileOut[:] = area
+                     # Loop over each cell and get cell average
+                     pool = multiprocessing.Pool(processes=NTASKS)
+                     results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(1.0), [varCoord[:, varCon[ii,:] - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(False), repeat(True)))
+                     pool.close()
+                     pool.join()
+                     varAreas  = np.array(results, dtype='f8')[:, 1]
+
+                     meshFileOut[:] = np.ravel(varAreas)
               except RuntimeError:
                      print('Source areas already exist in mesh data file.')
        else:

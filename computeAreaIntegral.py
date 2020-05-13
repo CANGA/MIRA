@@ -15,6 +15,7 @@ import math as mt
 import numpy as np
 from scipy.linalg import norm
 import computeSphericalCartesianTransforms as trans
+import compute_sphere_int as csi
 
 # Order 4 Gauss quadrature nodes and weights
 def getGaussNodesWeights(order):
@@ -38,9 +39,19 @@ def getGaussNodesWeights(order):
               np.ravel(GW)
 
 def computeAreaIntegral(clm, nodes, order, avg, farea):
-       GN, GW = getGaussNodesWeights(order)
 
-       return computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea)
+       useGQscheme = True
+
+       if useGQscheme:
+              GN, GW = getGaussNodesWeights(order)
+
+              [gq_cell_int, gq_areas] = computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea)
+              return gq_areas if farea else gq_cell_int
+
+       else:
+              surfs = np.array([[0, 1, 2, 3]], dtype=int)
+              cell_int, areas = csi.compute_sphere_int(nodes.T, surfs, clm)
+              return np.sum(areas) if farea else np.sum(cell_int/areas)
 
 def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
        # avg = Boolean flag to take average of the function
@@ -68,11 +79,11 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
               node2 = nodes[:,ii+1]
               node3 = nodes[:,ii+2]
 
-              nDMatrix = np.array([  [node1[0], node1[1], node1[2]],
-                                     [node2[0], node2[1], node2[2]],
-                                     [node3[0], node3[1], node3[2]] ])
+              nDMatrix = np.array([  [node1[0], node2[0], node3[0]],
+                                     [node1[1], node2[1], node3[1]],
+                                     [node1[2], node2[2], node3[2]] ])
 
-              nD21 = np.array([ node2[0]-node1[0], node2[1]-node1[1], node2[2]-node1[2] ])
+              nD21 = np.array([ (node2[0] - node1[0]), (node2[1] - node1[1]), (node2[2] - node1[2]) ])
 
               # Loop over the quadrature points
               for pp in range(NP):
@@ -84,27 +95,30 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
                             dOmdA = (1.0 - dA)
                             dOmdB = (1.0 - dB)
 
-                            dAOmdA = np.array([ [-dOmdA], [-dA], [1.0] ])
+                            dAOmdA = np.array([ -dOmdA, -dA, 1.0 ])
                             dOmdBOmdA = np.array([ dOmdB * dOmdA, dOmdB * dA, dB ])
 
                             # Compute global coords of this quadrature point
-                            dF = np.dot(nDMatrix.T, dOmdBOmdA)
-                            dF2 = dF**2
+                            dF = nDMatrix @ dOmdBOmdA
 
                             dDaF = (dOmdB * nD21)
-
-                            dDbF = (np.dot(nDMatrix.T, dAOmdA).T)[0]
+                            dDbF = nDMatrix @ dAOmdA
 
                             dR = norm(dF, 2)
 
-                            dDGMat = np.array([[(dF2[1] + dF2[2]), - dF[0] * dF[1], - dF[0] * dF[2]], \
-                                               [- dF[1] * dF[0], (dF2[0] + dF2[2]), - dF[1] * dF[2]], \
-                                               [- dF[2] * dF[0], - dF[2] * dF[1], (dF2[0] + dF2[1])]]) 
-
                             dDenomTerm = 1.0 / (dR**3)
-                            
-                            dDaG = np.dot(dDGMat, dDaF) * dDenomTerm
-                            dDbG = np.dot(dDGMat, dDbF) * dDenomTerm
+
+                            dDaG = np.array([
+                                   dDaF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] * (dDaF[1] * dF[1] + dDaF[2] * dF[2]),
+                                   dDaF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] * (dDaF[0] * dF[0] + dDaF[2] * dF[2]),
+                                   dDaF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] * (dDaF[0] * dF[0] + dDaF[1] * dF[1])
+                                   ]) * dDenomTerm
+
+                            dDbG = np.array([
+                                   dDbF[0] * (dF[1] * dF[1] + dF[2] * dF[2]) - dF[0] * (dDbF[1] * dF[1] + dDbF[2] * dF[2]),
+                                   dDbF[1] * (dF[0] * dF[0] + dF[2] * dF[2]) - dF[1] * (dDbF[0] * dF[0] + dDbF[2] * dF[2]),
+                                   dDbF[2] * (dF[0] * dF[0] + dF[1] * dF[1]) - dF[2] * (dDbF[0] * dF[0] + dDbF[1] * dF[1])
+                                   ]) * dDenomTerm
                             
                             dJV = np.cross(dDaG, dDbG)
                             dJacobianGWppqq = norm(dJV, 2) * GW[pp] * GW[qq]
@@ -113,32 +127,27 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
                             dFaceArea += dJacobianGWppqq
 
                             # Sample SH field at this quadrature point
-                            # Convert dF to Lon/Lat
                             if farea:
                                    # Sum up the integral of the field
                                    dFunIntegral += dJacobianGWppqq
                             else:
+                                   # Convert dF to Lon/Lat
                                    dFLonLatRad = trans.computePointCart2LL(dF)
                                    if callable(clm): # if this is a closed form functional, evaluate directly
-                                          #thisVar = clm(lon=dFLonLatRad[0], lat=dFLonLatRad[1])
-                                          thisVar = clm(dFLonLatRad[0], dFLonLatRad[1])
+                                          # print(ii, dF, dFLonLatRad[0], dFLonLatRad[1])
+                                          thisVar = clm(lon=dFLonLatRad[0], lat=dFLonLatRad[1])
                                    else:
                                           # Convert to degrees for the SH expansion
                                           dFLonLat = 180.0 / mt.pi * dFLonLatRad
                                           thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
-                                   # thisVar = (2.0 + np.cos(dFLonLat[1]) * np.cos(dFLonLat[1]) * np.cos(2.0 * dFLonLat[0])) # test == 1
-                                   # thisVar = (2.0 + (np.sin(2.0 * dFLonLat[1]))**16.0 * np.cos(16.0 * dFLonLat[0])) # test == 2
+
                                    # Sum up the integral of the field
                                    dFunIntegral += thisVar * dJacobianGWppqq
 
        
-       
-       # Compute the cell average                            
+       # Compute the cell average
        dFunAverage = dFunIntegral / dFaceArea
-       
-       # When a cell average is required
-       if avg:
-              return dFunAverage
-       else:            
-              return dFunIntegral
 
+       # Return both the integral and the cell average since we computed both
+       # Note that when avg = True, dFunAverage = 1.0.
+       return [dFunAverage, dFaceArea]
