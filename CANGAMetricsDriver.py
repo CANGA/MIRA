@@ -295,43 +295,25 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
        # Get the field data
        varFieldSrc = ncFieldFileHnd.variables[srcvarName][dimension,:]
        varFieldTgt = ncFieldFileHnd.variables[tgtvarName][dimension,:]
-       # varFieldSrc = 0#ncFieldFileHnd.variables[varName][:]
-       # varFieldTgt = ncFieldFileHnd.variables[varName][:]
 
        return varFieldTgt, varFieldSrc
 
 
-def loadFieldGradient(var_file, varGradientName, varField, varConn, varCoord, varConStenDex, jacobians, numCells, numDims, SpectralElement):
+def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
        
        start = time.time()
        print('Computing or reading gradients for target sampled and regridded fields...')
-       
-       # Open data files for storage of gradient data
-       ncFieldFileHnd = Dataset(var_file, 'a')
         
        # Read in previously stored ST data if it exists, or compute it and store
-       try:
-              if ncFieldFileHnd.variables[varGradientName].name == varGradientName:
-                     gradField = ncFieldFileHnd.variables[varGradientName][:]
-       except KeyError:
-              if SpectralElement:
-                     # This comes from mesh preprocessing
-                     numDOFS = 'grid_gll_size'
-                     gradField = computeGradientSE(varField, varConn, varCoord, 4, jacobians)
-              else: 
-                     numDOFS = numCells
-                     # gradField = computeGradientFV2(varField, varConn, varCoord, varConStenDex)
-                     gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
-                     
-              # Store the gradients on target mesh
-              try:
-                     gradFileOut = ncFieldFileHnd.createDimension(numDims, 3)
-                     gradFileOut = ncFieldFileHnd.createVariable(varGradientName, 'f8', (numDims, numDOFS))
-                     gradFileOut[:] = gradField
-              except Exception as exc:
-                     print('Gradient variable already exists in ST field data file or: ', exc)
-       
-       ncFieldFileHnd.close()
+       if SpectralElement:
+              # This comes from mesh preprocessing
+              numDOFS = 'grid_gll_size'
+              gradField = computeGradientSE(varField, varConn, varCoord, 4, jacobians)
+       else: 
+              numDOFS = numCells
+              # gradField = computeGradientFV2(varField, varConn, varCoord, varConStenDex)
+              gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
+
        endt = time.time()
        print('Time to compute/read gradients on target mesh (sec): ', endt - start)
        
@@ -457,7 +439,7 @@ if __name__ == '__main__':
        # Read in source and target cell areas
        areaS = loadMeshAreas(mesh_fileS, varAreaName, varConS, varCoordS)
        areaT = loadMeshAreas(mesh_fileT, varAreaName, varConT, varCoordT)
-              
+
        # Read in source and target Jacobian weights
        jacobiansS = loadMeshJacobians(mesh_fileS, varJacoName, isSourceSpectralElementMesh)
        jacobiansT = loadMeshJacobians(mesh_fileT, varJacoName, isTargetSpectralElementMesh)
@@ -480,8 +462,8 @@ if __name__ == '__main__':
 
             # Read in or compute the respective gradients on target mesh
             if includeGradientMetrics:
-                    gradST = loadFieldGradient(targetSampledFile, varGradientName, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
-                    gradTS = loadFieldGradient(sourceSampledFile, varGradientName, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
+                    gradTS = loadFieldGradient(varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
+                    gradST = loadFieldGradient(varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
 
             #%%
             df = pd.DataFrame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
@@ -499,7 +481,9 @@ if __name__ == '__main__':
                               })
             if includeGradientMetrics:
                     df = df.concat(pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H1': np.zeros(maxRemapIterations, dtype='float64') 
+                                                  'H1': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                  'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                  'H1S': np.zeros(maxRemapIterations, dtype='float64')
                                                 }))
             
             # Print out a table with metric results. Let us print progress during iteration progress
@@ -544,20 +528,24 @@ if __name__ == '__main__':
 
                     # Read in or compute the respective gradients on target mesh
                     if includeGradientMetrics:
-                            gradS2T = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, numDimsT, isTargetSpectralElementMesh)
-                            gradT2S = loadFieldGradient(fieldDataFile, fieldName+'Gradient', varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, numDimsS, isSourceSpectralElementMesh)
 
-                            varsOnSM = [varSS, varT2S]
+                            # Gradient preservation checks on target grid
+                            gradS2T = loadFieldGradient(varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
                             varsOnTM = [varST, varS2T]
-                            gradientsOnSM = [gradTS, gradT2S]
                             gradientsOnTM = [gradST, gradS2T]
-
-                            # Gradient preservation
                             H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
-                            # H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
 
                             df.loc[iteration, "H12"] = H1_2
                             df.loc[iteration, "H1"] = H1
+
+                            # Gradient preservation checks on source grid
+                            varsOnSM = [varSS, varT2S]
+                            gradT2S = loadFieldGradient(varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
+                            gradientsOnSM = [gradTS, gradT2S]
+                            H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
+
+                            df.loc[iteration, "H12S"] = H1_2
+                            df.loc[iteration, "H1S"] = H1
 
                     #%%
                     # Print out a table with metric results
@@ -567,12 +555,14 @@ if __name__ == '__main__':
             def append_fieldname(filename):
                     return "{0}_{2}.{1}".format(*filename.rsplit('.', 1) + [fieldName])
 
+            pd.options.display.float_format = '{:,.15e}'.format
             df.to_csv(append_fieldname(outputMetricsFile), index=False)
             print('\nWriting metrics data for',fieldName,'field to', outputMetricsFile, '\n')
-            #print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS FOR Field=',fieldName,'\n')
-            #print(df)
+            print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS FOR Field=',fieldName,'\n')
+            print(df)
 
        #%% Close original NetCDF file.
        ncFieldFileHnd.close()
+
  
 #%%
