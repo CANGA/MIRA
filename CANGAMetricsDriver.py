@@ -480,8 +480,8 @@ if __name__ == '__main__':
                                  "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
                               })
             if includeGradientMetrics:
-                    df = df.concat(pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H1': np.zeros(maxRemapIterations, dtype='float64'), \
+                    df = df.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                  'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
                                                   'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
                                                   'H1S': np.zeros(maxRemapIterations, dtype='float64')
                                                 }))
@@ -535,8 +535,8 @@ if __name__ == '__main__':
                             gradientsOnTM = [gradST, gradS2T]
                             H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
 
-                            df.loc[iteration, "H12"] = H1_2
-                            df.loc[iteration, "H1"] = H1
+                            df.loc[iteration, "H12T"] = H1_2
+                            df.loc[iteration, "H1T"] = H1
 
                             # Gradient preservation checks on source grid
                             varsOnSM = [varSS, varT2S]
