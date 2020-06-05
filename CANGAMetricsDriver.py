@@ -501,7 +501,11 @@ if __name__ == '__main__':
                     df = df.concat(pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
                                                   'H1': np.zeros(maxRemapIterations, dtype='float64') 
                                                 }))
-            
+                    # We might need to use the following code for pandas 1.0.4:
+                    # df = pd.concat([df, pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                               'H1': np.zeros(maxRemapIterations, dtype='float64') 
+                    #                             })])
+
             # Print out a table with metric results. Let us print progress during iteration progress
             print('\n')
             printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
