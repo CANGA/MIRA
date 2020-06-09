@@ -75,11 +75,15 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '-' * (length - filledLength)
-    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
-    # Print New Line on Complete
-    if iteration == total: 
-        print()
+
+    #bar = fill * filledLength + '-' * (length - filledLength)
+    bar = '+' * filledLength + '_' * (length - filledLength)
+
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
+
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
 
 
 def loadMeshData(mesh_file, mesh_config, SpectralElement):
@@ -480,23 +484,29 @@ if __name__ == '__main__':
                                  "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
                               })
             if includeGradientMetrics:
-                    df = df.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H1S': np.zeros(maxRemapIterations, dtype='float64')
-                                                }))
-                    # We might need to use the following code for pandas 1.0.4:
-                    # df = pd.concat([df, pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
-                    #                               'H1': np.zeros(maxRemapIterations, dtype='float64') 
-                    #                             })])
+                    # For pandas < 1.0
+                    #df = df.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                              'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                              'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                              'H1S': np.zeros(maxRemapIterations, dtype='float64')
+                    #                            }))
+
+                    # We might need to use the following code for pandas > 1.0:
+                    df = pd.concat([df, pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                       'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                       'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                       'H1S': np.zeros(maxRemapIterations, dtype='float64')
+                                                    })
+                                    ], 
+                                    axis=1)
 
             # Print out a table with metric results. Let us print progress during iteration progress
             print('\n')
             printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
-            for iteration in range(maxRemapIterations):
+            for iteration in range(maxRemapIterations+1):
                     # Read in field variable data
-                    varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration+1)
+                    varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration)
 
                     #%% Computing all metrics...
 
@@ -539,8 +549,8 @@ if __name__ == '__main__':
                             gradientsOnTM = [gradST, gradS2T]
                             H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
 
-                            df.loc[iteration, "H12T"] = H1_2
-                            df.loc[iteration, "H1T"] = H1
+                            df.loc[iteration, 'H12T'] = H1_2
+                            df.loc[iteration, 'H1T'] = H1
 
                             # Gradient preservation checks on source grid
                             varsOnSM = [varSS, varT2S]
@@ -548,8 +558,8 @@ if __name__ == '__main__':
                             gradientsOnSM = [gradTS, gradT2S]
                             H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
 
-                            df.loc[iteration, "H12S"] = H1_2
-                            df.loc[iteration, "H1S"] = H1
+                            df.loc[iteration, 'H12S'] = H1_2
+                            df.loc[iteration, 'H1S'] = H1
 
                     #%%
                     # Print out a table with metric results
