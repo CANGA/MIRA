@@ -502,7 +502,7 @@ if __name__ == '__main__':
 
             # Print out a table with metric results. Let us print progress during iteration progress
             print('\n')
-            printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
+            printProgressBar(0, maxRemapIterations+1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
             for iteration in range(maxRemapIterations+1):
                     # Read in field variable data
@@ -563,7 +563,7 @@ if __name__ == '__main__':
 
                     #%%
                     # Print out a table with metric results
-                    printProgressBar(iteration + 1, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                    printProgressBar(iteration+1, maxRemapIterations+1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
             def append_fieldname(filename):
