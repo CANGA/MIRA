@@ -187,7 +187,7 @@ def loadMeshAreas(mesh_file, varAreaName, varCon, varCoord):
                      area[ii] = computeAreaIntegral(None, thisCell, 6, False, True)
                      
               area = np.ravel(area)
-              meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
+              meshFileOut = m_fid.createVariable(varAreaName, 'f8', (NEL, ))
               meshFileOut[:] = area
               # sys.exit()
               
