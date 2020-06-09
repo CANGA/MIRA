@@ -28,6 +28,7 @@ meshRes = ('16','32','64','128')
 meshCoords = []
 meshCells = []
 areas = []
+stencils = []
 for ff in range(4):
        thisMeshFile = meshesFolder + 'outCSne' + meshRes[ff] + '_enhanced.g'
        thisFid = Dataset(thisMeshFile,'r')
@@ -40,7 +41,11 @@ for ff in range(4):
        
        if isEnhanced:
               areas.append(thisFid.variables['cell_area'][:])
+              stencils.append(thisFid.variables['cell_edge_adjacency'][:])
        else:
+              print('MUST RUN WITH PREPROCESSED MESH FILES FOR ADJACENCY DATA!')
+              stencils.append(None)
+              
               thisAreas = np.zeros(numCells)
               for cc in range(numCells):
                      cdex = thisCell[cc,:] - 1
@@ -69,13 +74,11 @@ for mm in range(4):
        thisCentroids = sphcrt.computeCentroids(thisCell, thisCoord)
        thisCentroidsLL_RAD = sphcrt.computeCart2LL(thisCentroids)
        thisCentroidsLL_DEG = 180.0 / mt.pi * thisCentroidsLL_RAD
-       numCells = len(thisCell)
-       NC.append(numCells)
        
        # Open the sample files for reading
        fnameO1 = 'sample_NM64_O1_outCSne' + str(meshRes[mm]) + '_A2.nc'
        fidO1 = Dataset(fnameO1, 'r')
-       fnameO4 = 'sample_NM64_O4_outCSne' + str(meshRes[mm]) + '_A2.nc'
+       fnameO4 = 'sample_NM64_O8_outCSne' + str(meshRes[mm]) + '_A2.nc'
        fidO4 = Dataset(fnameO4, 'r')
        
        # Get the sampled data
@@ -92,6 +95,28 @@ for mm in range(4):
        references.append(thisAvgs)
               
        print('Computed differences for CSne' + meshRes[mm] + '...DONE!')
+       
+#%% COMPUTE LOCAL GRADIENTS ON BOTH TYPES OF SAMPLED DATA
+grad_values = []
+grad_references = []
+grad_differences = []
+from computeGradientFV3 import computeGradientFV3
+for mm in range(4):
+       # Get gradients of centroid sampled data
+       thisGradValues = computeGradientFV3(values[mm], meshCells[mm], meshCoords[mm], stencils[mm])
+       # Get gradients of cell-averaged sampled data
+       thisGradAvgs = computeGradientFV3(references[mm], meshCells[mm], meshCoords[mm], stencils[mm])
+       
+       # Store the differences
+       grad_differences.append(np.abs(thisGradAvgs - thisGradValues))
+              
+       #Store the low order evaluation
+       grad_values.append(thisGradValues)
+              
+       # Store the reference (high order cell averages)
+       grad_references.append(thisGradAvgs)
+              
+       print('Computed gradient differences for CSne' + meshRes[mm] + '...DONE!')
        
 #%% COMPUTE STANDARD NORMS
 ii = 0
@@ -110,8 +135,25 @@ for diff in differences:
        print('L1 Norms by computeStandardNorms()...')
        print(meshRes[ii], L1_test1[ii])
        ii += 1
+       
+#%% COMPUTE GRADIENT PRESERVATION METRICS
+ii = 0
+H1_test1 = []
+H1_2_test1 = []
 
-#%% MAKE THE CONVERGENCE PLOTS (FINGERS CROSSED...)
+from computeGradientPreserveMetrics import computeGradientPreserveMetrics
+for diff in grad_differences:
+       varsOnTM = [references[ii], values[ii]]
+       gradientsOnTM = [grad_references[ii], grad_values[ii]]
+
+       # Gradient preservation
+       H1, H1_2 = computeGradientPreserveMetrics(meshCells[ii], gradientsOnTM, varsOnTM, areas[ii], areas[ii], False)
+       
+       H1_test1.append(H1)
+       H1_2_test1.append(H1_2)
+       ii += 1
+
+#%% MAKE THE CONVERGENCE PLOTS (STANDARD NORMS)
 meshDelta = np.array([1.0, 0.5, 0.25, 0.125])
 plt.figure(figsize=(6.0, 10.0))
 
@@ -126,7 +168,7 @@ plt.xscale('log')
 plt.yscale('log')
 plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidth=0.5)
 plt.legend(('2nd Order', 'Functional',), loc='upper right')
-plt.title('Grid Convergence Test: Centroid Sample to 4th Order Quadrature')
+plt.title('Grid Convergence: Centroid Sample to 4th Order Quadrature')
 plt.ylabel('L1 Norm Error')
 
 # L2 Norm plot
@@ -155,3 +197,34 @@ plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidt
 plt.legend(('2nd Order', 'Functional'), loc='upper right')
 plt.xlabel('Normalized Grid Spacing')
 plt.ylabel('Linf Norm Error')
+
+#%% MAKE THE CONVERGENCE PLOTS (GRADIENT NORMS)
+meshDelta = np.array([1.0, 0.5, 0.25, 0.125])
+plt.figure(figsize=(6.0, 10.0))
+
+# H1 Norm plot
+scale = H1_test1[0]
+order2 = scale * np.power(meshDelta,1.5)
+plt.subplot(2,1,1)
+plt.plot(meshDelta, order2, 'k--')
+plt.plot(meshDelta, H1_test1, 'bs-')
+plt.gca().invert_xaxis()
+plt.xscale('log')
+plt.yscale('log')
+plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidth=0.5)
+plt.legend(('1.5th Order', 'Functional',), loc='upper right')
+plt.title('Grid Convergence: Centroid Sample to 4th Order Quadrature')
+plt.ylabel('H1 Gradient Norm Error')
+
+# H1_2 Norm plot
+scale = H1_2_test1[0]
+order2 = scale * np.power(meshDelta,1.5)
+plt.subplot(2,1,2)
+plt.plot(meshDelta, order2, 'k--')
+plt.plot(meshDelta, H1_2_test1, 'bs-')
+plt.gca().invert_xaxis()
+plt.xscale('log')
+plt.yscale('log')
+plt.grid(b=None, which='major', axis='both', color='k', linestyle='--', linewidth=0.5)
+plt.legend(('1.5th Order', 'Gradient'), loc='upper right')
+plt.ylabel('H-1/2 Gradient Semi-Norm Error')
