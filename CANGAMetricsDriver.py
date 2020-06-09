@@ -306,7 +306,7 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
 def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
        
        start = time.time()
-       print('Computing or reading gradients for target sampled and regridded fields...')
+       # print('Computing or reading gradients for target sampled and regridded fields...')
         
        # Read in previously stored ST data if it exists, or compute it and store
        if SpectralElement:
@@ -319,7 +319,7 @@ def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, num
               gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
 
        endt = time.time()
-       print('Time to compute/read gradients on target mesh (sec): ', endt - start)
+       # print('Time to compute/read gradients on target mesh (sec): ', endt - start)
        
        return gradField
        
