@@ -15,7 +15,7 @@ Parameterized flux integral assumes constant radius and field value.
 import numpy as np
 import math as mt
 from computeAreaIntegral import computeAreaIntegral
-from computeCentroid import computeCentroid
+import computeSphericalCartesianTransforms as sphcrt
 
 import multiprocessing
 from multiprocessing import Process
@@ -141,15 +141,8 @@ def computeGradientFV3(varField, varCon, varCoords, varStenDex):
     # areaD = np.zeros(NC, dtype=SF)
     
     # Precompute the cell centroid map
-    cellCoords = np.zeros((nc,NC), dtype=SF)
-    radius = np.zeros((NC,1), dtype=SF)
-    for jj in range(NC):
-          #pdex = np.array(range(NP), dtype = int)
-          cdex = (varCon[jj,:]) - 1
-          cdex = cdex.astype(int)
-          cell = varCoords[:,cdex]
-          cellCoords[:,jj] = computeCentroid(NP, cell)
-          radius[jj] = np.linalg.norm(cellCoords[:,jj])
+    cellCoords = sphcrt.computeCentroids(varCon, varCoords)
+    radius = np.linalg.norm(cellCoords, axis=1)
     
     # Loop over each cell and get cell average
     pool = multiprocessing.Pool(processes=64)
