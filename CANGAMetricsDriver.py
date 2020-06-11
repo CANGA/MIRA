@@ -465,6 +465,18 @@ if __name__ == '__main__':
        # Open the .nc data files for reading
        ncFieldFileHnd = Dataset(fieldDataFile, 'r')
 
+       # Read in or compute the respective gradients on target mesh
+       if includeGradientMetrics:
+              print('\nComputing gradient datastructures for grids...')
+              start = time.time()
+              gradSCtx = ComputeGradientFV('Source', varConS, varCoordS, varConStenDexS, nprocs)
+              gradSCtx.precomputeGradientFV3Data()
+              print('Time taken to precompute gradient datastructures for source grid: ', time.time() - start)
+              start = time.time()
+              gradTCtx = ComputeGradientFV('Target', varConT, varCoordT, varConStenDexT, nprocs)
+              gradTCtx.precomputeGradientFV3Data()
+              print('Time taken to precompute gradient datastructures for target grid: ', time.time() - start)
+
        for fieldName in fieldNames:
 
             print('\nComputing Field metrics for ', fieldName)
@@ -474,16 +486,7 @@ if __name__ == '__main__':
 
             # Read in or compute the respective gradients on target mesh
             if includeGradientMetrics:
-                   print('\nComputing gradient datastructures for grids...')
-                   start = time.time()
-                   gradSCtx = ComputeGradientFV('Source', varConS, varCoordS, varConStenDexS, nprocs)
-                   gradSCtx.precomputeGradientFV3Data()
-                   print('Time taken to precompute gradient datastructures for source grid: ', time.time() - start)
                    gradTS = loadFieldGradient(gradSCtx, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
-                   start = time.time()
-                   gradTCtx = ComputeGradientFV('Target', varConT, varCoordT, varConStenDexT, nprocs)
-                   gradTCtx.precomputeGradientFV3Data()
-                   print('Time taken to precompute gradient datastructures for target grid: ', time.time() - start)
                    gradST = loadFieldGradient(gradTCtx, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
 
             #%%
