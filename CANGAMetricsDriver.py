@@ -307,8 +307,6 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
 def loadFieldGradient(gradCtx, varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
        
        start = time.time()
-       print('Computing or reading gradients for target sampled and regridded fields...')
-        
        # Read in previously stored ST data if it exists, or compute it and store
        if SpectralElement:
               # This comes from mesh preprocessing
@@ -321,7 +319,7 @@ def loadFieldGradient(gradCtx, varField, varConn, varCoord, varConStenDex, jacob
               gradField = gradCtx.computeGradientFV3(varField)
 
        endt = time.time()
-       print('Time to compute/read gradients on given mesh (sec): ', endt - start)
+       # print('Time to compute/read gradients on', gradCtx.context, 'mesh (sec): ', endt - start)
        
        return gradField
        
@@ -470,15 +468,16 @@ if __name__ == '__main__':
 
             # Read in or compute the respective gradients on target mesh
             if includeGradientMetrics:
-                   gradSCtx = ComputeGradientFV(varConS, varCoordS, varConStenDexS)
+                   print('\nComputing gradient datastructures for grids...')
                    start = time.time()
+                   gradSCtx = ComputeGradientFV('Source', varConS, varCoordS, varConStenDexS)
                    gradSCtx.precomputeGradientFV3Data()
-                   print('Time taken to precompute datastructures for source grid: ', time.time() - start)
+                   print('Time taken to precompute gradient datastructures for source grid: ', time.time() - start)
                    gradTS = loadFieldGradient(gradSCtx, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
                    start = time.time()
-                   gradTCtx = ComputeGradientFV(varConT, varCoordT, varConStenDexT)
+                   gradTCtx = ComputeGradientFV('Target', varConT, varCoordT, varConStenDexT)
                    gradTCtx.precomputeGradientFV3Data()
-                   print('Time taken to precompute datastructures for target grid: ', time.time() - start)
+                   print('Time taken to precompute gradient datastructures for target grid: ', time.time() - start)
                    gradST = loadFieldGradient(gradTCtx, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
 
             #%%
