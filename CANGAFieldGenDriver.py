@@ -78,7 +78,7 @@ def computeCellAverageSerial(clm, varCon, varCoord, order, avg):
        return varSample
 
 
-def computeCellAverage(clm, varCon, varCoord, order, avg):
+def computeCellAverage(clm, varCon, varCoord, order, avg, nprocs):
 
        # return computeCellAverageSerial(clm, varCon, varCoord, order, avg)
 
@@ -89,7 +89,7 @@ def computeCellAverage(clm, varCon, varCoord, order, avg):
        GN, GW = getGaussNodesWeights(order)
 
        # Loop over each cell and get cell average
-       pool = multiprocessing.Pool(processes=4)
+       pool = multiprocessing.Pool(processes=nprocs)
        results = pool.starmap(computeAreaIntegralWithGQ, zip(repeat(clm), [varCoord[:, varCon[ii,:] - 1] for ii in range(NEL)], repeat(GN), repeat(GW), repeat(avg), repeat(False)))
        pool.close()
        pool.join()
@@ -189,7 +189,8 @@ def parseCommandLine(argv):
                     '--evaluateA2', \
                     '--showPlots', \
                     '--meshConfiguration', \
-                    '--SpectralElementMesh')
+                    '--SpectralElementMesh', \
+                    '--processes <nprocs>')
        
        try:
               opts, args = getopt.getopt(argv, 'hv:', \
@@ -197,7 +198,7 @@ def parseCommandLine(argv):
                                          'evaluateTotalPrecipWater', 'evaluateCloudFraction', 'evaluateGlobalTerrain', \
                                          'evaluateA1', 'evaluateA2', 'showPlots', \
                                          'ExodusSingleConn', 'SCRIPwithoutConn', \
-                                         'SCRIPwithConn', 'SpectralElementMesh'])
+                                         'SCRIPwithConn', 'SpectralElementMesh', 'processes='])
        except getopt.GetoptError:
               print('Command line arguments were not properly set or error in parsing.\n')
               usage()
@@ -245,6 +246,8 @@ def parseCommandLine(argv):
                      SpectralElement = True
               elif opt == '--showPlots':
                      ShowPlots = True
+              elif opt == '--processes':
+                     nprocs = int(arg)
                      
        # Check that the number of modes requested doesn't exceed 512
        if numModes > 512:
@@ -293,7 +296,7 @@ if __name__ == '__main__':
        mesh_file, ND, seed, sampleCentroid, sampleOrder, \
        EvaluateTPW, EvaluateCFR, EvaluateTPO, \
        EvaluateA1, EvaluateA2, ShowPlots, \
-       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement \
+       ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement, nprocs \
        = parseCommandLine(sys.argv[1:])
        
        # Set the name for the new data file
@@ -454,7 +457,7 @@ if __name__ == '__main__':
               if sampleCentroid or SpectralElement:
                      TPWvar = clmTPW.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True)
+                     TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True, nprocs)
                      print('Total Precipitable Water Global integral: ', np.sum(TPWvar))
               
               # Compute rescaled data from 0.0 to max
@@ -494,7 +497,7 @@ if __name__ == '__main__':
               if sampleCentroid or SpectralElement:              
                      CFRvar = clmCFR.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True)
+                     CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True, nprocs)
                      print('Cloud Fraction Global integral: ', np.sum(CFRvar))
  
               # Compute rescaled data from 0.0 to max
@@ -537,7 +540,7 @@ if __name__ == '__main__':
               if sampleCentroid or SpectralElement:              
                      TPOvar = clmTPO.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
               else:
-                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True)
+                     TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True, nprocs)
                      print('Global Terrain Global integral: ', np.sum(TPOvar))
               
               # Rescale to -1.0 to 1.0
@@ -579,7 +582,7 @@ if __name__ == '__main__':
                      A1var = clmA1.expand(lon=varLonLat_deg[:,0], lat=varLonLat_deg[:,1])
                      print('Analytical Solution 1 Global sum: ', np.sum(A1var)/A1var.shape[0])
               else:
-                     A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True)
+                     A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True, nprocs)
                      print('Analytical Solution 1 Global integral: ', np.sum(A1var)/A1var.shape[0])
 
               endt = time.time()
@@ -600,7 +603,7 @@ if __name__ == '__main__':
                      print('Analytical Solution 2 Global sum: ', np.sum(A2var)/A2var.shape[0])
               else:
                      # A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
-                     A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
+                     A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True, nprocs)
                      print('Analytical Solution 2 Global integral: ', np.sum(A2var)/A2var.shape[0])
 
               endt = time.time()

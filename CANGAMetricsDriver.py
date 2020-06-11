@@ -350,6 +350,9 @@ if __name__ == '__main__':
 
        # Max number of remap iteration solutions to use in order to compute the metrics
        maxRemapIterations = 1
+
+       # Parallelization of the driver through multiprocessing
+       nprocs = 1
        
        def print_usage():
               print('Command line not properly set:', \
@@ -364,7 +367,8 @@ if __name__ == '__main__':
                     '--output <metricsFileName>', \
                     '--<includeGradientMetrics>', \
                     '--<isSourceSpectralElementMesh>', \
-                    '--<isTargetSpectralElementMesh>')
+                    '--<isTargetSpectralElementMesh>', \
+                    '--processes <nprocs>')
        
        try:
               opts, args = getopt.getopt(sys.argv[1:], 'hv:', \
@@ -372,7 +376,7 @@ if __name__ == '__main__':
                                          'smc=', 'tmc=', \
                                          'dimension=', 'includeGradientMetrics', \
                                          'output=', \
-                                         'isSourceSpectralElementMesh', 'isTargetSpectralElementMesh'])
+                                         'isSourceSpectralElementMesh', 'isTargetSpectralElementMesh', 'processes='])
        except getopt.GetoptError:
               print_usage()
               sys.exit(2)
@@ -404,6 +408,8 @@ if __name__ == '__main__':
                      maxRemapIterations = int(arg)
               elif opt == '--output':
                      outputMetricsFile = arg
+              elif opt == '--processes':
+                     nprocs = int(arg)
 
        # Input checks
        if sourceMeshConfig > 3:
@@ -470,12 +476,12 @@ if __name__ == '__main__':
             if includeGradientMetrics:
                    print('\nComputing gradient datastructures for grids...')
                    start = time.time()
-                   gradSCtx = ComputeGradientFV('Source', varConS, varCoordS, varConStenDexS)
+                   gradSCtx = ComputeGradientFV('Source', varConS, varCoordS, varConStenDexS, nprocs)
                    gradSCtx.precomputeGradientFV3Data()
                    print('Time taken to precompute gradient datastructures for source grid: ', time.time() - start)
                    gradTS = loadFieldGradient(gradSCtx, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
                    start = time.time()
-                   gradTCtx = ComputeGradientFV('Target', varConT, varCoordT, varConStenDexT)
+                   gradTCtx = ComputeGradientFV('Target', varConT, varCoordT, varConStenDexT, nprocs)
                    gradTCtx.precomputeGradientFV3Data()
                    print('Time taken to precompute gradient datastructures for target grid: ', time.time() - start)
                    gradST = loadFieldGradient(gradTCtx, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
