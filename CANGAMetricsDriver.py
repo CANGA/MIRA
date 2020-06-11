@@ -42,7 +42,8 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 # Bring in all the different metric modules
 from computeGradientSE import computeGradientSE
 from computeGradientFV2 import computeGradientFV2
-from computeGradientFV3 import computeGradientFV3
+# from computeGradientFV3 import computeGradientFV3
+from computeGradientFV3 import ComputeGradientFV
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
 from computeStandardNorms import computeStandardNorms
@@ -303,10 +304,10 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
        return varFieldTgt, varFieldSrc
 
 
-def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
+def loadFieldGradient(gradCtx, varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
        
        start = time.time()
-       # print('Computing or reading gradients for target sampled and regridded fields...')
+       print('Computing or reading gradients for target sampled and regridded fields...')
         
        # Read in previously stored ST data if it exists, or compute it and store
        if SpectralElement:
@@ -316,10 +317,11 @@ def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, num
        else: 
               numDOFS = numCells
               # gradField = computeGradientFV2(varField, varConn, varCoord, varConStenDex)
-              gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
+              # gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
+              gradField = gradCtx.computeGradientFV3(varField)
 
        endt = time.time()
-       # print('Time to compute/read gradients on target mesh (sec): ', endt - start)
+       print('Time to compute/read gradients on given mesh (sec): ', endt - start)
        
        return gradField
        
@@ -452,6 +454,8 @@ if __name__ == '__main__':
        varConStenDexS = loadMeshAdjacencyMap(mesh_fileS, varAdjaName)
        varConStenDexT = loadMeshAdjacencyMap(mesh_fileT, varAdjaName)
 
+       gradSCtx = gradTCtx = None
+
        fieldNames = [x.strip() for x in fieldNames.split(',')]
        
        # Open the .nc data files for reading
@@ -466,8 +470,16 @@ if __name__ == '__main__':
 
             # Read in or compute the respective gradients on target mesh
             if includeGradientMetrics:
-                    gradTS = loadFieldGradient(varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
-                    gradST = loadFieldGradient(varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
+                   gradSCtx = ComputeGradientFV(varConS, varCoordS, varConStenDexS)
+                   start = time.time()
+                   gradSCtx.precomputeGradientFV3Data()
+                   print('Time taken to precompute datastructures for source grid: ', time.time() - start)
+                   gradTS = loadFieldGradient(gradSCtx, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
+                   start = time.time()
+                   gradTCtx = ComputeGradientFV(varConT, varCoordT, varConStenDexT)
+                   gradTCtx.precomputeGradientFV3Data()
+                   print('Time taken to precompute datastructures for target grid: ', time.time() - start)
+                   gradST = loadFieldGradient(gradTCtx, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
 
             #%%
             df = pd.DataFrame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
@@ -544,7 +556,7 @@ if __name__ == '__main__':
                     if includeGradientMetrics:
 
                             # Gradient preservation checks on target grid
-                            gradS2T = loadFieldGradient(varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
+                            gradS2T = loadFieldGradient(gradTCtx, varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
                             varsOnTM = [varST, varS2T]
                             gradientsOnTM = [gradST, gradS2T]
                             H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
@@ -554,7 +566,7 @@ if __name__ == '__main__':
 
                             # Gradient preservation checks on source grid
                             varsOnSM = [varSS, varT2S]
-                            gradT2S = loadFieldGradient(varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
+                            gradT2S = loadFieldGradient(gradSCtx, varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
                             gradientsOnSM = [gradTS, gradT2S]
                             H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
 
