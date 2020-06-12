@@ -42,7 +42,8 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 # Bring in all the different metric modules
 from computeGradientSE import computeGradientSE
 from computeGradientFV2 import computeGradientFV2
-from computeGradientFV3 import computeGradientFV3
+# from computeGradientFV3 import computeGradientFV3
+from computeGradientFV3 import ComputeGradientFV
 from computeGlobalConservation import computeGlobalConservation
 #from computeLocalityMetric import computeLocalityMetric
 from computeStandardNorms import computeStandardNorms
@@ -75,11 +76,15 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     """
     percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
     filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '-' * (length - filledLength)
-    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
-    # Print New Line on Complete
-    if iteration == total: 
-        print()
+
+    #bar = fill * filledLength + '-' * (length - filledLength)
+    bar = '+' * filledLength + '_' * (length - filledLength)
+
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percent, '%', suffix)),
+
+    if iteration == total:
+        sys.stdout.write('\n')
+    sys.stdout.flush()
 
 
 def loadMeshData(mesh_file, mesh_config, SpectralElement):
@@ -299,11 +304,9 @@ def loadDataField(ncFieldFileHnd, varName, dimension):
        return varFieldTgt, varFieldSrc
 
 
-def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
+def loadFieldGradient(gradCtx, varField, varConn, varCoord, varConStenDex, jacobians, numCells, SpectralElement):
        
        start = time.time()
-       print('Computing or reading gradients for target sampled and regridded fields...')
-        
        # Read in previously stored ST data if it exists, or compute it and store
        if SpectralElement:
               # This comes from mesh preprocessing
@@ -312,10 +315,11 @@ def loadFieldGradient(varField, varConn, varCoord, varConStenDex, jacobians, num
        else: 
               numDOFS = numCells
               # gradField = computeGradientFV2(varField, varConn, varCoord, varConStenDex)
-              gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
+              # gradField = computeGradientFV3(varField, varConn, varCoord, varConStenDex)
+              gradField = gradCtx.computeGradientFV3(varField)
 
        endt = time.time()
-       print('Time to compute/read gradients on target mesh (sec): ', endt - start)
+       # print('Time to compute/read gradients on', gradCtx.context, 'mesh (sec): ', endt - start)
        
        return gradField
        
@@ -346,6 +350,9 @@ if __name__ == '__main__':
 
        # Max number of remap iteration solutions to use in order to compute the metrics
        maxRemapIterations = 1
+
+       # Parallelization of the driver through multiprocessing
+       nprocs = 1
        
        def print_usage():
               print('Command line not properly set:', \
@@ -360,7 +367,8 @@ if __name__ == '__main__':
                     '--output <metricsFileName>', \
                     '--<includeGradientMetrics>', \
                     '--<isSourceSpectralElementMesh>', \
-                    '--<isTargetSpectralElementMesh>')
+                    '--<isTargetSpectralElementMesh>', \
+                    '--processes <nprocs>')
        
        try:
               opts, args = getopt.getopt(sys.argv[1:], 'hv:', \
@@ -368,7 +376,7 @@ if __name__ == '__main__':
                                          'smc=', 'tmc=', \
                                          'dimension=', 'includeGradientMetrics', \
                                          'output=', \
-                                         'isSourceSpectralElementMesh', 'isTargetSpectralElementMesh'])
+                                         'isSourceSpectralElementMesh', 'isTargetSpectralElementMesh', 'processes='])
        except getopt.GetoptError:
               print_usage()
               sys.exit(2)
@@ -400,6 +408,8 @@ if __name__ == '__main__':
                      maxRemapIterations = int(arg)
               elif opt == '--output':
                      outputMetricsFile = arg
+              elif opt == '--processes':
+                     nprocs = int(arg)
 
        # Input checks
        if sourceMeshConfig > 3:
@@ -448,10 +458,24 @@ if __name__ == '__main__':
        varConStenDexS = loadMeshAdjacencyMap(mesh_fileS, varAdjaName)
        varConStenDexT = loadMeshAdjacencyMap(mesh_fileT, varAdjaName)
 
+       gradSCtx = gradTCtx = None
+
        fieldNames = [x.strip() for x in fieldNames.split(',')]
        
        # Open the .nc data files for reading
        ncFieldFileHnd = Dataset(fieldDataFile, 'r')
+
+       # Read in or compute the respective gradients on target mesh
+       if includeGradientMetrics:
+              print('\nComputing gradient datastructures for grids...')
+              start = time.time()
+              gradSCtx = ComputeGradientFV('Source', varConS, varCoordS, varConStenDexS, nprocs)
+              gradSCtx.precomputeGradientFV3Data()
+              print('Time taken to precompute gradient datastructures for source grid: ', time.time() - start)
+              start = time.time()
+              gradTCtx = ComputeGradientFV('Target', varConT, varCoordT, varConStenDexT, nprocs)
+              gradTCtx.precomputeGradientFV3Data()
+              print('Time taken to precompute gradient datastructures for target grid: ', time.time() - start)
 
        for fieldName in fieldNames:
 
@@ -462,8 +486,8 @@ if __name__ == '__main__':
 
             # Read in or compute the respective gradients on target mesh
             if includeGradientMetrics:
-                    gradTS = loadFieldGradient(varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
-                    gradST = loadFieldGradient(varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
+                   gradTS = loadFieldGradient(gradSCtx, varSS, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
+                   gradST = loadFieldGradient(gradTCtx, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
 
             #%%
             df = pd.DataFrame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
@@ -480,23 +504,29 @@ if __name__ == '__main__':
                                  "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
                               })
             if includeGradientMetrics:
-                    df = df.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                  'H1S': np.zeros(maxRemapIterations, dtype='float64')
-                                                }))
-                    # We might need to use the following code for pandas 1.0.4:
-                    # df = pd.concat([df, pd.DataFrame({ 'H12': np.zeros(maxRemapIterations, dtype='float64'), \
-                    #                               'H1': np.zeros(maxRemapIterations, dtype='float64') 
-                    #                             })])
+                    # For pandas < 1.0
+                    #df = df.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                              'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                              'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
+                    #                              'H1S': np.zeros(maxRemapIterations, dtype='float64')
+                    #                            }))
+
+                    # We might need to use the following code for pandas > 1.0:
+                    df = pd.concat([df, pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                       'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                       'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
+                                                       'H1S': np.zeros(maxRemapIterations, dtype='float64')
+                                                    })
+                                    ], 
+                                    axis=1)
 
             # Print out a table with metric results. Let us print progress during iteration progress
             print('\n')
-            printProgressBar(0, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
+            printProgressBar(0, maxRemapIterations+1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
-            for iteration in range(maxRemapIterations):
+            for iteration in range(maxRemapIterations+1):
                     # Read in field variable data
-                    varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration+1)
+                    varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration)
 
                     #%% Computing all metrics...
 
@@ -534,26 +564,26 @@ if __name__ == '__main__':
                     if includeGradientMetrics:
 
                             # Gradient preservation checks on target grid
-                            gradS2T = loadFieldGradient(varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
+                            gradS2T = loadFieldGradient(gradTCtx, varS2T, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
                             varsOnTM = [varST, varS2T]
                             gradientsOnTM = [gradST, gradS2T]
                             H1, H1_2 = computeGradientPreserveMetrics(varConT, gradientsOnTM, varsOnTM, areaT, jacobiansT, isTargetSpectralElementMesh)
 
-                            df.loc[iteration, "H12T"] = H1_2
-                            df.loc[iteration, "H1T"] = H1
+                            df.loc[iteration, 'H12T'] = H1_2
+                            df.loc[iteration, 'H1T'] = H1
 
                             # Gradient preservation checks on source grid
                             varsOnSM = [varSS, varT2S]
-                            gradT2S = loadFieldGradient(varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
+                            gradT2S = loadFieldGradient(gradSCtx, varT2S, varConS, varCoordS, varConStenDexS, jacobiansS, numCellsS, isSourceSpectralElementMesh)
                             gradientsOnSM = [gradTS, gradT2S]
                             H1, H1_2 = computeGradientPreserveMetrics(varConS, gradientsOnSM, varsOnSM, areaS, jacobiansS, isSourceSpectralElementMesh)
 
-                            df.loc[iteration, "H12S"] = H1_2
-                            df.loc[iteration, "H1S"] = H1
+                            df.loc[iteration, 'H12S'] = H1_2
+                            df.loc[iteration, 'H1S'] = H1
 
                     #%%
                     # Print out a table with metric results
-                    printProgressBar(iteration + 1, maxRemapIterations, prefix = 'Progress:', suffix = 'Complete', length = 50)
+                    printProgressBar(iteration+1, maxRemapIterations+1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
 
             def append_fieldname(filename):
