@@ -19,7 +19,7 @@ def computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, are
        
        # Compute integral of the (absolute value) target sampled ST data
        L_SS = computeGlobalWeightedIntegral(NS, varConS, varSS, areaS, jacobiansS, sourceSE)
-       
+
        # Compute integral of the absolute value of the difference
        L_S2T = computeGlobalWeightedIntegral(NT, varConT, varS2T, areaT, jacobiansT, targetSE)
        
@@ -28,5 +28,6 @@ def computeGlobalConservation(varConS, varConT, varSS, varS2T, varST, areaS, are
        
        # Compute the global conservation metric
        L_g = (L_S2T - L_SS) / L_ST
+       # L_g = (L_S2T - L_ST) / L_SS
        
        return L_S2T, L_ST, L_g
