@@ -137,17 +137,18 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
               
               # Compute the patch extrema using the sampled target data and adjacency stencil
               lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDex, varCon, varST, SpectralElement)
+              lPminST, lPmaxST = computeLocalPatchExtrema(jj, varConStenDex, varCon, varS2T, SpectralElement)
 
               # Compute the min and max difference arrays
-              minDiff[jj] = np.abs(varS2T[jj] - lPmin)
-              maxDiff[jj] = np.abs(lPmax - varS2T[jj])
-       
+              minDiff[jj] = np.abs(lPminST - lPmin)
+              maxDiff[jj] = np.abs(lPmax - lPmaxST)
+
        # Compute normalization integrals
        L1Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST), areaT, jacobiansT, SpectralElement)
        L2Den = computeGlobalWeightedIntegral(NT, varCon, varST2, areaT, jacobiansT, SpectralElement)
        LinfDen = np.amax(varST) - np.amin(varST)
        if LinfDen < 1E-14: LinfDen = 1.0 # max and min values are same
-       
+
        # Compute numerators for minima
        L1Num = computeGlobalWeightedIntegral(NT, varCon, minDiff, areaT, jacobiansT, SpectralElement)
        L2Num = computeGlobalWeightedIntegral(NT, varCon, np.power(minDiff, 2), areaT, jacobiansT, SpectralElement)
