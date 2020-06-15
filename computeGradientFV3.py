@@ -191,20 +191,30 @@ class ComputeGradientFV:
 
       def computeGradientFV3(self, varField):
 
+            runInParallel = False
             ## If we have not actually precomputed necessary datastructures already, let us do it now
-            if not self.cachedData:
-                  self.precomputeGradientFV3Data()
+            if runInParallel:
+                  if not self.cachedData:
+                        self.precomputeGradientFV3Data()
+            else:
+                  assert(self.cachedData == True)
 
             SF = np.float64
 
             # Gradients are 3 component vectors
             nc = 3
 
-            computepool = multiprocessing.Pool(processes=self.NPROCS)
-            results = computepool.starmap(self.optimizedComputeGradientFV3_Private, 
-                                           zip(repeat(varField), self.areaInvD, self.sid, self.fluxIntegral))
-            computepool.close()
-            computepool.join()
-            varGradient = np.reshape(np.array(results, dtype=SF).T, (nc, varField.shape[0]))
+            NC = len(self.areaInvD)
+            if runInParallel:
+                  computepool = multiprocessing.Pool(processes=1)#self.NPROCS)
+                  results = computepool.starmap(self.optimizedComputeGradientFV3_Private, 
+                                                zip(repeat(varField), self.areaInvD, self.sid, self.fluxIntegral))
+                  computepool.close()
+                  computepool.join()
+                  varGradient = np.reshape(np.array(results, dtype=SF).T, (nc, varField.shape[0]))
+            else:
+                  varGradient = np.zeros((nc, NC))
+                  for elem in range(NC):
+                        varGradient[:,elem] = self.optimizedComputeGradientFV3_Private(varField, self.areaInvD[elem], self.sid[elem], self.fluxIntegral[elem])
 
             return varGradient
