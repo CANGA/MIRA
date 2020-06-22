@@ -12,6 +12,7 @@ import math as mt
 import numpy as np
 #from scipy.spatial import cKDTree
 from computeGlobalWeightedIntegral import computeGlobalWeightedIntegral
+from numba import jit
 
 COINCIDENT_TOLERANCE = 1.0E-14
 kdleafs = 100
@@ -98,21 +99,45 @@ def computeLocalPatchExtrema(jj, varConS, coordTree, varS, varConT, varCoordT):
        return pmin, pmax
 '''
 
-def computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST, SpectralElement):
+@jit(nopython=True,parallel=False)
+def loopComputeLocalPatchExtrema(minDiff, maxDiff, varConStenDex, varCon, varST, varS2T):
+       NT = varCon.shape[0]
+       for jj in range(NT):
+
+              # Compute the patch extrema using the KDtree set up above (OLD WAY USING SOURCE DATA)
+              #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
+              
+              # Compute the patch extrema using the sampled target data and adjacency stencil
+              lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDex, varCon, varST)
+              lPminST, lPmaxST = computeLocalPatchExtrema(jj, varConStenDex, varCon, varS2T)
+
+              # Compute the min and max difference arrays
+              minDiff[jj] = np.abs(lPminST - lPmin)
+              maxDiff[jj] = np.abs(lPmax - lPmaxST)
+
+@jit(nopython=True,parallel=False)
+def computeLocalPatchExtrema(jj, varConStenDexT, varConT, varST):
        
        # Fetch the stencil of neighboring elements/cells
        sdex = varConStenDexT[jj,:] - 1
-       sdex = sdex.astype(int)
 
-       if SpectralElement:
-              # Fetch the gridID for all nodes in the stencil of elements
-              ndex = varConT[sdex,:] - 1
-              ndex = ndex.astype(int)
-              # Fetch the nodal values 
-              varPatch = varST[ndex]
-       else:
-              # Fetch the cell values
-              varPatch = varST[sdex]
+       # Fetch the cell values
+       pmin = np.amin(varST[sdex])
+       pmax = np.amax(varST[sdex])
+       
+       return pmin, pmax
+
+def computeLocalPatchExtremaSpectral(jj, varConStenDexT, varConT, varST):
+       
+       # Fetch the stencil of neighboring elements/cells
+       sdex = varConStenDexT[jj,:] - 1
+
+       # Fetch the gridID for all nodes in the stencil of elements
+       ndex = varConT[sdex,:] - 1
+       varPatch = np.array(len(ndex),dtype='d')
+
+       # Fetch the nodal values 
+       varPatch[:] = varST[ndex]
 
        pmin = np.amin(varPatch)
        pmax = np.amax(varPatch)
@@ -130,18 +155,21 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
        #coordTreeS = cKDTree(varCoordS.T, leafsize=kdleafs)
        
        # Compute the localized difference arrays (eqs. 10 and 11)
-       for jj in range(NT):
-              
-              # Compute the patch extrema using the KDtree set up above (OLD WAY USING SOURCE DATA)
-              #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
-              
-              # Compute the patch extrema using the sampled target data and adjacency stencil
-              lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDex, varCon, varST, SpectralElement)
-              lPminST, lPmaxST = computeLocalPatchExtrema(jj, varConStenDex, varCon, varS2T, SpectralElement)
-
-              # Compute the min and max difference arrays
-              minDiff[jj] = np.abs(lPminST - lPmin)
-              maxDiff[jj] = np.abs(lPmax - lPmaxST)
+       if not SpectralElement:
+             loopComputeLocalPatchExtrema(minDiff, maxDiff, varConStenDex, varCon, varST, varS2T)
+       else:
+             for jj in range(NT):
+                    
+                    # Compute the patch extrema using the KDtree set up above (OLD WAY USING SOURCE DATA)
+                    #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
+                    
+                    # Compute the patch extrema using the sampled target data and adjacency stencil
+                    lPmin, lPmax = computeLocalPatchExtremaSpectral(jj, np.array(varConStenDex,dtype='i'), varCon, varST)
+                    lPminST, lPmaxST = computeLocalPatchExtremaSpectral(jj, np.array(varConStenDex,dtype='i'), varCon, varS2T)
+      
+                    # Compute the min and max difference arrays
+                    minDiff[jj] = np.abs(lPminST - lPmin)
+                    maxDiff[jj] = np.abs(lPmax - lPmaxST)
 
        # Compute normalization integrals
        L1Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST), areaT, jacobiansT, SpectralElement)
