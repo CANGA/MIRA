@@ -25,6 +25,15 @@ from numba import jit
 import time
 
 @jit(nopython=True,parallel=False)
+def loop_intersection(lst1, lst2):
+    result = []
+    for element1 in lst1:
+        for element2 in lst2:
+            if element1 == element2:
+                result.append(element1)
+    return result
+
+@jit(nopython=True,parallel=False)
 def gradientLoop(varGradient, fluxIntegralTotal, varField, areaInvD, NS, sid, fluxIntegral):
        NC = len(areaInvD)
        for elem in range(NC):
@@ -56,45 +65,48 @@ def optimizedComputeGradientFV3_Private(varGradient, fluxIntegralTotal, varField
       for i in range(nc):
           varGradient[i] = areaInvD * fluxIntegralTotal[i]
 
-def precomputeGradientFV3Data_Private(NC, NP, jj, varCon, varCoords, varStenDex, radius, cellCoords):
-      start = time.time()
-      SF = np.float64
-
-      # Gradients are 3 component vectors
-      nc = 3
-
-      pdex = np.array(range(NP), dtype = int)
-
+@jit(nopython=True,parallel=False)
+def buildConvexHullOfCellsAroundCell(jj, NP, pdex, pdexp, varStenDex, convHullSten, thisStencil):
       # Check for local degeneracy in stencil and fix connectivity
+      count = 0 
       for pp in range(NP):
             # Look for -1 in the adjacency stencil
             if varStenDex[jj,pp] <= 0:
-                  pdex = np.delete(pdex, pp)
+                  count += 1
             else:
                   continue
-
+      pdex_size = NP-count
+      count = 0
+      for pp in range(NP):
+            # Look for -1 in the adjacency stencil
+            if varStenDex[jj,pp] <= 0:
+                  continue
+            else:
+                  pdex[count] = pp
+                  count += 1
       # Make pdex periodic
-      pdexp = np.append(pdex, pdex[0])
+      pdexp[pdex_size] = pdex[0]
 
       # Fetch the modified stencil
-      thisStencil = varStenDex[jj,pdexp]
+      for pp in range(pdex_size+1):
+            thisStencil[pp] = varStenDex[jj,pdexp[pp]]
+      for pp in range(pdex_size):
+            convHullSten[pp] = varStenDex[jj,pdex[pp]]
 
-      # Initialize the new convex hull stencil
-      convHullSten = varStenDex[jj,pdex]
-
-      # Build the convex hull of cells around this cell
-      for pp in range(len(convHullSten)):
+      ## Build the convex hull of cells around this cell
+      inserted_so_far = 0
+      for pp in range(pdex_size):
+            #print(NP, pdex_size)
             # Fetch consecutive pairs of cell id
             cid1 = thisStencil[pp] - 1
             cid2 = thisStencil[pp+1] - 1
 
             # Fetch consecutive pairs of stencils
-            stn1 = varStenDex[cid1.astype(int),:]
-            stn2 = varStenDex[cid2.astype(int),:]
+            stn1 = varStenDex[cid1,:]
+            stn2 = varStenDex[cid2,:]
 
             # Get the set intersection
-            commonIds = list(set(stn1).intersection(stn2))
-            # Get the common cell that is NOT the current target cell
+            commonIds = loop_intersection(stn1, stn2)
             newCellId = [x for x in commonIds if x != jj+1]
 
             # Check new cell ID to be of length 1
@@ -104,29 +116,21 @@ def precomputeGradientFV3Data_Private(NC, NP, jj, varCon, varCoords, varStenDex,
                   continue
 
             # Insert the new cell ID
-            np.insert(convHullSten, pp+1, newCellId[0].astype(int))
+            convHullSten[pdex_size+inserted_so_far] = newCellId[0]
+            inserted_so_far+=1
 
-      endt = time.time()
-      print('\n compute grad time: ', endt - start)
-      start = time.time()
+      return (pdex_size, pdex_size+inserted_so_far)
 
-      # Loop over the convex hull stencil and get dual edges map
-      NS = len(convHullSten)
-      dualEdgeMap = np.zeros((nc,NS))
-      boundaryNorm = np.zeros((nc,NS))
-      boundaryAngles = np.zeros((NS,1))
-      sid = np.zeros((NS,2))
-      fluxIntegral = np.zeros((nc,NS), dtype=SF)
+@jit(nopython=True,parallel=False)
+def computeDualEdgesMap(NS, convHullSten, pdex, dualEdgeMap, radius, cellCoords, boundaryAngles, boundaryNorm, sid, fluxIntegral):
       for pp in range(NS):
             # Fetch the dual edge and store
             sid1 = convHullSten[pp] - 1
-            sid1 = sid1.astype(int)
             # Make the dual polygon convex
             if pp == len(pdex) - 1:
                   sid2 = convHullSten[0] - 1
             else:
                   sid2 = convHullSten[pp+1] - 1
-            sid2 = sid2.astype(int)
 
             # Store the dual mesh polygon
             dualEdgeMap[:,pp] = cellCoords[:,sid1]
@@ -152,13 +156,37 @@ def precomputeGradientFV3Data_Private(NC, NP, jj, varCon, varCoords, varStenDex,
 
             fluxIntegral[:,pp] =  vWeight * boundaryNorm[:,pp]
 
-      endt = time.time()
-      print('\n compute(2) grad time: ', endt - start)
-      start = time.time()
+def precomputeGradientFV3Data_Private(NC, NP, jj, varCon, varCoords, varStenDex, radius, cellCoords):
+      SF = np.float64
+
+      # Gradients are 3 component vectors
+      nc = 3
+
+      pdex = np.zeros(shape=(NP,), dtype = int)
+      pdexp = np.zeros(shape=(NP+1,), dtype = int)
+      convHullSten = np.zeros(shape=(2*NP,), dtype = int)
+      thisStencil = np.zeros(shape=(NP,), dtype = int)
+
+      pdex_size, convHullSten_size = buildConvexHullOfCellsAroundCell(jj, NP, pdex, pdexp, varStenDex, convHullSten, thisStencil)
+
+      # shrink from max allocation based on pdex_size
+      pdex = pdex[:pdex_size]
+      pdexp = pdexp[:pdex_size+1]
+      thisStencil = thisStencil[:pdex_size+1]
+      convHullSten = convHullSten[:convHullSten_size]
+
+      NS = len(convHullSten)
+      dualEdgeMap = np.zeros((nc,NS))
+      boundaryNorm = np.zeros((nc,NS))
+      boundaryAngles = np.zeros((NS,))
+      sid = np.zeros((NS,2))
+      fluxIntegral = np.zeros((nc,NS), dtype=SF)
+
+      # Loop over the convex hull stencil and get dual edges map
+      computeDualEdgesMap(NS, convHullSten, pdex, dualEdgeMap, radius, cellCoords, boundaryAngles, boundaryNorm, sid, fluxIntegral)
+
       # Compute the dual polygon area
       areaD = computeAreaIntegral(None, dualEdgeMap, 6, False, True)
-      endt = time.time()
-      print('\n compute(3) grad time: ', endt - start)
 
       #############
       #  VSM: 
