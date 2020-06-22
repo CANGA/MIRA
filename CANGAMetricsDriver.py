@@ -52,6 +52,10 @@ from computeLocalExtremaMetrics import computeLocalExtremaMetrics
 from computeAreaIntegral import computeAreaIntegral
 from computeGradientPreserveMetrics import computeGradientPreserveMetrics
 
+import multiprocessing
+from multiprocessing import Process
+from itertools import repeat
+
 # Parse the command line
 def parseCommandLine(argv):
 
@@ -478,8 +482,10 @@ if __name__ == '__main__':
               print('Time taken to precompute gradient datastructures for target grid: ', time.time() - start)
 
        for fieldName in fieldNames:
+       # def metrics_per_field(fieldName):
 
             print('\nComputing Field metrics for ', fieldName)
+            runtimeS = time.time()
 
             varSS = loadSField(sourceSampledFile, fieldName)
             varST = loadTField(targetSampledFile, fieldName)
@@ -490,32 +496,32 @@ if __name__ == '__main__':
                    gradST = loadFieldGradient(gradTCtx, varST, varConT, varCoordT, varConStenDexT, jacobiansT, numCellsT, isTargetSpectralElementMesh)
 
             #%%
-            df = pd.DataFrame({  "GC": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "GL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "GL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "GLinf": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "GMaxE": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "GMinE": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "LMaxL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "LMaxL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "LMaxLm": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "LMinL1": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "LMinL2": np.zeros(maxRemapIterations, dtype='float64'), \
-                                 "LMinLm": np.zeros(maxRemapIterations, dtype='float64') \
+            dataMetrics = pd.DataFrame({  "GC": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "GL1": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "GL2": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "GLinf": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "GMaxE": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "GMinE": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "LMaxL1": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "LMaxL2": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "LMaxLm": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "LMinL1": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "LMinL2": np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                 "LMinLm": np.zeros(maxRemapIterations+1, dtype='float64') \
                               })
             if includeGradientMetrics:
                     # For pandas < 1.0
-                    #df = df.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
-                    #                              'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
-                    #                              'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
-                    #                              'H1S': np.zeros(maxRemapIterations, dtype='float64')
+                    #dataMetrics = dataMetrics.concat(pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations+1, dtype='float64'), \
+                    #                              'H1T': np.zeros(maxRemapIterations+1, dtype='float64'), \
+                    #                              'H12S': np.zeros(maxRemapIterations+1, dtype='float64'), \
+                    #                              'H1S': np.zeros(maxRemapIterations+1, dtype='float64')
                     #                            }))
 
                     # We might need to use the following code for pandas > 1.0:
-                    df = pd.concat([df, pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                       'H1T': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                       'H12S': np.zeros(maxRemapIterations, dtype='float64'), \
-                                                       'H1S': np.zeros(maxRemapIterations, dtype='float64')
+                    dataMetrics = pd.concat([dataMetrics, pd.DataFrame({ 'H12T': np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                                       'H1T': np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                                       'H12S': np.zeros(maxRemapIterations+1, dtype='float64'), \
+                                                       'H1S': np.zeros(maxRemapIterations+1, dtype='float64')
                                                     })
                                     ], 
                                     axis=1)
@@ -524,7 +530,9 @@ if __name__ == '__main__':
             print('\n')
             printProgressBar(0, maxRemapIterations+1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
-            for iteration in range(maxRemapIterations+1):
+       #      nprocs_per_field = nprocs/len(fieldNames) if nprocs > len(fieldNames) else 1
+            def metrics_per_field_dimension(iteration):
+       #      for iteration in range(maxRemapIterations+1):
                     # Read in field variable data
                     varS2T, varT2S = loadDataField(ncFieldFileHnd, fieldName, iteration)
 
@@ -545,6 +553,9 @@ if __name__ == '__main__':
                     # Local Extrema preservation
                     Lmin_1, Lmin_2, Lmin_inf, Lmax_1, Lmax_2, Lmax_inf = \
                     computeLocalExtremaMetrics(varConStenDexT, varConT, varCoordT, varS2T, varST, areaT, jacobiansT, isTargetSpectralElementMesh)
+
+                    # create a local dataframe
+                    df = pd.DataFrame(columns=dataMetrics.columns)
 
                     # Populate the datatable 
                     df.loc[iteration,'GC'] = L_g
@@ -585,15 +596,42 @@ if __name__ == '__main__':
                     # Print out a table with metric results
                     printProgressBar(iteration+1, maxRemapIterations+1, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
+                    # return the computed metrics frame
+                    return df
+
 
             def append_fieldname(filename):
                     return "{0}_{2}.{1}".format(*filename.rsplit('.', 1) + [fieldName])
 
+            # launch the metrics computation in parallel
+            iterationpool = multiprocessing.Pool(processes=nprocs)
+            results = iterationpool.starmap(metrics_per_field_dimension, zip(range(maxRemapIterations+1)))
+            iterationpool.close()
+            iterationpool.join()
+
+            # consolidate the data
+            dfnew = results[0]
+            for ii in range(1, len(results)):
+                   lresults = results[ii]
+                   dfnew = pd.concat([dfnew, lresults])
+            dataMetrics = dfnew
+
+            # Print and write to file
             pd.options.display.float_format = '{:,.15e}'.format
-            df.to_csv(append_fieldname(outputMetricsFile), index=False)
-            print('\nWriting metrics data for',fieldName,'field to', outputMetricsFile, '\n')
+            print('\nFinished computing metrics for',fieldName,'in', time.time()-runtimeS, 'seconds')
+            dataMetrics.to_csv(append_fieldname(outputMetricsFile), index=False)
+            print('Writing metrics data for',fieldName,'field to', outputMetricsFile)
             print('\n\t\t\t\tTABLE OF REMAPPING ITERATION METRICS FOR Field=',fieldName,'\n')
-            print(df)
+            print(dataMetrics)
+
+       ## 
+       # Use the following block if we want to parallelize over fields
+       # Need to comment and uncomment the `metrics_per_field` declaration above
+       ##
+       # pool = multiprocessing.Pool(processes=len(fieldNames))
+       # results = pool.starmap(metrics_per_field, zip(fieldNames))
+       # pool.close()
+       # pool.join()
 
        #%% Close original NetCDF file.
        ncFieldFileHnd.close()
