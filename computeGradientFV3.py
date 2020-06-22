@@ -21,7 +21,39 @@ from computeCentroid import computeCentroid
 import multiprocessing
 from multiprocessing import Process
 from itertools import repeat
+from numba import jit
 
+@jit(nopython=True,parallel=False)
+def gradientLoop(varGradient, fluxIntegralTotal, varField, areaInvD, NS, sid, fluxIntegral):
+       NC = len(areaInvD)
+       for elem in range(NC):
+           optimizedComputeGradientFV3_Private(varGradient[:,elem], fluxIntegralTotal, varField, areaInvD[elem], sid[elem,0:NS[elem],:], fluxIntegral[elem,:,0:NS[elem]])
+
+@jit(nopython=True,parallel=False)
+def optimizedComputeGradientFV3_Private(varGradient, fluxIntegralTotal, varField, areaInvD, sid, fluxIntegral):
+
+      # Gradients are 3 component vectors
+      nc = 3
+
+      # Loop over the convex hull stencil and get dual edges map
+      NS = len(sid[:,0])
+
+      # set entries to zero since this vector is reused by each call in the loop
+      for i in range(nc):
+          fluxIntegralTotal[i]=0
+      for pp in range(NS):
+
+            # Compute the weighted average of the two cell values AT the shared edge location
+            # VSM: we have precomputed and stored values of sid already
+            varAvg = varField[sid[pp,0]] + varField[sid[pp,1]]
+
+            # Compute the integral over this edge as a weighted addition with precomputed
+            # fluxIntegral on this edge
+            fluxIntegralTotal = np.add(fluxIntegralTotal, varAvg * fluxIntegral[:,pp])
+
+      # Compute the local gradient at this cell
+      for i in range(nc):
+          varGradient[i] = areaInvD * fluxIntegralTotal[i]
 
 class ComputeGradientFV:
 
@@ -36,9 +68,8 @@ class ComputeGradientFV:
             # Precompute the cell centroid map
             self.cellCoords = sphcrt.computeCentroids(varCon, varCoords).T
             self.radius = np.linalg.norm(self.cellCoords, axis=0)
-            self.areaInvD = []
-            self.sid = []
-            self.fluxIntegral = []
+            NC = int(self.varStenDex.shape[0])
+            self.areaInvD = np.zeros(NC, dtype=np.float64)
             self.cachedData = False
 
       def precomputeGradientFV3Data_Private(self, NC, NP, jj, varCon, varCoords, varStenDex, radius, cellCoords):
@@ -159,35 +190,20 @@ class ComputeGradientFV:
 
                   ## Store the data in the local object for future use
                   self.areaInvD = np.zeros(NC, dtype=SF)
+                  self.NS = np.zeros(shape=(NC,), dtype='i4')
                   for elem in range(NC):
                         self.areaInvD[elem] = results[elem][0]
-                        self.sid.append(np.array(results[elem][1], dtype='i4'))
-                        self.fluxIntegral.append(results[elem][2])
+                        self.NS[elem] = np.array(results[elem][1], dtype='i4').shape[0]
+
+                  max_NS = np.amax(self.NS)
+                  nc = 3
+                  self.sid = np.zeros(shape=(NC,max_NS,2), dtype='i4')
+                  self.fluxIntegral = np.zeros((NC,nc,max_NS), dtype=np.float64)
+                  for elem in range(NC):
+                        self.sid[elem,0:self.NS[elem],:] = np.array(results[elem][1], dtype='i4')
+                        self.fluxIntegral[elem,:,0:self.NS[elem]] = results[elem][2]
+
                   self.cachedData = True
-
-      def optimizedComputeGradientFV3_Private(self, varField, areaInvD, sid, fluxIntegral):
-            SF = np.float64
-
-            # Gradients are 3 component vectors
-            nc = 3
-
-            # Loop over the convex hull stencil and get dual edges map
-            NS = len(sid[:,0])
-            fluxIntegralTotal = np.zeros(nc, dtype=SF)
-            for pp in range(NS):
-
-                  # Compute the weighted average of the two cell values AT the shared edge location
-                  # VSM: we have precomputed and stored values of sid already
-                  varAvg = varField[sid[pp,0]] + varField[sid[pp,1]]
-
-                  # Compute the integral over this edge as a weighted addition with precomputed
-                  # fluxIntegral on this edge
-                  fluxIntegralTotal = np.add(fluxIntegralTotal, varAvg * fluxIntegral[:,pp])
-
-            # Compute the local gradient at this cell
-            varGradient = areaInvD * fluxIntegralTotal
-
-            return varGradient
 
       def computeGradientFV3(self, varField):
 
@@ -198,8 +214,6 @@ class ComputeGradientFV:
                         self.precomputeGradientFV3Data()
             else:
                   assert(self.cachedData == True)
-
-            SF = np.float64
 
             # Gradients are 3 component vectors
             nc = 3
@@ -214,7 +228,7 @@ class ComputeGradientFV:
                   varGradient = np.reshape(np.array(results, dtype=SF).T, (nc, varField.shape[0]))
             else:
                   varGradient = np.zeros((nc, NC))
-                  for elem in range(NC):
-                        varGradient[:,elem] = self.optimizedComputeGradientFV3_Private(varField, self.areaInvD[elem], self.sid[elem], self.fluxIntegral[elem])
+                  t_fluxIntegralTotal = np.zeros(nc, dtype=np.float64)
+                  gradientLoop(varGradient,t_fluxIntegralTotal, varField, self.areaInvD, self.NS, self.sid, self.fluxIntegral)
 
             return varGradient
