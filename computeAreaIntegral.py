@@ -54,7 +54,7 @@ def computeAreaIntegral(clm, nodes, order, avg, farea):
               return np.sum(areas) if farea else np.sum(cell_int/areas)
 
 @jit(nopython=True,parallel=False)
-def computeAreaIntegralInternal(NST, NP, GW, GN, nodes, farea, dFaceArea, dFunIntegral, all_dF, all_dJacobianGWppqq):
+def computeAreaIntegralInternal(NST, NP, GW, GN, nodes, farea, all_dF, all_dJacobianGWppqq):
 
        # Initialize the area
        dFaceArea = 0.0
@@ -152,7 +152,7 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
            all_dF = np.zeros(shape=(NST,NP,NP,3), dtype='d')
            all_dJacobianGWppqq = np.zeros(shape=(NST,NP,NP), dtype='d')
 
-       dFaceArea, dFunIntegral = computeAreaIntegralInternal(NST, NP, GW, GN, nodes, farea, dFaceArea, dFunIntegral, all_dF, all_dJacobianGWppqq)
+       dFaceArea, dFunIntegral = computeAreaIntegralInternal(NST, NP, GW, GN, nodes, farea, all_dF, all_dJacobianGWppqq)
 
        if not farea:
              dFunIntegral = 0.0
@@ -160,7 +160,7 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
                     # Loop over the quadrature points
                     for pp in range(NP):
                            for qq in range(NP):
-                                   dFLonLatRad = trans.computePointCart2LL(dF[ii,pp,qq,:])
+                                   dFLonLatRad = trans.computePointCart2LL(all_dF[ii,pp,qq,:])
                                    if callable(clm): # if this is a closed form functional, evaluate directly
                                           # print(ii, dF, dFLonLatRad[0], dFLonLatRad[1])
                                           thisVar = clm(lon=dFLonLatRad[0], lat=dFLonLatRad[1])
@@ -170,7 +170,7 @@ def computeAreaIntegralWithGQ(clm, nodes, GN, GW, avg, farea):
                                           thisVar = clm.expand(lon=dFLonLat[0], lat=dFLonLat[1])
 
                                    # Sum up the integral of the field
-                                   dFunIntegral += thisVar * dJacobianGWppqq
+                                   dFunIntegral += thisVar * all_dJacobianGWppqq[ii,pp,qq]
 
        # Compute the cell average
        dFunAverage = dFunIntegral / dFaceArea
