@@ -165,7 +165,7 @@ def precomputeGradientFV3Data_Private(NC, NP, jj, varCon, varCoords, varStenDex,
       pdex = np.zeros(shape=(NP,), dtype = int)
       pdexp = np.zeros(shape=(NP+1,), dtype = int)
       convHullSten = np.zeros(shape=(2*NP,), dtype = int)
-      thisStencil = np.zeros(shape=(NP,), dtype = int)
+      thisStencil = np.zeros(shape=(NP+1,), dtype = int)
 
       pdex_size, convHullSten_size = buildConvexHullOfCellsAroundCell(jj, NP, pdex, pdexp, varStenDex, convHullSten, thisStencil)
 
