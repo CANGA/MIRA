@@ -21,6 +21,7 @@ from computeCentroid import computeCentroid
 import multiprocessing
 from multiprocessing import Process
 from itertools import repeat
+import numba as nb
 from numba import jit
 import time
 
@@ -49,7 +50,7 @@ def optimizedComputeGradientFV3_Private(varGradient, fluxIntegralTotal, varField
       NS = len(sid[:,0])
 
       # set entries to zero since this vector is reused by each call in the loop
-      for i in range(nc):
+      for i in nb.prange(nc):
           fluxIntegralTotal[i]=0
       for pp in range(NS):
 
@@ -62,35 +63,31 @@ def optimizedComputeGradientFV3_Private(varGradient, fluxIntegralTotal, varField
             fluxIntegralTotal = np.add(fluxIntegralTotal, varAvg * fluxIntegral[:,pp])
 
       # Compute the local gradient at this cell
-      for i in range(nc):
+      for i in nb.prange(nc):
           varGradient[i] = areaInvD * fluxIntegralTotal[i]
 
 @jit(nopython=True,parallel=False)
 def buildConvexHullOfCellsAroundCell(jj, NP, pdex, pdexp, varStenDex, convHullSten, thisStencil):
+
       # Check for local degeneracy in stencil and fix connectivity
-      count = 0 
+      pdcount = 0
+      icount = 0
       for pp in range(NP):
             # Look for -1 in the adjacency stencil
             if varStenDex[jj,pp] <= 0:
-                  count += 1
+                  pdcount += 1
             else:
-                  continue
-      pdex_size = NP-count
-      count = 0
-      for pp in range(NP):
-            # Look for -1 in the adjacency stencil
-            if varStenDex[jj,pp] <= 0:
-                  continue
-            else:
-                  pdex[count] = pp
-                  count += 1
+                  pdex[icount] = pp
+                  icount += 1
+
+      pdex_size = NP-pdcount
       # Make pdex periodic
       pdexp[pdex_size] = pdex[0]
 
       # Fetch the modified stencil
-      for pp in range(pdex_size+1):
+      for pp in nb.prange(pdex_size+1):
             thisStencil[pp] = varStenDex[jj,pdexp[pp]]
-      for pp in range(pdex_size):
+      for pp in nb.prange(pdex_size):
             convHullSten[pp] = varStenDex[jj,pdex[pp]]
 
       ## Build the convex hull of cells around this cell
