@@ -16,7 +16,7 @@ import numba
 
 # _TYPE_MAP = [("f4", "i4"), ("f8", "i4"), ("f4", "i8"), ("f8", "i8")]
 _TYPE_MAP = [("f8", "i4"), ("f8", "i8")]
-NB_OPTS = {"nogil": True, "cache": True}
+NB_OPTS = {"nogil": True}
 
 
 def compute_sphere_int(xs, elems, f_D = lambda _ : 1.0):
