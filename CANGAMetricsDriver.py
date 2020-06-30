@@ -107,7 +107,7 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
                      coordCell = 'coord'
               
               # Open the .g mesh files for reading
-              m_fid = Dataset(mesh_file, 'a')
+              m_fid = Dataset(mesh_file, 'r')
               
               # Get connectivity and coordinate arrays (check for multiple connectivity)
               varConn = m_fid.variables[connCell][:]
@@ -127,7 +127,7 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
                      coordCell = 'grid_corners_cart'
               
               # Open the .nc SCRIP files for reading
-              m_fid = Dataset(mesh_file, 'a')
+              m_fid = Dataset(mesh_file, 'r')
                     
               start = time.time()
               try:
@@ -155,7 +155,7 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
                      coordCell = 'grid_corners_cart' 
               
               # Open the .nc SCRIP files for reading
-              m_fid = Dataset(mesh_file, 'a')
+              m_fid = Dataset(mesh_file, 'r')
               
               # Get connectivity and coordinate arrays
               varConn = m_fid.variables[connCell][:]
@@ -180,7 +180,7 @@ def loadMeshAreas(mesh_file, varAreaName, varCon, varCoord):
        start = time.time()
        print('Reading mesh areas...')
               
-       m_fid = Dataset(mesh_file, 'a')
+       m_fid = Dataset(mesh_file, 'r')
        # Check for existing variable data
        try:
               if m_fid.variables[varAreaName].name == varAreaName:
@@ -211,7 +211,7 @@ def loadMeshAdjacencyMap(mesh_file, varAdjaName):
        start = time.time()
        print('Reading adjacency maps...')
        # Fetch the adjacency map in the original grid netcdf file (target mesh)
-       m_fid = Dataset(mesh_file, 'a')
+       m_fid = Dataset(mesh_file, 'r')
        # Check for existing variable data
        try:
               if m_fid.variables[varAdjaName].name == varAdjaName:
@@ -233,7 +233,7 @@ def loadMeshJacobians(mesh_file, varJacoName, SpectralElement):
               start = time.time()
               print('Reading SE mesh jacobians...')
                      
-              m_fid = Dataset(mesh_file, 'a')
+              m_fid = Dataset(mesh_file, 'r')
               # Check for existing variable data
               try:
                      if m_fid.variables[varJacoName].name == varJacoName:
