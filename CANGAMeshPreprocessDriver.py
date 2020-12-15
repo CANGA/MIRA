@@ -27,8 +27,8 @@ from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
-#from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
-#from computeAreaIntegralSE import computeAreaIntegralSE
+from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
+from computeAreaIntegralSE import computeAreaIntegralSE
 import computeSphericalCartesianTransforms as sphcrt
 
 import multiprocessing
