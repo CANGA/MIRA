@@ -42,6 +42,7 @@ def parseCommandLine(argv):
        # Mesh information files
        sampleMesh = ''
        ExodusSingleConn = False
+       ExodusMultiConn = False
        SCRIPwithoutConn = False
        SCRIPwithConn = False
        SpectralElement = False
@@ -53,7 +54,7 @@ def parseCommandLine(argv):
               opts, args = getopt.getopt(argv, 'hv:', \
                                         ['mesh=', \
                                          'force', \
-                                         'ExodusSingleConn', 'SCRIPwithoutConn', \
+                                         'ExodusSingleConn', 'ExodusMultiConn', 'SCRIPwithoutConn', \
                                          'SCRIPwithConn', 'SpectralElement', 'seorder='])
        except getopt.GetoptError:
               print('Command line not properly set:', \
@@ -81,6 +82,8 @@ def parseCommandLine(argv):
                      forceRecompute = True
               elif opt == '--ExodusSingleConn':
                      ExodusSingleConn = True
+              elif opt == '--ExodusMultiConn':
+                     ExodusMultiConn = True
               elif opt == '--SCRIPwithoutConn':
                      SCRIPwithoutConn = True
               elif opt == '--SCRIPwithConn':
@@ -94,36 +97,22 @@ def parseCommandLine(argv):
                          sys.exit("[FATAL] Error in option passed for --seorder. SE order must be in [2, 4]")
                      
        # Check that only one configuration is chosen
-       if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
-              print('Expecting only ONE mesh configuration option!')
-              print('Multiple options are set.')
-              sys.exit(2)
-       elif (ExodusSingleConn == True) & (SCRIPwithConn == True):
-              print('Expecting only ONE mesh configuration option!')
-              print('Multiple options are set.')
-              sys.exit(2)
-       elif (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
-              print('Expecting only ONE mesh configuration option!')
-              print('Multiple options are set.')
-              sys.exit(2)
-       elif (ExodusSingleConn == True) & (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
-              print('Expecting only ONE mesh configuration option!')
-              print('Multiple options are set.')
-              sys.exit(2)
-       elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False) & (SCRIPwithConn == False):
+       configs = [ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, SCRIPwithConn]
+       numConfigs = sum(bool(x) for x in configs)
+       if numConfigs > 1:
               print('ONE mesh configuration option must be set!')
               print('None of the options are set.')
               sys.exit(2)
        
-       return sampleMesh, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
-              SpectralElement, seOrder, forceRecompute
+       return sampleMesh, ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, \
+              SCRIPwithConn, SpectralElement, seOrder, forceRecompute
 
 if __name__ == '__main__':
        print('Welcome to CANGA remapping intercomparison mesh pre-processor!')
        print('Authors: Jorge Guerra, Vijay Mahadevan, Paul Ullrich, 2019')
        
        # Parse the commandline! COMMENT OUT TO RUN IN IDE
-       mesh_file, ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, \
+       mesh_file, ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, SCRIPwithConn, \
        SpectralElement, seOrder, forceRecompute = parseCommandLine(sys.argv[1:])
 
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
@@ -165,7 +154,68 @@ if __name__ == '__main__':
                      print('Cell connectivity and grid vertices exist in mesh data file.') 
               
               endt = time.time()
-              print('Time to precompute SCRIP mesh info (sec): ', endt - start)
+              print('Time to precompute EXODUS single connectivity mesh info (sec): ', endt - start)
+              
+       elif ExodusMultiConn:
+              numElTypes = 'num_el_blk'
+              numDims = 'cart_dims'
+              connCell = 'element_corners_id'
+              coordCell = 'grid_corners_cart'
+              numVerts = 'grid_corners_size'
+              
+              # Open the .g mesh files for reading
+              m_fid = Dataset(mesh_file, 'a')
+              
+              start = time.time()
+              # Get connectivity and coordinate arrays
+              varConnList = []
+              numVertList = []
+              numConnBlocks = len(m_fid.dimensions[numElTypes])
+              for cc in range(numConnBlocks):
+                     # Get this connectivity array (El X corners)
+                     connName = 'connect' + str(cc+1)
+                     thisConn = m_fid.variables[connName][:]
+                     # Get the number of corners for this connectivity block
+                     numVertList.append(thisConn.size[1]) # Column dimension of connectivity
+                     # Append to the list of connectivity blocks
+                     varConnList.append(m_fid.variables[connName][:])
+                     
+              # Get the maximum number of vertices
+              maxVerts = np.amax(np.array(numVertList))
+              # Loop over the blocks again and pad columns up to the max vertices
+              for cc in range(numConnBlocks):
+                     numVert2Pad = maxVerts - numVertList[cc]
+                     
+                     if numVert2Pad == 0:
+                            continue
+                     
+                     # Pad with redundant last coord ID up to the max vertices
+                     thisPadding = np.matlib.repmat(varConnList[cc][:,-1], 1, numVert2Pad)
+                     varConnList[cc] = np.hstack((varConnList[cc], thisPadding))
+                     
+              # Vertical stack of the connectivity lists
+              varConn = np.vstack(tuple(varConnList))
+              print(varConn)
+              varCoord = m_fid.variables['coord'][:]
+              
+              try:   
+                     print('Storing connectivity and coordinate arrays from Exodus mesh files.')
+                     numEdges = 'num_nod_per_el'
+                     numCells = 'num_el_in_blk'
+                     meshFileOut = m_fid.createDimension(numEdges, maxVerts)
+                     meshFileOut = m_fid.createDimension(numCells, varConn.size[0])
+                     meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
+                     meshFileOut = m_fid.createDimension(numDims, 3)
+                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
+                     meshFileOut[:] = varCon
+                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
+                     meshFileOut[:] = varCoord
+                     
+              except RuntimeError:
+                     print('Cell connectivity and grid vertices exist in mesh data file.') 
+              
+              endt = time.time()
+              print('Time to precompute EXODUS multi-connectivity mesh info (sec): ', endt - start)
               
        elif SCRIPwithoutConn:
               numEdges = 'grid_corners'
