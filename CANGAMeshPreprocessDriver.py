@@ -176,7 +176,7 @@ if __name__ == '__main__':
                      connName = 'connect' + str(cc+1)
                      thisConn = m_fid.variables[connName][:]
                      # Get the number of corners for this connectivity block
-                     numVertList.append(thisConn.size[1]) # Column dimension of connectivity
+                     numVertList.append(thisConn.shape[1]) # Column dimension of connectivity
                      # Append to the list of connectivity blocks
                      varConnList.append(m_fid.variables[connName][:])
                      
