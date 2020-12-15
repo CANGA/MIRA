@@ -340,7 +340,7 @@ if __name__ == '__main__':
                 connCell = 'connect1'
             elif ExodusMultiConn:
                 connCell = 'connect0'
-                   
+
             coordCell = 'coord'
 
         # Open the .g mesh files for reading
@@ -436,7 +436,7 @@ if __name__ == '__main__':
             coordCell = 'grid_corners_cart'
 
         # Open the .nc SCRIP files for reading
-        m_fid = Dataset(mesh_file, 'a')
+        m_fid = Dataset(mesh_file)
 
         start = time.time()
         try:
@@ -462,7 +462,7 @@ if __name__ == '__main__':
             coordCell = 'grid_corners_cart'
 
         # Open the .nc SCRIP files for reading
-        m_fid = Dataset(mesh_file, 'a')
+        m_fid = Dataset(mesh_file)
 
         # Get the list of available variables
         varList = m_fid.variables.keys()
