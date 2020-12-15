@@ -157,6 +157,7 @@ def parseCommandLine(argv):
     # Mesh information files
     sampleMesh = ''
     ExodusSingleConn = False
+    ExodusMultiConn = False
     SCRIPwithoutConn = False
     SCRIPwithConn = False
     SpectralElement = False
@@ -207,7 +208,7 @@ def parseCommandLine(argv):
                                    ['pm=', 'so=', 'nm=', 'rseed=', 'evaluateAllFields',
                                     'evaluateTotalPrecipWater', 'evaluateCloudFraction', 'evaluateGlobalTerrain',
                                     'evaluateA1', 'evaluateA2', 'showPlots',
-                                    'ExodusSingleConn', 'SCRIPwithoutConn',
+                                    'ExodusSingleConn', 'ExodusMultiConn', 'SCRIPwithoutConn',
                                     'SCRIPwithConn', 'SpectralElementMesh', 'processes='])
     except getopt.GetoptError:
         print('Command line arguments were not properly set or error in parsing.\n')
@@ -248,6 +249,8 @@ def parseCommandLine(argv):
             EvaluateA2 = True
         elif opt == '--ExodusSingleConn':
             ExodusSingleConn = True
+        elif opt == '--ExodusMultiConn':
+            ExodusMultiConn = True
         elif opt == '--SCRIPwithoutConn':
             SCRIPwithoutConn = True
         elif opt == '--SCRIPwithConn':
@@ -265,23 +268,9 @@ def parseCommandLine(argv):
         numModes = 512
 
     # Check that only one configuration is chosen
-    if (ExodusSingleConn == True) & (SCRIPwithoutConn == True):
-        print('Expecting only ONE mesh configuration option!')
-        print('Multiple options are set.')
-        sys.exit(2)
-    elif (ExodusSingleConn == True) & (SCRIPwithConn == True):
-        print('Expecting only ONE mesh configuration option!')
-        print('Multiple options are set.')
-        sys.exit(2)
-    elif (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
-        print('Expecting only ONE mesh configuration option!')
-        print('Multiple options are set.')
-        sys.exit(2)
-    elif (ExodusSingleConn == True) & (SCRIPwithoutConn == True) & (SCRIPwithConn == True):
-        print('Expecting only ONE mesh configuration option!')
-        print('Multiple options are set.')
-        sys.exit(2)
-    elif (ExodusSingleConn == False) & (SCRIPwithoutConn == False) & (SCRIPwithConn == False):
+    configs = [ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, SCRIPwithConn]
+    numConfigs = sum(bool(x) for x in configs)
+    if numConfigs > 1:
         print('ONE mesh configuration option must be set!')
         print('None of the options are set.')
         sys.exit(2)
@@ -297,7 +286,8 @@ def parseCommandLine(argv):
         sampleCentroid, sampleOrder, \
         EvaluateTPW, EvaluateCFR, EvaluateTPO, \
         EvaluateA1, EvaluateA2, ShowPlots, \
-        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement, nprocs
+        ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, \
+        SCRIPwithConn, SpectralElement, nprocs
 
 
 if __name__ == '__main__':
@@ -308,7 +298,8 @@ if __name__ == '__main__':
     mesh_file, ND, seed, sampleCentroid, sampleOrder, \
         EvaluateTPW, EvaluateCFR, EvaluateTPO, \
         EvaluateA1, EvaluateA2, ShowPlots, \
-        ExodusSingleConn, SCRIPwithoutConn, SCRIPwithConn, SpectralElement, nprocs \
+        ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, \
+        SCRIPwithConn, SpectralElement, nprocs \
         = parseCommandLine(sys.argv[1:])
 
     # Set the name for the new data file
@@ -338,13 +329,17 @@ if __name__ == '__main__':
     print('Number of SH degrees for sampling set to: ', ND)
     print('Maximum Gaussian quadrature order to be used: ', 2*sampleOrder-1)
 
-    if ExodusSingleConn:
+    if ExodusSingleConn or ExodusMultiConn:
 
         if SpectralElement:
             connCell = 'element_gll_conn'
             coordCell = 'grid_gll_cart'
         else:
-            connCell = 'connect1'
+            if ExodusSingleConn:
+                connCell = 'connect1'
+            elif ExodusMultiConn:
+                connCell = 'connect0'
+                   
             coordCell = 'coord'
 
         # Open the .g mesh files for reading
@@ -672,6 +667,8 @@ if __name__ == '__main__':
     # Set the dimension name depending on the mesh file format
     if ExodusSingleConn:
         numCells = 'num_el_in_blk1'
+    elif ExodusMultiConn:
+        numCells = 'num_el_in_blk0'
     elif SCRIPwithoutConn:
         numCells = 'grid_size'
     elif SCRIPwithConn:

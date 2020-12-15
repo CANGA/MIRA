@@ -120,10 +120,8 @@ if __name__ == '__main__':
        varAreaName = 'cell_area'
        varAdjaName = 'cell_edge_adjacency'
        
-       # Set the name of the augmented mesh file and copy from original
-       mfname, mfext = os.path.splitext(mesh_file)
-       outFileName = "{0}_{1}{2}".format(mfname, "enhanced", mfext)
-       shutil.copy(mesh_file, outFileName)
+       # Open original mesh file
+       m_fid = Dataset(mesh_file, 'a')
        
        #%% Mesh processing
        if ExodusSingleConn:
@@ -134,38 +132,21 @@ if __name__ == '__main__':
               coordCell = 'grid_corners_cart'
               numVerts = 'grid_corners_size'
               
-              # Open the .g mesh files for reading
-              m_fid = Dataset(mesh_file, 'a')
-              
               start = time.time()
               # Get connectivity and coordinate arrays (check for multiple connectivity)
               varCon = m_fid.variables['connect1'][:]
               varCoord = m_fid.variables['coord'][:]
-              
-              try:   
-                     print('Storing connectivity and coordinate arrays from Exodus mesh files.')
-                     meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
-                     meshFileOut = m_fid.createDimension(numDims, 3)
-                     meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
-                     meshFileOut[:] = varCon
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
-                     meshFileOut[:] = varCoord
-                     
-              except RuntimeError:
-                     print('Cell connectivity and grid vertices exist in mesh data file.') 
-              
               endt = time.time()
               print('Time to precompute EXODUS single connectivity mesh info (sec): ', endt - start)
               
        elif ExodusMultiConn:
+              connCell = 'connect0'
+              numEdges = 'num_nod_per_el0'
+              numCells = 'num_el_in_blk0'
               numElTypes = 'num_el_blk'
               numDims = 'cart_dims'
-              connCell = 'element_corners_id'
               coordCell = 'grid_corners_cart'
               numVerts = 'grid_corners_size'
-              
-              # Open the .g mesh files for reading
-              m_fid = Dataset(mesh_file, 'a')
               
               start = time.time()
               # Get connectivity and coordinate arrays
@@ -196,23 +177,18 @@ if __name__ == '__main__':
                      varConnList[cc] = np.hstack((varConnList[cc], thisPadding))
                      
               # Vertical stack of the connectivity lists
-              varConn = np.vstack(tuple(varConnList))
-              print(varConn)
+              varCon = np.vstack(tuple(varConnList))
               varCoord = m_fid.variables['coord'][:]
               
               try:   
+                     print(connCell)
                      print('Storing connectivity and coordinate arrays from Exodus mesh files.')
-                     numEdges = 'num_nod_per_el'
-                     numCells = 'num_el_in_blk'
                      meshFileOut = m_fid.createDimension(numEdges, maxVerts)
-                     meshFileOut = m_fid.createDimension(numCells, varConn.shape[0])
+                     meshFileOut = m_fid.createDimension(numCells, varCon.shape[0])
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
                      meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
-                     meshFileOut[:] = varConn
-                     meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
-                     meshFileOut[:] = varCoord
-                     
+                     meshFileOut[:] = varCon
               except RuntimeError:
                      print('Cell connectivity and grid vertices exist in mesh data file.') 
               
@@ -226,9 +202,6 @@ if __name__ == '__main__':
               connCell = 'element_corners_id'
               coordCell = 'grid_corners_cart'
               numVerts = 'grid_corners_size'
-              
-              # Open the .nc SCRIP files for reading
-              m_fid = Dataset(mesh_file, 'a')
               
               # Get the list of available variables
               varList = m_fid.variables.keys()
@@ -276,17 +249,14 @@ if __name__ == '__main__':
               connCell = 'element_corners'
               coordCell = 'grid_corners_cart'
               
-              # Open the .nc SCRIP files for reading
-              m_fid = Dataset(mesh_file)
-              
               # Get the list of available variables
               varList = m_fid.variables.keys()
               
               # Get RAW coordinate arrays and connectivity
               conLon = m_fid.variables['lon'][:]
               conLat = m_fid.variables['lat'][:]
-              varCon = m_fid.variables[connCell][:]
-              varCon = varCon.T
+              varConn = m_fid.variables[connCell][:]
+              varConn = varConn.T
               
               # Convert to radians if necessary
               if m_fid.variables['lon'].units == 'degrees_east':
@@ -323,7 +293,12 @@ if __name__ == '__main__':
               
        # Close the mesh file
        m_fid.close()
-
+       
+       # Set the name of the augmented mesh file and copy from original
+       mfname, mfext = os.path.splitext(mesh_file)
+       outFileName = "{0}_{1}{2}".format(mfname, "enhanced", mfext)
+       shutil.copy(mesh_file, outFileName)
+       
        # Open the mesh file for new data
        m_fid = Dataset(outFileName, 'a')
               
