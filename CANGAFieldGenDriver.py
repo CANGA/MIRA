@@ -21,6 +21,7 @@ import getopt
 import pyshtools
 import math as mt
 import numpy as np
+from numpy import matlib
 import plotly as py
 import plotly.figure_factory as FF
 from scipy.spatial import Delaunay
@@ -359,6 +360,67 @@ if __name__ == '__main__':
         except:
             print('NOT a rectilinear mesh.')
             rectilinear = False
+
+    elif ExodusMultiConn:
+        numElTypes = 'num_el_blk'
+        numDims = 'cart_dims'
+        connCell = 'element_corners_id'
+        coordCell = 'grid_corners_cart'
+        numVerts = 'grid_corners_size'
+
+        # Open the .g mesh files for reading
+        m_fid = Dataset(mesh_file)
+
+        start = time.time()
+        # Get connectivity and coordinate arrays
+        varConnList = []
+        numVertList = []
+        numConnBlocks = len(m_fid.dimensions[numElTypes])
+        for cc in range(numConnBlocks):
+            # Get this connectivity array (El X corners)
+            connName = 'connect' + str(cc+1)
+            thisConn = m_fid.variables[connName][:]
+            # Get the number of corners for this connectivity block
+            numVertList.append(thisConn.shape[1])  # Column dimension of connectivity
+            # Append to the list of connectivity blocks
+            varConnList.append(m_fid.variables[connName][:])
+
+        # Get the maximum number of vertices
+        maxVerts = np.amax(np.array(numVertList))
+        # Loop over the blocks again and pad columns up to the max vertices
+        for cc in range(numConnBlocks):
+            numVert2Pad = maxVerts - numVertList[cc]
+
+            if numVert2Pad == 0:
+                continue
+
+            # Pad with redundant last coord ID up to the max vertices
+            lastCol = np.expand_dims(varConnList[cc][:, -1], axis=1)
+            thisPadding = np.matlib.repmat(lastCol, 1, numVert2Pad)
+            varConnList[cc] = np.hstack((varConnList[cc], thisPadding))
+
+        # Vertical stack of the connectivity lists
+        varCon = np.vstack(tuple(varConnList))
+        varCoord = m_fid.variables['coord'][:]
+
+        try:
+            print('Storing connectivity and coordinate arrays from Exodus mesh files.')
+            numEdges = 'num_nod_per_el'
+            numCells = 'num_el_in_blk'
+            meshFileOut = m_fid.createDimension(numEdges, maxVerts)
+            meshFileOut = m_fid.createDimension(numCells, varCon.shape[0])
+            meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
+            meshFileOut = m_fid.createDimension(numDims, 3)
+            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
+            meshFileOut[:] = varCon
+            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
+            meshFileOut[:] = varCoord
+
+        except RuntimeError:
+            print('Cell connectivity and grid vertices exist in mesh data file.')
+
+        endt = time.time()
+        print('Time to precompute EXODUS multi-connectivity mesh info (sec): ', endt - start)
 
     elif SCRIPwithoutConn:
         numEdges = 'grid_corners'
