@@ -22,12 +22,13 @@ import time
 import sys, os, getopt
 import math as mt
 import numpy as np
+import numpy.matlib as mat
 from netCDF4 import Dataset  # http://code.google.com/p/netcdf4-python/
 from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
-from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
-from computeAreaIntegralSE import computeAreaIntegralSE
+#from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
+#from computeAreaIntegralSE import computeAreaIntegralSE
 import computeSphericalCartesianTransforms as sphcrt
 
 import multiprocessing
@@ -190,7 +191,8 @@ if __name__ == '__main__':
                             continue
                      
                      # Pad with redundant last coord ID up to the max vertices
-                     thisPadding = np.matlib.repmat(varConnList[cc][:,-1], 1, numVert2Pad)
+                     lastCol = np.expand_dims(varConnList[cc][:,-1], axis=1)
+                     thisPadding = mat.repmat(lastCol, 1, numVert2Pad)
                      varConnList[cc] = np.hstack((varConnList[cc], thisPadding))
                      
               # Vertical stack of the connectivity lists
@@ -203,11 +205,11 @@ if __name__ == '__main__':
                      numEdges = 'num_nod_per_el'
                      numCells = 'num_el_in_blk'
                      meshFileOut = m_fid.createDimension(numEdges, maxVerts)
-                     meshFileOut = m_fid.createDimension(numCells, varConn.size[0])
+                     meshFileOut = m_fid.createDimension(numCells, varConn.shape[0])
                      meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
                      meshFileOut = m_fid.createDimension(numDims, 3)
                      meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
-                     meshFileOut[:] = varCon
+                     meshFileOut[:] = varConn
                      meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
                      meshFileOut[:] = varCoord
                      
