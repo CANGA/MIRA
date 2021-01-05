@@ -456,6 +456,7 @@ if __name__ == '__main__':
        print('Projected data file :', fieldDataFile)
        print('Field names         :', fieldNames)
        print('Remap dimension     :', maxRemapIterations)
+       print('Number of processes :', nprocs)
        
        # Set the names for the auxiliary area and adjacency maps (NOT USER)
        varAreaName = 'cell_area'
