@@ -172,6 +172,26 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
               endt = time.time()
               print('Time to read SCRIP mesh info (sec): ', endt - start)
               
+       elif mesh_config == 4:
+              numEdges = 'num_nod_per_el1'
+              numCells = 'num_el_in_blk0'
+              numDims = 'cart_dims'
+              numVerts = ''
+              
+              if SpectralElement:
+                     connCell = 'element_gll_conn'
+                     coordCell = 'grid_gll_cart'
+              else:
+                     connCell = 'connect0'
+                     coordCell = 'coord'
+              
+              # Open the .g mesh files for reading
+              m_fid = Dataset(mesh_file, 'r')
+              
+              # Get connectivity and coordinate arrays (check for multiple connectivity)
+              varConn = m_fid.variables[connCell][:]
+              varCoord = m_fid.variables[coordCell][:]
+              
        m_fid.close()
        
        return varCoord, varConn, numEdges, numCells, numDims, numVerts
@@ -416,12 +436,12 @@ if __name__ == '__main__':
                      nprocs = int(arg)
 
        # Input checks
-       if sourceMeshConfig > 3:
-              print('ERROR: Invalid source mesh configuration (1-3)')
+       if sourceMeshConfig > 4:
+              print('ERROR: Invalid source mesh configuration (1-4)')
               sys.exit(2)
        
-       if targetMeshConfig > 3:
-              print('ERROR: Invalid target mesh configuration (1-3)')
+       if targetMeshConfig > 4:
+              print('ERROR: Invalid target mesh configuration (1-4)')
               sys.exit(2)
 
        if len(fieldNames) == 0:
