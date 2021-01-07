@@ -8,7 +8,7 @@ PURPOSE
     combination of 3 fields (TPW, Cloud Fraction, Terrain) derived from
     Spherical Harmonic expansions of satellite global composite data.
 PROGRAMMER(S)
-    Jorge Guerra, Paul Ullrich
+    Jorge Guerra, Vijay Mehadevan, Paul Ullrich
 REVISION HISTORY
 
 REFERENCES

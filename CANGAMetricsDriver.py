@@ -94,7 +94,6 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 def loadMeshData(mesh_file, mesh_config, SpectralElement):
        
        if mesh_config == 1:
-              numEdges = 'num_nod_per_el1'
               numCells = 'num_el_in_blk1'
               numDims = 'cart_dims'
               numVerts = ''
@@ -114,7 +113,6 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
               varCoord = m_fid.variables[coordCell][:]
               
        elif mesh_config == 2:
-              numEdges = 'grid_corners'
               numCells = 'grid_size'
               numDims = 'cart_dims'
               numVerts = 'grid_corners_size'
@@ -142,7 +140,6 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
               print('Time to read SCRIP mesh info (sec): ', endt - start)
        
        elif mesh_config == 3:
-              numEdges = 'ncorners'
               numCells = 'ncells'
               numDims = 'cart_dims'
               numVerts = ''
@@ -173,7 +170,6 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
               print('Time to read SCRIP mesh info (sec): ', endt - start)
               
        elif mesh_config == 4:
-              numEdges = 'num_nod_per_el1'
               numCells = 'num_el_in_blk0'
               numDims = 'cart_dims'
               numVerts = ''
@@ -194,7 +190,7 @@ def loadMeshData(mesh_file, mesh_config, SpectralElement):
               
        m_fid.close()
        
-       return varCoord, varConn, numEdges, numCells, numDims, numVerts
+       return varCoord, varConn, numCells, numDims, numVerts
 
 def loadMeshAreas(mesh_file, varAreaName, varCon, varCoord):
        start = time.time()
@@ -465,10 +461,10 @@ if __name__ == '__main__':
        varGradientName = 'FieldGradient'
               
        # Read in raw vertex/connectivity data from mesh files
-       varCoordS, varConS, numEdgesS, numCellsS, numDimsS, numVertsS = \
+       varCoordS, varConS, numCellsS, numDimsS, numVertsS = \
        loadMeshData(mesh_fileS, sourceMeshConfig, isSourceSpectralElementMesh)
 
-       varCoordT, varConT, numEdgesT, numCellsT, numDimsT, numVertsT = \
+       varCoordT, varConT, numCellsT, numDimsT, numVertsT = \
        loadMeshData(mesh_fileT, targetMeshConfig, isTargetSpectralElementMesh)
               
        # Read in source and target cell areas
