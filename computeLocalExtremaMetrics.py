@@ -193,7 +193,7 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
     # Compute numerators for minima
     L1Num = computeGlobalWeightedIntegral(NT, varCon, minDiff, areaT, jacobiansT, SpectralElement)
     L2Num = computeGlobalWeightedIntegral(NT, varCon, np.power(minDiff, 2), areaT, jacobiansT, SpectralElement)
-    LinfNum = np.amax(minDiff)
+    LinfNum = np.amin(minDiff)
 
     Lmin_1 = np.asscalar(L1Num / L1Den)
     Lmin_2 = mt.sqrt(L2Num / L2Den)
