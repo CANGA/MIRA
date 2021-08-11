@@ -1,12 +1,8 @@
-# Coupling Approaches for Next-Generation Architectures (CANGA) -- Remapping Offline-Online (ROO): Intercomparison Package
+# Coupling Approaches for Next-Generation Architectures (CANGA) -- Remapping Offline-Online (ROO) Intercomparison Package
 
-Strongly coupled nonlinear phenomena such as those described by Earth System Models (ESM) are composed of multiple component models with independent mesh topologies and scalable numerical solvers. 
-A common operation in ESM is to remap or interpolate results from one component's numerical mesh to another, e.g., from the atmosphere to the ocean, during the temporal integration of the coupled system.  
-Several remapping schemes are currently in use or available for ESM. However, a unified approach to compare the properties of these different schemes has not been attempted previously. 
+Strongly coupled nonlinear phenomena such as those described by Earth System Models (ESM) are composed of multiple component models with independent mesh topologies and scalable numerical solvers. A common operation in ESM is to remap or interpolate results from one component's numerical mesh to another, e.g., from the atmosphere to the ocean, during the temporal integration of the coupled system. Several remapping schemes are currently in use or available for ESM. However, a unified approach to compare the properties of these different schemes has not been attempted previously. 
 
-We present a rigorous methodology for the evaluation and intercomparison of remapping methods through an independently implemented suite of metrics that measure the ability of a method to adhere to 
-constraints such as grid independence, monotonicity, global conservation, and local extrema or feature preservation. A comprehensive set of numerical evaluations can be conducted based on a progression 
-of scalar fields from idealized and smooth to more general climate data with strong discontinuities and strict bounds. 
+We present a rigorous methodology for the evaluation and intercomparison of remapping methods through an independently implemented suite of metrics that measure the ability of a method to adhere to constraints such as grid independence, monotonicity, global conservation, and local extrema or feature preservation. A comprehensive set of numerical evaluations can be conducted based on a progression of scalar fields from idealized and smooth to more general climate data with strong discontinuities and strict bounds. 
 
 This repository contains the Python drivers for the CANGA-ROO intercomparison study, which provide the infrastructure for enabling the computation of metrics for different remapping algorithms of interest in ESM.
 
@@ -34,28 +30,26 @@ Some primary assumptions in the driver:
   5) Locality metric requires 2 remapping applications to measure on the same (source) grid
 
 There are three main drivers available in the source directory.
-  a) Mesh preprocessing driver file: src/CANGAMeshPreprocessDriver.py
-  b) Field generator driver file: src/CANGAFieldGenerator.py
-  c) Metrics driver file: src/CANGAMetricsDriver.py
+  1) Mesh preprocessing driver file: src/CANGAMeshPreprocessDriver.py
+  2) Field generator driver file: src/CANGAFieldGenerator.py
+  3) Metrics driver file: src/CANGAMetricsDriver.py
 
-## Testing
+## Intercomparison Workflow Example
 
 An example test problem generation sequence is shown below.
 
 1) Generate the mesh files for the test problem
    - Create a source (say of Cubed-Sphere type) mesh file for a particular resolution eg., "outCS128.g"
    - Create a target (say of Icosahedral-Dual polygonal type) mesh file for a particular resolution eg., "outICOD128.g"
-   - These two files do not need to have consistent format since they will be pre-processed independently. And so arbitrary mesh types and resolutions can be used to create
-     new test problems as necessary.
+   - These two files do not need to have consistent format since they will be pre-processed independently. And so arbitrary mesh types and resolutions can be used to create new test problems as necessary.
    
 2) Preprocess the source and target meshes
    ```
    python CANGAMeshPreprocessDriver.py --mesh outCS128.g --ExodusSingleConn --SpectralElement
    python CANGAMeshPreprocessDriver.py --mesh outICOD128.g --ExodusSingleConn
    ```
-   - This will write the two variables varCoord (Cartesian coordinates of global nodes where the field is evaluated i.e. cell centers in the FV case or GLL nodes in the FE case) 
-     and varCon (Global connectivity list for cells/elements) to the respective mesh file.
-   - The --SpectralElement option only applies to quadrilaterals (code will check and abort otherwise) and generates augmented global DOF coordinates and connectivity. 
+   - This will write the two variables varCoord (Cartesian coordinates of global nodes where the field is evaluated i.e. cell centers in the FV case or GLL nodes in the FE case) and varCon (Global connectivity list for cells/elements) to the respective mesh file.
+   - The --SpectralElement option only applies to quadrilaterals (code will check and abort otherwise) and generates augmented global DOF coordinates and connectivity.  
      It also generates the global Jacobian weights for each global DOF. This facilitates integrals through the susequent metrics computations.
 
    The processed mesh output:
@@ -70,12 +64,12 @@ An example test problem generation sequence is shown below.
    - To generate the sampled files on the global GLL nodes without any quadrature rule (`--so` option is ignored), run
        `python CANGAFieldGenDriver.py --pm outCS128_enhanced.g --so 6 --nm 512 --EvaluateAll --ExodusSingleConn --SpectralElement`
 
-  Notes
-   - The maximum number of SPH order is 768, which is based on expansions of satellite data that yield ~1000+ modes for Total Precipitable Water, Cloud Fraction, and Topography.
-   - Running the CANGAFieldGenDriver.py will generate *new* mesh files with the prefix `testdata_', and suffix ``A1_A2_TPW_CFR_TPO'` to indicate the fields defined (typically when `--EvaluateAll` is used).
+   Notes
+     - The maximum number of SPH order is 768, which is based on expansions of satellite data that yield ~1000+ modes for Total Precipitable Water, Cloud Fraction, and Topography.
+     - Running the CANGAFieldGenDriver.py will generate *new* mesh files with the prefix `testdata_', and suffix ``A1_A2_TPW_CFR_TPO'` to indicate the fields defined (typically when `--EvaluateAll` is used).
      Note that individual fields can also be sampled with `--EvaluateA1, --EvaluateA2, --EvaluateTPW, --EvaluateCFR, --EvaluateTPO` options, which will determine the output suffix accordingly.
-   - Using the example above, the following NetCDF4 files are created in the workflow: `testdata_outCS128_A1_A2_TPW_CFR_TPO.nc` AND `testdata_outICOD128_A1_A2_TPW_CFR_TPO.nc`
-   - The new data files are augmented copies of the original mesh data files keeping all metadata consistent.
+     - Using the example above, the following NetCDF4 files are created in the workflow: `testdata_outCS128_A1_A2_TPW_CFR_TPO.nc` AND `testdata_outICOD128_A1_A2_TPW_CFR_TPO.nc`
+     - The new data files are augmented copies of the original mesh data files keeping all metadata consistent.
    
 4) Next, use your favorite remapper implementation to compute the projections of the fields from the source mesh to the target mesh. This may involve compute $L^2$-minimization based remapping weights, or 
    using Bilinear, RBF, GMLS or WLS-ENOR reconstruction techniques. Irrespective of the method used, the workflow remains the same as the comparison infrastructure considers the remapper as a black-box for
@@ -113,7 +107,6 @@ An example test problem generation sequence is shown below.
 6) When the metrics driver completes, the metrics output file for the AnalyticalFun1 variable: `metrics_CS128_ICOD128_O2_AnalyticalFun1.csv`, will contain output similar to the following data. 
    A sample result set for CS128 and ICOD128 for 100 cyclic remapping iterations (with output every 10 iterations) yields the following:
 
-|---------|-------|-------|-------|-------|--------|-------|-------|-------|--------|-------|------|-------|-------|-------|-------|
 |    GC   |  GL1  |  GL2  | GLinf | GMaxE | GMinE  |LMaxL1 |LMaxL2 |LMaxLm |LMinL1  |LMinL2 |LMinLm| H12T  |  H1T  | H12S  |  H1S  |
 |---------|-------|-------|-------|-------|--------|-------|-------|-------|--------|-------|------|-------|-------|-------|-------|
 |-1.23E-16| 0.00  | 0.00  | 0.00  | 0.00  | 0.00   | 0.00  | 0.00  | 0.00  | 0.00   | 0.00  |0.00E0| 0.00  | 0.00  | 0.00  | 0.00  |
@@ -125,7 +118,6 @@ An example test problem generation sequence is shown below.
 | 7.01E-9 |3.80E-5|4.60E-5|1.72E-4|2.59E-5|-2.60E-5|1.90E-5|3.25E-5|8.58E-5|-1.90E-5|3.25E-5|0.00E0|3.90E-3|3.90E-3|3.21E-3|3.21E-3|
 | 8.63E-9 |4.06E-5|4.99E-5|1.88E-4|2.74E-5|-2.74E-5|2.03E-5|3.52E-5|9.42E-5|-2.03E-5|3.53E-5|0.00E0|4.11E-3|4.11E-3|3.44E-3|3.44E-3|
 | 1.02E-8 |4.30E-5|5.36E-5|2.04E-4|2.85E-5|-2.85E-5|2.15E-5|3.78E-5|1.02E-4|-2.15E-5|3.79E-5|0.00E0|4.30E-3|4.30E-3|3.64E-3|3.64E-3|
-|---------|-------|-------|-------|-------|--------|-------|-------|-------|--------|-------|------|-------|-------|-------|-------|
 
 
 ## Bugs, Correspondence, Contributing
