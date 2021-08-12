@@ -10,6 +10,8 @@ This repository contains the Python drivers for the CANGA-ROO intercomparison st
 
 ## Dependencies
 
+The third-party dependencies for running the drivers and generating plots of the remapping algorithm comparison are listed below.
+
   - pyshtools>=4.8
   - scipy>=1.7
   - plotly>=5.1.0
@@ -19,22 +21,22 @@ This repository contains the Python drivers for the CANGA-ROO intercomparison st
   - numba>=0.53.1
   - rasterio>=1.2.6
 
-## Details
+Users with Python3 can directly use `pip` in a clean environment to get started.
+```
+$ pip install -r requirements.txt
+```
 
-Some primary assumptions in the driver:
+You can also install the dependencies using [setuptools](https://packaging.python.org/key_projects/#setuptools).
+```
+$ python setup.py install
+```
 
-  1) Non-coincident grid array from mesh file
-  2) Non-coincident, convex, element connectivity array from mesh file or automatically generated for SCRIP formatted mesh files
-  3) Main variable is defined at cell centroids (FV to FV mappings) or at element GLL nodes (FV to SE or SE to FV mappings) for regular quadrilateral elements ONLY
-  4) Gradient metric is implemented using a linear reconstruction of one ring of adjacent cells (strategy 6 from Barth & Jesperson, 1989) or by direct local differentiation per element at GLL nodes.
-  5) Locality metric requires 2 remapping applications to measure on the same (source) grid
+## Intercomparison Workflow Example
 
 There are three main drivers available in the source directory.
   1) Mesh preprocessing driver file: src/CANGAMeshPreprocessDriver.py
   2) Field generator driver file: src/CANGAFieldGenerator.py
   3) Metrics driver file: src/CANGAMetricsDriver.py
-
-## Intercomparison Workflow Example
 
 An example test problem generation sequence is shown below.
 
@@ -119,6 +121,16 @@ An example test problem generation sequence is shown below.
 | 8.63E-9 |4.06E-5|4.99E-5|1.88E-4|2.74E-5|-2.74E-5|2.03E-5|3.52E-5|9.42E-5|-2.03E-5|3.53E-5|0.00E0|4.11E-3|4.11E-3|3.44E-3|3.44E-3|
 | 1.02E-8 |4.30E-5|5.36E-5|2.04E-4|2.85E-5|-2.85E-5|2.15E-5|3.78E-5|1.02E-4|-2.15E-5|3.79E-5|0.00E0|4.30E-3|4.30E-3|3.64E-3|3.64E-3|
 
+
+## Driver Assumptions 
+
+Some primary assumptions in the driver are,
+
+  1) Non-coincident grid array from mesh file
+  2) Non-coincident, convex, element connectivity array from mesh file or automatically generated for SCRIP formatted mesh files
+  3) Main variable is defined at cell centroids (FV to FV mappings) or at element GLL nodes (FV to SE or SE to FV mappings) for regular quadrilateral elements ONLY
+  4) Gradient metric is implemented using a linear reconstruction of one ring of adjacent cells (strategy 6 from Barth & Jesperson, 1989) or by direct local differentiation per element at GLL nodes.
+  5) The metric calculations use data vectors defined on the source and target meshes, which are typically stored in an external NetCDF4 file. The `loadDataField` routine in `CANGAMetricsDriver.py` can be modified to read the correct variable needed.
 
 ## Bugs, Correspondence, Contributing
 
