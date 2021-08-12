@@ -60,15 +60,15 @@ An example test problem generation sequence is shown below.
 
 3) To generate sampled data on a pre-processed mesh file, the following commands can be used.
    - To output the cell averaged sampling of all five pre-defined fields, using a 6th order quadrature rule for example on a NE60 (CS) mesh, run
-       `python CANGAFieldGenDriver.py --pm outCS128_enhanced.g --so 6 --nm 512 --EvaluateAll --ExodusSingleConn`
+       `python CANGAFieldGenDriver.py --pm outCS128_enhanced.g --so 6 --nm 512 --evaluateAllFields --ExodusSingleConn`
      In general, care should be taken to ensure the quadrature order is sufficient enough to compute the cell integrals precisely to some user tolerance.
 
    - To generate the sampled files on the global GLL nodes without any quadrature rule (`--so` option is ignored), run
-       `python CANGAFieldGenDriver.py --pm outCS128_enhanced.g --so 6 --nm 512 --EvaluateAll --ExodusSingleConn --SpectralElement`
+       `python CANGAFieldGenDriver.py --pm outCS128_enhanced.g --so 6 --nm 512 --evaluateAllFields --ExodusSingleConn --SpectralElement`
 
    Notes
      - The maximum number of SPH order is 768, which is based on expansions of satellite data that yield ~1000+ modes for Total Precipitable Water, Cloud Fraction, and Topography.
-     - Running the CANGAFieldGenDriver.py will generate *new* mesh files with the prefix `testdata_', and suffix ``A1_A2_TPW_CFR_TPO'` to indicate the fields defined (typically when `--EvaluateAll` is used).
+     - Running the CANGAFieldGenDriver.py will generate *new* mesh files with the prefix `testdata_', and suffix ``A1_A2_TPW_CFR_TPO'` to indicate the fields defined (typically when `--evaluateAllFields` is used).
      Note that individual fields can also be sampled with `--EvaluateA1, --EvaluateA2, --EvaluateTPW, --EvaluateCFR, --EvaluateTPO` options, which will determine the output suffix accordingly.
      - Using the example above, the following NetCDF4 files are created in the workflow: `testdata_outCS128_A1_A2_TPW_CFR_TPO.nc` AND `testdata_outICOD128_A1_A2_TPW_CFR_TPO.nc`
      - The new data files are augmented copies of the original mesh data files keeping all metadata consistent.
