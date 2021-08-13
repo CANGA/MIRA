@@ -7,13 +7,13 @@ setup(
     version='1.0.0',
     packages=find_packages(include=['src']),
     install_requires=[
-        'pyshtools>=4.8',
-        'scipy>=1.7',
-        'plotly>=5.1.0',
-        'pandas>=1.3.0',
-        'matplotlib>=3.4.0',
-        'netCDF4>=1.5.7',
-        'numba>=0.53.1',
-        'rasterio>=1.2.6'
+        'pyshtools>=4.2',
+        'scipy>=1.0.1',
+        'plotly>=4.0.0',
+        'pandas>=0.23.0',
+        'matplotlib>=2.2.0',
+        'netCDF4>=1.4.0',
+        'rasterio>=1.0.0',
+        'numba>=0.48.0',
     ]
 )
