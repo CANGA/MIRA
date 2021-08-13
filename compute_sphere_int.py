@@ -68,16 +68,6 @@ def _compute_norm(vec):
     return sqnorm
 
 
-# This function is never used, hence commented out
-# @numba.njit(["{0}[2]({0}[3])".format("f8")], **NB_OPTS)
-# def _compute_llcoords(vec):
-#     ccoords = vec/_compute_norm(vec)
-#     lat = mt.asin(ccoords[2])
-#     lon = mt.atan2(ccoords[1], ccoords[0])
-#     if (lon < 0.0): lon += 2 * mt.pi
-#     return np.array([lon, lat])
-
-
 # @numba.njit(["{0}({0}[:], {0}[:])".format(x) for x in ("f4", "f8")], **NB_OPTS)
 @numba.njit(["{0}({0}[:], {0}[:])".format("f8")], **NB_OPTS)
 def _compute_dot(vec1, vec2):
@@ -352,7 +342,6 @@ def _cell_average_sphere_mix2(xs, elems, f_D, deg=8):
                 nrm_q = _compute_norm(pnts_q)
                 # project quadrature points on sphere
                 sph_q = pnts_q/nrm_q
-                # sph_llq = _compute_llcoords(sph_q)
                 sph_llq = sphcrt.computePointCart2LL(sph_q)
                 # weights x Jacobi
                 w_j = ws[q] * tri_pro/(nrm_q**3)
