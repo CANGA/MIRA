@@ -18,7 +18,7 @@ The third-party dependencies for running the drivers and generating plots of the
   - pandas>=1.3.0
   - matplotlib>=3.4.0
   - netCDF4>=1.5.7
-  - numba>=0.53.1
+  - numba>=0.50.0
   - rasterio>=1.2.6
 
 Users with Python3 can directly use `pip` in a clean environment to get started.
