@@ -99,10 +99,15 @@ def parseCommandLine(argv):
             if int(arg) % 2 == 0 and int(arg) < 5:
                 seOrder = int(arg)
             else:
-                sys.exit("[FATAL] Error in option passed for --seorder. SE order must be in [2, 4]")
+                sys.exit(
+                    "[FATAL] Error in option passed for --seorder. SE order must be in [2, 4]")
 
     # Check that only one configuration is chosen
-    configs = [ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, SCRIPwithConn]
+    configs = [
+        ExodusSingleConn,
+        ExodusMultiConn,
+        SCRIPwithoutConn,
+        SCRIPwithConn]
     numConfigs = sum(bool(x) for x in configs)
     if numConfigs > 1:
         print('ONE mesh configuration option must be set!')
@@ -119,7 +124,8 @@ if __name__ == '__main__':
 
     # Parse the commandline! COMMENT OUT TO RUN IN IDE
     mesh_file, ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, SCRIPwithConn, \
-        SpectralElement, seOrder, forceRecompute = parseCommandLine(sys.argv[1:])
+        SpectralElement, seOrder, forceRecompute = parseCommandLine(
+            sys.argv[1:])
 
     # Set the names for the auxiliary area and adjacency maps (NOT USER)
     varAreaName = 'cell_area'
@@ -143,11 +149,14 @@ if __name__ == '__main__':
         numVerts = 'grid_corners_size'
 
         start = time.time()
-        # Get connectivity and coordinate arrays (check for multiple connectivity)
+        # Get connectivity and coordinate arrays (check for multiple
+        # connectivity)
         varCon = m_fid.variables['connect1'][:]
         varCoord = m_fid.variables['coord'][:]
         endt = time.time()
-        print('Time to precompute EXODUS single connectivity mesh info (sec): ', endt - start)
+        print(
+            'Time to precompute EXODUS single connectivity mesh info (sec): ',
+            endt - start)
 
     elif ExodusMultiConn:
         connCell = 'connect0'
@@ -165,10 +174,11 @@ if __name__ == '__main__':
         numConnBlocks = len(m_fid.dimensions[numElTypes])
         for cc in range(numConnBlocks):
             # Get this connectivity array (El X corners)
-            connName = 'connect' + str(cc+1)
+            connName = 'connect' + str(cc + 1)
             thisConn = m_fid.variables[connName][:]
             # Get the number of corners for this connectivity block
-            numVertList.append(thisConn.shape[1])  # Column dimension of connectivity
+            # Column dimension of connectivity
+            numVertList.append(thisConn.shape[1])
             # Append to the list of connectivity blocks
             varConnList.append(m_fid.variables[connName][:])
 
@@ -196,13 +206,16 @@ if __name__ == '__main__':
             meshFileOut = m_fid.createDimension(numCells, varCon.shape[0])
             meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
             meshFileOut = m_fid.createDimension(numDims, 3)
-            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
+            meshFileOut = m_fid.createVariable(
+                connCell, 'i4', (numCells, numEdges))
             meshFileOut[:] = varCon
         except RuntimeError:
             print('Cell connectivity and grid vertices exist in mesh data file.')
 
         endt = time.time()
-        print('Time to precompute EXODUS multi-connectivity mesh info (sec): ', endt - start)
+        print(
+            'Time to precompute EXODUS multi-connectivity mesh info (sec): ',
+            endt - start)
 
     elif SCRIPwithoutConn:
         numEdges = 'grid_corners'
@@ -240,9 +253,11 @@ if __name__ == '__main__':
             print('Storing connectivity and coordinate arrays from raw SCRIP')
             meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
             meshFileOut = m_fid.createDimension(numDims, 3)
-            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
+            meshFileOut = m_fid.createVariable(
+                connCell, 'i4', (numCells, numEdges))
             meshFileOut[:] = varCon
-            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
+            meshFileOut = m_fid.createVariable(
+                coordCell, 'f8', (numDims, numVerts))
             meshFileOut[:] = varCoord
 
         except RuntimeError:
@@ -276,7 +291,8 @@ if __name__ == '__main__':
 
         start = time.time()
 
-        print('Computing connectivity and coordinate arrays from raw SCRIP with connectivity')
+        print(
+            'Computing connectivity and coordinate arrays from raw SCRIP with connectivity')
         # Make coordinate from raw SCRIP data
         varCoordLL = np.zeros((len(conLon), 3))
         varCoordLL[:, 0] = conLon
@@ -291,7 +307,8 @@ if __name__ == '__main__':
             print('Storing connectivity and coordinate arrays from raw SCRIP')
             meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
             meshFileOut = m_fid.createDimension(numDims, 3)
-            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
+            meshFileOut = m_fid.createVariable(
+                coordCell, 'f8', (numDims, numVerts))
             meshFileOut[:] = varCoord
 
         except RuntimeError:
@@ -313,14 +330,18 @@ if __name__ == '__main__':
     if not varInFile or forceRecompute:
         try:
             if not varInFile:
-                meshFileOut = m_fid.createVariable(varAdjaName, 'i4', (numCells, numEdges))
+                meshFileOut = m_fid.createVariable(
+                    varAdjaName, 'i4', (numCells, numEdges))
             else:
                 meshFileOut = m_fid.variables[varAdjaName]
 
             print('Adjacency data computed/written to mesh file for the first time...')
-            # Compute adjacency maps for both meshes (source stencil NOT needed)
-            edgeNodeMap, edgeNodeKDTree, varConStenDex = computeFastAdjacencyStencil(varCon)
-            # Get the starting index for the adjecency information in varConStenDexT
+            # Compute adjacency maps for both meshes (source stencil NOT
+            # needed)
+            edgeNodeMap, edgeNodeKDTree, varConStenDex = computeFastAdjacencyStencil(
+                varCon)
+            # Get the starting index for the adjecency information in
+            # varConStenDexT
             adex = np.size(varConStenDex, 1) - np.size(varCon, 1)
 
             meshFileOut[:] = varConStenDex[:, adex:]
@@ -346,7 +367,8 @@ if __name__ == '__main__':
         try:
             NEL = len(varCon)
             if not varInFile:
-                meshFileOut = m_fid.createVariable(varAreaName, 'f8', (numCells, ))
+                meshFileOut = m_fid.createVariable(
+                    varAreaName, 'f8', (numCells, ))
                 area = np.zeros((NEL))
             else:
                 meshFileOut = m_fid.variables[varAreaName]
@@ -395,7 +417,15 @@ if __name__ == '__main__':
 
         # Compute the new GLL global coordinates and connectivity (by edges)
         edgeNodeMapGLL, varCoordGLL, varConGLL = \
-            computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon, edgeNodeMap, edgeNodeKDTree, seOrder)
+            computeCoordConnGLL(
+                NEL,
+                NGED,
+                NGEL,
+                varCoord,
+                varCon,
+                edgeNodeMap,
+                edgeNodeKDTree,
+                seOrder)
 
         try:
             print('Storing GLL connectivity and coordinate arrays.')
@@ -404,11 +434,14 @@ if __name__ == '__main__':
             connCellGLL = 'element_gll_conn'
             coordCellGLL = 'grid_gll_cart'
 
-            meshFileOut = m_fid.createDimension(numVertsGLL, np.size(varCoordGLL, 1))
+            meshFileOut = m_fid.createDimension(
+                numVertsGLL, np.size(varCoordGLL, 1))
             meshFileOut = m_fid.createDimension(numNodesGLL, NGEL)
-            meshFileOut = m_fid.createVariable(connCellGLL, 'i4', (numCells, numNodesGLL))
+            meshFileOut = m_fid.createVariable(
+                connCellGLL, 'i4', (numCells, numNodesGLL))
             meshFileOut[:] = varConGLL
-            meshFileOut = m_fid.createVariable(coordCellGLL, 'f8', (numDims, numVertsGLL))
+            meshFileOut = m_fid.createVariable(
+                coordCellGLL, 'f8', (numDims, numVertsGLL))
             meshFileOut[:] = varCoordGLL
 
         except RuntimeError:
@@ -426,7 +459,8 @@ if __name__ == '__main__':
     NGC = varCon.shape[1]
     if ((NGC == 4) and (SpectralElement)):
         print('Element Jacobians computed/written to mesh file for the first time...')
-        # Precompute the area weights and then look them up in the integral below
+        # Precompute the area weights and then look them up in the integral
+        # below
         NEL = len(varConGLL)
         jacobians = np.zeros(varConGLL.shape)
         for ii in range(NEL):
@@ -438,7 +472,8 @@ if __name__ == '__main__':
             jacobiansGLL = 'element_jacobians'
             numNodesGLL = 'num_gll_per_el1'
 
-            meshFileOut = m_fid.createVariable(jacobiansGLL, 'f8', (numCells, numNodesGLL))
+            meshFileOut = m_fid.createVariable(
+                jacobiansGLL, 'f8', (numCells, numNodesGLL))
             meshFileOut[:] = jacobians
 
         except RuntimeError:

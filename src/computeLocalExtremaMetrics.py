@@ -105,16 +105,20 @@ def computeLocalPatchExtrema(jj, varConS, coordTree, varS, varConT, varCoordT):
 
 
 @jit(nopython=True, parallel=False)
-def loopComputeLocalPatchExtrema(minDiff, maxDiff, varConStenDex, varCon, varST, varS2T):
+def loopComputeLocalPatchExtrema(
+        minDiff, maxDiff, varConStenDex, varCon, varST, varS2T):
     NT = varCon.shape[0]
     for jj in range(NT):
 
         # Compute the patch extrema using the KDtree set up above (OLD WAY USING SOURCE DATA)
         #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
 
-        # Compute the patch extrema using the sampled target data and adjacency stencil
-        lPmin, lPmax = computeLocalPatchExtrema(jj, varConStenDex, varCon, varST)
-        lPminST, lPmaxST = computeLocalPatchExtrema(jj, varConStenDex, varCon, varS2T)
+        # Compute the patch extrema using the sampled target data and adjacency
+        # stencil
+        lPmin, lPmax = computeLocalPatchExtrema(
+            jj, varConStenDex, varCon, varST)
+        lPminST, lPmaxST = computeLocalPatchExtrema(
+            jj, varConStenDex, varCon, varS2T)
 
         # Compute the min and max difference arrays
         # minDiff[jj] = np.abs(lPminST - lPmin)
@@ -154,7 +158,8 @@ def computeLocalPatchExtremaSpectral(jj, varConStenDexT, varConT, varST):
     return pmin, pmax
 
 
-def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, areaT, jacobiansT, SpectralElement):
+def computeLocalExtremaMetrics(
+        varConStenDex, varCon, varCoord, varS2T, varST, areaT, jacobiansT, SpectralElement):
 
     NT = varCon.shape[0]
     varST2 = np.power(varST, 2)
@@ -166,16 +171,20 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
 
     # Compute the localized difference arrays (eqs. 10 and 11)
     if not SpectralElement:
-        loopComputeLocalPatchExtrema(minDiff, maxDiff, varConStenDex, varCon, varST, varS2T)
+        loopComputeLocalPatchExtrema(
+            minDiff, maxDiff, varConStenDex, varCon, varST, varS2T)
     else:
         for jj in range(NT):
 
             # Compute the patch extrema using the KDtree set up above (OLD WAY USING SOURCE DATA)
             #lPmin, lPmax = computeLocalPatchExtrema(jj, varConS, coordTreeS, varSS, varConT, varCoordT)
 
-            # Compute the patch extrema using the sampled target data and adjacency stencil
-            lPmin, lPmax = computeLocalPatchExtremaSpectral(jj, np.array(varConStenDex, dtype='i'), varCon, varST)
-            lPminST, lPmaxST = computeLocalPatchExtremaSpectral(jj, np.array(varConStenDex, dtype='i'), varCon, varS2T)
+            # Compute the patch extrema using the sampled target data and
+            # adjacency stencil
+            lPmin, lPmax = computeLocalPatchExtremaSpectral(
+                jj, np.array(varConStenDex, dtype='i'), varCon, varST)
+            lPminST, lPmaxST = computeLocalPatchExtremaSpectral(
+                jj, np.array(varConStenDex, dtype='i'), varCon, varS2T)
 
             # Compute the min and max difference arrays
             # minDiff[jj] = np.abs(lPminST - lPmin)
@@ -184,15 +193,20 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
             maxDiff[jj] = max(lPmaxST - lPmax, 0)  # > 0 indicates failure
 
     # Compute normalization integrals
-    L1Den = computeGlobalWeightedIntegral(NT, varCon, np.abs(varST), areaT, jacobiansT, SpectralElement)
-    L2Den = computeGlobalWeightedIntegral(NT, varCon, varST2, areaT, jacobiansT, SpectralElement)
+    L1Den = computeGlobalWeightedIntegral(
+        NT, varCon, np.abs(varST), areaT, jacobiansT, SpectralElement)
+    L2Den = computeGlobalWeightedIntegral(
+        NT, varCon, varST2, areaT, jacobiansT, SpectralElement)
     LinfDen = np.amax(varST) - np.amin(varST)
     if LinfDen < 1E-14:
         LinfDen = 1.0  # max and min values are same
 
     # Compute numerators for minima
-    L1Num = computeGlobalWeightedIntegral(NT, varCon, minDiff, areaT, jacobiansT, SpectralElement)
-    L2Num = computeGlobalWeightedIntegral(NT, varCon, np.power(minDiff, 2), areaT, jacobiansT, SpectralElement)
+    L1Num = computeGlobalWeightedIntegral(
+        NT, varCon, minDiff, areaT, jacobiansT, SpectralElement)
+    L2Num = computeGlobalWeightedIntegral(
+        NT, varCon, np.power(
+            minDiff, 2), areaT, jacobiansT, SpectralElement)
     LinfNum = np.amin(minDiff)
 
     Lmin_1 = np.asscalar(L1Num / L1Den)
@@ -200,8 +214,11 @@ def computeLocalExtremaMetrics(varConStenDex, varCon, varCoord, varS2T, varST, a
     Lmin_inf = LinfNum / LinfDen
 
     # Compute numerators for maxima
-    L1Num = computeGlobalWeightedIntegral(NT, varCon, maxDiff, areaT, jacobiansT, SpectralElement)
-    L2Num = computeGlobalWeightedIntegral(NT, varCon, np.power(maxDiff, 2), areaT, jacobiansT, SpectralElement)
+    L1Num = computeGlobalWeightedIntegral(
+        NT, varCon, maxDiff, areaT, jacobiansT, SpectralElement)
+    L2Num = computeGlobalWeightedIntegral(
+        NT, varCon, np.power(
+            maxDiff, 2), areaT, jacobiansT, SpectralElement)
     LinfNum = np.amax(maxDiff)
 
     Lmax_1 = np.asscalar(L1Num / L1Den)
