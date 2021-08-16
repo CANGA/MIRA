@@ -13,5 +13,5 @@ import numpy as np
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 # ASSUMES THE COORDINATES ARE ALREADY IN THE WORKSPACE
-ax.scatter(varCoordT[0,:], varCoordT[1,:], varCoordT[2,:])
+ax.scatter(varCoordT[0, :], varCoordT[1, :], varCoordT[2, :])
 plt.show()

@@ -26,8 +26,8 @@ gradST = np.reshape(gradMag1, nshape)
 gradS2T = np.reshape(gradMag2, nshape)
 
 # Make 1D arrays for tri-surface plots
-x = np.reshape(cellCoordT[0,:], nshape)
-y = np.reshape(cellCoordT[1,:], nshape)
+x = np.reshape(cellCoordT[0, :], nshape)
+y = np.reshape(cellCoordT[1, :], nshape)
 #z = cellCoordT[2,:]
 
 #X, Y = np.meshgrid(x, y)
@@ -50,6 +50,3 @@ m.set_clim(vmin, vmax)
 plt.colorbar(m)
 #plt.colorbar(m, boundaries=np.arange(0,3.1,.5))
 plt.show()
-
-
-

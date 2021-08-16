@@ -47,12 +47,14 @@ def computeSpectrum(ND, lfPower, hfPower, degIntersect):
     for ii in range(ND):
         if degs[ii] < degIntersect:
             if lfPower[1] > -5.0:
-                psd[ii] = lfPower[0] * np.power(degs[ii], lfPower[1]) + lfPower[2]
+                psd[ii] = lfPower[0] * \
+                    np.power(degs[ii], lfPower[1]) + lfPower[2]
             else:
                 psd[ii] = lfPower[2]
         elif degs[ii] >= degIntersect:
             if hfPower[1] > -5.0:
-                psd[ii] = hfPower[0] * np.power(degs[ii], hfPower[1]) + hfPower[2]
+                psd[ii] = hfPower[0] * \
+                    np.power(degs[ii], hfPower[1]) + hfPower[2]
             else:
                 psd[ii] = hfPower[2]
 
@@ -113,12 +115,12 @@ def computeRandomizedCoefficients(ND):
 
     # Loop over ND (number of degrees)
     for kk in range(ND):
-        nrand = np.ones((2, kk+1))
+        nrand = np.ones((2, kk + 1))
         # Initialize random numbers with number of coefficients at this degree
         if kk == 0:
             rand = (1103515245 * seed + 25214903917 + 12345) % 2147483647
         # Loop over the coefficients at this degree
-        for ll in range(0, kk+1):
+        for ll in range(0, kk + 1):
             nrand[0, ll] = rand
             rand = (1103515245 * rand + 25214903917 + 12345) % 2147483647
             nrand[1, ll] = rand
@@ -128,7 +130,7 @@ def computeRandomizedCoefficients(ND):
         nrand = np.multiply(nrand, 1.0 / 2147483647.0)
 
         # Set the coefficients at degree kk+1
-        coeffs[:2, kk, :kk+1] = 2.0 * np.add(2.0 * nrand[:2, :], -1.0)
+        coeffs[:2, kk, :kk + 1] = 2.0 * np.add(2.0 * nrand[:2, :], -1.0)
 
     return coeffs
 
@@ -141,8 +143,10 @@ def computeNormalizedCoefficients(N, psd, coeffsLD):
     clm.coeffs = computeRandomizedCoefficients(ND)
 
     # Force the coefficients to have the same power as the given spectrum
-    power_per_l = pyshtools.spectralanalysis.spectrum(clm.coeffs, normalization='4pi', unit='per_l')
-    clm.coeffs *= np.sqrt(psd[0:ND] * np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
+    power_per_l = pyshtools.spectralanalysis.spectrum(
+        clm.coeffs, normalization='4pi', unit='per_l')
+    clm.coeffs *= np.sqrt(psd[0:ND] *
+                          np.reciprocal(power_per_l))[np.newaxis, :, np.newaxis]
 
     # Combine the coefficients, low degree from data and high degree randomized
     clm.coeffs[0, 0:4, 0:4] = coeffsLD
@@ -231,7 +235,8 @@ def parseCommandLine(argv):
                 if int(arg) % 2 == 0 and int(arg) < 200:
                     sampleOrder = int(arg)
                 else:
-                    sys.exit("[FATAL] Error in option passed for --so. Sample order must be \in (0, 200)")
+                    sys.exit(
+                        "[FATAL] Error in option passed for --so. Sample order must be \\in (0, 200)")
         elif opt == '--nm':
             numModes = int(arg)
         elif opt == '--rseed':
@@ -269,7 +274,11 @@ def parseCommandLine(argv):
         numModes = 512
 
     # Check that only one configuration is chosen
-    configs = [ExodusSingleConn, ExodusMultiConn, SCRIPwithoutConn, SCRIPwithConn]
+    configs = [
+        ExodusSingleConn,
+        ExodusMultiConn,
+        SCRIPwithoutConn,
+        SCRIPwithConn]
     numConfigs = sum(bool(x) for x in configs)
     if numConfigs > 1:
         print('ONE mesh configuration option must be set!')
@@ -279,7 +288,7 @@ def parseCommandLine(argv):
     if EvaluateAll:
         EvaluateTPW = EvaluateCFR = EvaluateTPO = EvaluateA1 = EvaluateA2 = True
 
-    if 2*sampleOrder-1 < numModes:
+    if 2 * sampleOrder - 1 < numModes:
         print("WARNING: The quadrature sampling order of %d is insufficient to exactly integrate SPH expansions of order %d!" % (
             sampleOrder, numModes))
 
@@ -305,10 +314,12 @@ if __name__ == '__main__':
 
     # Set the name for the new data file
     stripDir = mesh_file.split('/')
-    onlyFilename = stripDir[len(stripDir)-1]
-    data_file = 'sample_NM' + str(ND) + '_O' + str(sampleOrder) + '_' + (onlyFilename.split('.'))[0]
+    onlyFilename = stripDir[len(stripDir) - 1]
+    data_file = 'sample_NM' + \
+        str(ND) + '_O' + str(sampleOrder) + '_' + (onlyFilename.split('.'))[0]
 
-    # Let us decipher what our final output file name should be with approrpriate suffixes
+    # Let us decipher what our final output file name should be with
+    # approrpriate suffixes
     outFileName = data_file
 
     if SpectralElement:
@@ -328,7 +339,7 @@ if __name__ == '__main__':
 
     print('File name for sampled mesh data: ', outFileName)
     print('Number of SH degrees for sampling set to: ', ND)
-    print('Maximum Gaussian quadrature order to be used: ', 2*sampleOrder-1)
+    print('Maximum Gaussian quadrature order to be used: ', 2 * sampleOrder - 1)
 
     if ExodusSingleConn or ExodusMultiConn:
 
@@ -346,7 +357,8 @@ if __name__ == '__main__':
         # Open the .g mesh files for reading
         m_fid = Dataset(mesh_file)
 
-        # Get connectivity and coordinate arrays (check for multiple connectivity)
+        # Get connectivity and coordinate arrays (check for multiple
+        # connectivity)
         varCon = m_fid.variables[connCell][:]
         varCoord = m_fid.variables[coordCell][:]
 
@@ -357,7 +369,7 @@ if __name__ == '__main__':
             # Get the 2D size of the field array from mesh file
             NLON = m_fid.rectilinear_dim1_size
             NLAT = m_fid.rectilinear_dim0_size
-        except:
+        except BaseException:
             print('NOT a rectilinear mesh.')
             rectilinear = False
 
@@ -378,10 +390,11 @@ if __name__ == '__main__':
         numConnBlocks = len(m_fid.dimensions[numElTypes])
         for cc in range(numConnBlocks):
             # Get this connectivity array (El X corners)
-            connName = 'connect' + str(cc+1)
+            connName = 'connect' + str(cc + 1)
             thisConn = m_fid.variables[connName][:]
             # Get the number of corners for this connectivity block
-            numVertList.append(thisConn.shape[1])  # Column dimension of connectivity
+            # Column dimension of connectivity
+            numVertList.append(thisConn.shape[1])
             # Append to the list of connectivity blocks
             varConnList.append(m_fid.variables[connName][:])
 
@@ -411,16 +424,20 @@ if __name__ == '__main__':
             meshFileOut = m_fid.createDimension(numCells, varCon.shape[0])
             meshFileOut = m_fid.createDimension(numVerts, np.size(varCoord, 1))
             meshFileOut = m_fid.createDimension(numDims, 3)
-            meshFileOut = m_fid.createVariable(connCell, 'i4', (numCells, numEdges))
+            meshFileOut = m_fid.createVariable(
+                connCell, 'i4', (numCells, numEdges))
             meshFileOut[:] = varCon
-            meshFileOut = m_fid.createVariable(coordCell, 'f8', (numDims, numVerts))
+            meshFileOut = m_fid.createVariable(
+                coordCell, 'f8', (numDims, numVerts))
             meshFileOut[:] = varCoord
 
         except RuntimeError:
             print('Cell connectivity and grid vertices exist in mesh data file.')
 
         endt = time.time()
-        print('Time to precompute EXODUS multi-connectivity mesh info (sec): ', endt - start)
+        print(
+            'Time to precompute EXODUS multi-connectivity mesh info (sec): ',
+            endt - start)
 
     elif SCRIPwithoutConn:
         numEdges = 'grid_corners'
@@ -443,7 +460,7 @@ if __name__ == '__main__':
             print('Reading connectivity and coordinate arrays from raw SCRIP')
             varCon = m_fid.variables[connCell][:]
             varCoord = m_fid.variables[coordCell][:]
-        except:
+        except BaseException:
             print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
 
         endt = time.time()
@@ -475,7 +492,7 @@ if __name__ == '__main__':
         try:
             print('Reading coordinate arrays from raw SCRIP')
             varCoord = m_fid.variables[coordCell][:]
-        except:
+        except BaseException:
             print('PRE-PROCESSING NOT DONE ON THIS MESH FILE!')
 
         endt = time.time()
@@ -513,7 +530,8 @@ if __name__ == '__main__':
         # Set the low degree coefficients (large scale structures)
         coeffsLD_TPW = np.array([[2.45709150e+01, 0.0, 0.0, 0.0],
                                  [4.00222122e+00, 2.39412571e+00, 0.0, 0.0],
-                                 [-1.36433589e+01, 3.90520866e-03, 4.70350344e-01, 0.0],
+                                 [-1.36433589e+01, 3.90520866e-03,
+                                     4.70350344e-01, 0.0],
                                  [-3.54931720e+00, -1.23629157e+00, 4.01454924e-01, 1.76782768e+00]])
 
         # Make the SH coefficients object for this field
@@ -528,9 +546,11 @@ if __name__ == '__main__':
         # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
         # Expand the coefficients and check the field
         if sampleCentroid or SpectralElement:
-            TPWvar = clmTPW.expand(lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
+            TPWvar = clmTPW.expand(
+                lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
         else:
-            TPWvar = computeCellAverage(clmTPW, varCon, varCoord, sampleOrder, True, nprocs)
+            TPWvar = computeCellAverage(
+                clmTPW, varCon, varCoord, sampleOrder, True, nprocs)
             print('Total Precipitable Water Global integral: ', np.sum(TPWvar))
 
         # Compute rescaled data from 0.0 to max
@@ -551,7 +571,7 @@ if __name__ == '__main__':
         print('Computing Cloud Fraction on sampling mesh...')
         # Set the power spectrum coefficients
         lfPower = [8.38954430e+00, -1.85962382e-04, -8.38439294e+00]
-        hfPower = [1.25594628e-01, -1.99203168e+00,  1.91763519e-06]
+        hfPower = [1.25594628e-01, -1.99203168e+00, 1.91763519e-06]
         degIntersect = 8.322269484619733
         # Compute the parent power spectrum for CFR
         degsCFR, psdCFR = computeSpectrum(ND, lfPower, hfPower, degIntersect)
@@ -559,7 +579,8 @@ if __name__ == '__main__':
         # Set the low degree coefficients (large scale structures)
         coeffsLD_CFR = np.array([[6.65795054e-01, 0.0, 0.0, 0.0],
                                  [-2.45480409e-02, 2.24697424e-02, 0.0, 0.0],
-                                 [5.72322008e-02, 3.41184683e-02, -7.71082815e-03, 0.0],
+                                 [5.72322008e-02, 3.41184683e-02, -
+                                     7.71082815e-03, 0.0],
                                  [1.86562455e-02, 4.34697733e-04, 8.91735978e-03, -5.53756958e-03]])
 
         # Make the SH coefficients object for this field
@@ -568,9 +589,11 @@ if __name__ == '__main__':
         # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
         # Expand the coefficients and check the field
         if sampleCentroid or SpectralElement:
-            CFRvar = clmCFR.expand(lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
+            CFRvar = clmCFR.expand(
+                lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
         else:
-            CFRvar = computeCellAverage(clmCFR, varCon, varCoord, sampleOrder, True, nprocs)
+            CFRvar = computeCellAverage(
+                clmCFR, varCon, varCoord, sampleOrder, True, nprocs)
             print('Cloud Fraction Global integral: ', np.sum(CFRvar))
 
         # Compute rescaled data from 0.0 to max
@@ -593,7 +616,7 @@ if __name__ == '__main__':
         start = time.time()
         print('Computing Global Terrain on sampling mesh...')
         # Set the power spectrum coefficients
-        lfPower = [1.79242815e+05, -4.28193211e+01,  7.68040558e+05]
+        lfPower = [1.79242815e+05, -4.28193211e+01, 7.68040558e+05]
         hfPower = [9.56198160e+06, -1.85485966e+00, -2.63553217e+01]
         degIntersect = 3.8942282772035255
         # Compute the parent power spectrum for CFR
@@ -602,7 +625,8 @@ if __name__ == '__main__':
         # Set the low degree coefficients (large scale structures)
         coeffsLD_TPO = np.array([[-2.38452711e+03, 0.0, 0.0, 0.0],
                                  [-6.47223253e+02, -6.06453097e+02, 0.0, 0.0],
-                                 [5.67394318e+02, 3.32672611e+02, -4.17639577e+02, 0.0],
+                                 [5.67394318e+02, 3.32672611e+02, -
+                                     4.17639577e+02, 0.0],
                                  [1.57403492e+02, 1.52896988e+02, 4.47106726e+02, -1.40553447e+02]])
 
         # Make the SH coefficients object for this field
@@ -611,9 +635,11 @@ if __name__ == '__main__':
         # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
         # Expand the coefficients and check the field
         if sampleCentroid or SpectralElement:
-            TPOvar = clmTPO.expand(lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
+            TPOvar = clmTPO.expand(
+                lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
         else:
-            TPOvar = computeCellAverage(clmTPO, varCon, varCoord, sampleOrder, True, nprocs)
+            TPOvar = computeCellAverage(
+                clmTPO, varCon, varCoord, sampleOrder, True, nprocs)
             print('Global Terrain Global integral: ', np.sum(TPOvar))
 
         # Rescale to -1.0 to 1.0
@@ -652,11 +678,17 @@ if __name__ == '__main__':
         # THIS NEEDS TO CHANGE TO SUPPORT FE GRIDS
         # Expand the coefficients and check the field
         if sampleCentroid or SpectralElement:
-            A1var = clmA1.expand(lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
-            print('Analytical Solution 1 Global sum: ', np.sum(A1var)/A1var.shape[0])
+            A1var = clmA1.expand(
+                lon=varLonLat_deg[:, 0], lat=varLonLat_deg[:, 1])
+            print(
+                'Analytical Solution 1 Global sum: ',
+                np.sum(A1var) / A1var.shape[0])
         else:
-            A1var = computeCellAverage(clmA1, varCon, varCoord, sampleOrder, True, nprocs)
-            print('Analytical Solution 1 Global integral: ', np.sum(A1var)/A1var.shape[0])
+            A1var = computeCellAverage(
+                clmA1, varCon, varCoord, sampleOrder, True, nprocs)
+            print(
+                'Analytical Solution 1 Global integral: ',
+                np.sum(A1var) / A1var.shape[0])
 
         endt = time.time()
         print('Time to compute A1 Field: ', endt - start)
@@ -673,11 +705,21 @@ if __name__ == '__main__':
         # if sampleCentroid or SpectralElement:
         if sampleCentroid or SpectralElement:
             A2var = evaluate_field_a2(lon=varLonLat[:, 0], lat=varLonLat[:, 1])
-            print('Analytical Solution 2 Global sum: ', np.sum(A2var)/A2var.shape[0])
+            print(
+                'Analytical Solution 2 Global sum: ',
+                np.sum(A2var) / A2var.shape[0])
         else:
             # A2var = computeCellAverageSerial(evaluate_field_a2, varCon, varCoord, sampleOrder, True)
-            A2var = computeCellAverage(evaluate_field_a2, varCon, varCoord, sampleOrder, True, nprocs)
-            print('Analytical Solution 2 Global integral: ', np.sum(A2var)/A2var.shape[0])
+            A2var = computeCellAverage(
+                evaluate_field_a2,
+                varCon,
+                varCoord,
+                sampleOrder,
+                True,
+                nprocs)
+            print(
+                'Analytical Solution 2 Global integral: ',
+                np.sum(A2var) / A2var.shape[0])
 
         endt = time.time()
         print('Time to compute A2 Field: ', endt - start)
@@ -898,4 +940,3 @@ if __name__ == '__main__':
               ax2.grid(b=True, which='both', axis='both')
               plt.show()
         '''
-

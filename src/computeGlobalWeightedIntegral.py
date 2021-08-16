@@ -10,17 +10,19 @@ various data arrays MUST have matching sizes. This is checked here.
 """
 import numpy as np
 
-def computeGlobalWeightedIntegral(NEL, varCon, varF, areas, jacobians, SpectralElement):
-       # NEL = total number of elements/cells
-       
-       # Loop over each element and compute the sum
-       INT = 0.0
-       if not SpectralElement:
-              INT = np.dot(areas, varF)
 
-       else:
-             for ii in range(NEL):
-                    gdex = varCon[ii,:] - 1
-                    INT += np.dot(jacobians[ii,:], varF[gdex.astype(int)])
-              
-       return INT
+def computeGlobalWeightedIntegral(
+        NEL, varCon, varF, areas, jacobians, SpectralElement):
+    # NEL = total number of elements/cells
+
+    # Loop over each element and compute the sum
+    INT = 0.0
+    if not SpectralElement:
+        INT = np.dot(areas, varF)
+
+    else:
+        for ii in range(NEL):
+            gdex = varCon[ii, :] - 1
+            INT += np.dot(jacobians[ii, :], varF[gdex.astype(int)])
+
+    return INT
