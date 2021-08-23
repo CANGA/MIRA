@@ -1,10 +1,12 @@
-# Coupling Approaches for Next-Generation Architectures (CANGA) -- Remapping Offline-Online (ROO) Intercomparison Package
+# MIRA - Metrics for Intercomparison of Remapping Algorithms
+
+The MIRA repository contains the Python drivers that enable a rigorous intercomparison study of remapping algorithms by providing the infrastructure for computing the numerical metrics of interest for ESM. This work is funded by the [Coupling Approaches for Next-Generation Architectures (CANGA)](https://www.canga-scidac.org/) project.
+
+## Description
 
 Strongly coupled nonlinear phenomena such as those described by Earth System Models (ESM) are composed of multiple component models with independent mesh topologies and scalable numerical solvers. A common operation in ESM is to remap or interpolate results from one component's numerical mesh to another, e.g., from the atmosphere to the ocean, during the temporal integration of the coupled system. Several remapping schemes are currently in use or available for ESM. However, a unified approach to compare the properties of these different schemes has not been attempted previously. 
 
 We present a rigorous methodology for the evaluation and intercomparison of remapping methods through an independently implemented suite of metrics that measure the ability of a method to adhere to constraints such as grid independence, monotonicity, global conservation, and local extrema or feature preservation. A comprehensive set of numerical evaluations can be conducted based on a progression of scalar fields from idealized and smooth to more general climate data with strong discontinuities and strict bounds. 
-
-This repository contains the Python drivers for the CANGA-ROO intercomparison study, which provide the infrastructure for enabling the computation of metrics for different remapping algorithms of interest in ESM.
 
 ![Remapping Intercomparison Workflow](figures/implementation-metrics-intercomparison.png)
 
