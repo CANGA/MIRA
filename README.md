@@ -123,7 +123,6 @@ An example test problem generation sequence is shown below.
 | 8.63E-9 |4.06E-5|4.99E-5|1.88E-4|2.74E-5|-2.74E-5|2.03E-5|3.52E-5|9.42E-5|-2.03E-5|3.53E-5|0.00E0|4.11E-3|4.11E-3|3.44E-3|3.44E-3|
 | 1.02E-8 |4.30E-5|5.36E-5|2.04E-4|2.85E-5|-2.85E-5|2.15E-5|3.78E-5|1.02E-4|-2.15E-5|3.79E-5|0.00E0|4.30E-3|4.30E-3|3.64E-3|3.64E-3|
 
-
 ## Driver Assumptions 
 
 Some primary assumptions in the driver are,
@@ -134,9 +133,19 @@ Some primary assumptions in the driver are,
   4) Gradient metric is implemented using a linear reconstruction of one ring of adjacent cells (strategy 6 from Barth & Jesperson, 1989) or by direct local differentiation per element at GLL nodes.
   5) The metric calculations use data vectors defined on the source and target meshes, which are typically stored in an external NetCDF4 file. The `loadDataField` routine in `CANGAMetricsDriver.py` can be modified to read the correct variable needed.
 
-## Bugs, Correspondence, Contributing
+## License
 
-The remapping intercomparison code is distributed under a 3-clause BSD licensing agreement. [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+The MIRA remapping intercomparison code is distributed under an open-source licensing agreement. Please refer to the [![License](https://img.shields.io/badge/License-Open--Source--ANL-blue.svg)](LICENSE) for further details on the agreement and copyright information.
+
+## Contributors
+
+- Jorge Guerra (OU/CIMMS, NOAA National Severe Storms Laboratory, Norman, OK, USA)
+- Vijay Mahadevan (Mathematics and Computational Science Division, Argonne National Laboratory, Lemont, IL 60439, USA)
+- Paul Kuberry (Center for Computing Research, Sandia National Laboratories, Mailstop 1320, P.O. Box 5800, Albuquerque, NM 87125, USA)
+- Xiangmin Jiao (Department of Applied Mathematics and Statistics, Stony Brook University, Stony Brook, NY 11704, USA)
+- Yipeng Li (Department of Applied Mathematics and Statistics, Stony Brook University, Stony Brook, NY 11704, USA)
+
+## Bugs, Correspondence, Contributing
 
 If you have questions, comments or suggestions in using the CANGA-ROO intercomparison code, please contact the researchers through official email. You can also use the issues page in Github to start conversations.
 
