@@ -135,19 +135,38 @@ Some primary assumptions in the driver are,
 
 ## License
 
-The MIRA remapping intercomparison code is distributed under an open-source licensing agreement. Please refer to the [![License](https://img.shields.io/badge/License-Open--Source--ANL-blue.svg)](LICENSE) for further details on the agreement and copyright information.
+The MIRA remapping intercomparison code is distributed under an open-source licensing agreement. Please refer to the [![License](https://img.shields.io/badge/License-Open--Source--ANL-blue.svg)](LICENSE) for further details on the agreeme
 
 ## Contributors
 
-- Jorge Guerra (OU/CIMMS, NOAA National Severe Storms Laboratory, Norman, OK, USA)
-- Vijay Mahadevan (Mathematics and Computational Science Division, Argonne National Laboratory, Lemont, IL 60439, USA)
-- Paul Kuberry (Center for Computing Research, Sandia National Laboratories, Mailstop 1320, P.O. Box 5800, Albuquerque, NM 87125, USA)
-- Xiangmin Jiao (Department of Applied Mathematics and Statistics, Stony Brook University, Stony Brook, NY 11704, USA)
-- Yipeng Li (Department of Applied Mathematics and Statistics, Stony Brook University, Stony Brook, NY 11704, USA)
+  - Jorge Guerra (OU/CIMMS, NOAA National Severe Storms Laboratory, Norman, OK, USA)
+  - Vijay Mahadevan (Mathematics and Computational Science Division, Argonne National Laboratory, Lemont, IL 60439, USA)
+  - Paul Kuberry (Center for Computing Research, Sandia National Laboratories, Mailstop 1320, P.O. Box 5800, Albuquerque, NM 87125, USA)
+  - Xiangmin Jiao (Department of Applied Mathematics and Statistics, Stony Brook University, Stony Brook, NY 11704, USA)
+  - Yipeng Li (Department of Applied Mathematics and Statistics, Stony Brook University, Stony Brook, NY 11704, USA)
+
+## Citing MIRA
+
+If you use MIRA in your research work and publish a paper with results generated using the MIRA drivers, please cite the following reference:
+
+```
+@software{mira_software,
+  author       = {Jorge Guerra and 
+                  Vijay Mahadevan and 
+                  Paul Kuberry and 
+                  Xiangmin Jiao and 
+                  Yipeng Li},
+  title        = {MIRA: Metrics for Intercomparison of Remapping Algorithms},
+  month        = sep, 
+  year         = 2021,
+  doi          = {10.5281/zenodo.5518037},
+  url          = {https://github.com/CANGA/MIRA}
+}
+```
+The above reference is applicable to every version of the MIRA software.
 
 ## Bugs, Correspondence, Contributing
 
 If you have questions, comments or suggestions in using the CANGA-ROO intercomparison code, please contact the researchers through official email. You can also use the issues page in Github to start conversations.
 
 If you would like to contribute to the package, please submit a merge request with detailed information on the purpose and need for the new changes.
-
