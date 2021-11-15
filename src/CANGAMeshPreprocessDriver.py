@@ -327,6 +327,9 @@ if __name__ == '__main__':
     except KeyError:
         varInFile = False
 
+    edgeNodeMap = []
+    edgeNodeKDTree = []
+    varConStenDex = []
     if not varInFile or forceRecompute:
         try:
             if not varInFile:

@@ -788,12 +788,13 @@ if __name__ == '__main__':
         latNC = data_fid.createVariable('nlat', 'f8', (numCells,))
         latNC[:] = varLonLat_deg[:, 1]
     else:
-        lonNC = data_fid.createVariable(
-            'lon', 'f8', (numCells,)) if 'lon' not in data_fid.variables.keys() else data_fid.variables['lon']
-        lonNC[:] = varLonLat_deg[:, 0]
-        latNC = data_fid.createVariable(
-            'lat', 'f8', (numCells,)) if 'lat' not in data_fid.variables.keys() else data_fid.variables['lat']
-        latNC[:] = varLonLat_deg[:, 1]
+        if not SpectralElement:
+            lonNC = data_fid.createVariable(
+                'lon', 'f8', (numCells,)) if 'lon' not in data_fid.variables.keys() else data_fid.variables['lon']
+            lonNC[:] = varLonLat_deg[:, 0]
+            latNC = data_fid.createVariable(
+                'lat', 'f8', (numCells,)) if 'lat' not in data_fid.variables.keys() else data_fid.variables['lat']
+            latNC[:] = varLonLat_deg[:, 1]
 
     if rectilinear:
         slon = 'lonDim'
