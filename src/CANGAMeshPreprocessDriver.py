@@ -143,7 +143,7 @@ if __name__ == '__main__':
     if ExodusSingleConn:
         numEdges = 'num_nod_per_el1'
         numCells = 'num_el_in_blk1'
-        numDims = 'cart_dims'
+        numDims = 'num_dim'
         connCell = 'element_corners_id'
         coordCell = 'grid_corners_cart'
         numVerts = 'grid_corners_size'
