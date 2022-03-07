@@ -30,7 +30,7 @@ from computeCoordConFastSCRIP import computeCoordConFastSCRIP
 from computeFastAdjacencyStencil import computeFastAdjacencyStencil
 from computeCoordConnGLL import computeCoordConnGLL
 from computeAreaIntegral import computeAreaIntegral, computeAreaIntegralWithGQ, getGaussNodesWeights
-from computeAreaIntegralSE import computeAreaIntegralSE
+import computeAreaIntegralSE as intse
 import computeSphericalCartesianTransforms as sphcrt
 
 import multiprocessing
@@ -60,14 +60,14 @@ def parseCommandLine(argv):
                                    ['mesh=',
                                     'force',
                                     'ExodusSingleConn', 'ExodusMultiConn', 'SCRIPwithoutConn',
-                                    'SCRIPwithConn', 'SpectralElement', 'seorder='])
+                                    'SCRIPwithConn', 'makeSEGrid', 'seorder='])
     except getopt.GetoptError:
         print('Command line not properly set:',
               'CANGAMeshPreprocessDriver.py',
               '--mesh <meshFile>',
               '--<meshConfiguration>',
-              '--<makeSEGrid>',
-              '--force',
+              '--makeSEGrid',
+              '--force', 
               '--seorder <polyOrder>')
         sys.exit(2)
 
@@ -78,7 +78,7 @@ def parseCommandLine(argv):
                   'CANGAMeshPreprocessDriver.py',
                   '--mesh <meshFile>',
                   '--<meshConfiguration>',
-                  '--<makeSEGrid>',
+                  '--makeSEGrid',
                   '--seorder <polyOrder>')
             sys.exit()
         elif opt == '--mesh':
@@ -93,7 +93,7 @@ def parseCommandLine(argv):
             SCRIPwithoutConn = True
         elif opt == '--SCRIPwithConn':
             SCRIPwithConn = True
-        elif opt == '--SpectralElement':
+        elif opt == '--makeSEGrid':
             SpectralElement = True
         elif opt == '--seorder':
             if int(arg) % 2 == 0 and int(arg) < 5:
@@ -408,8 +408,8 @@ if __name__ == '__main__':
 
         # Compute number of grids per element
         if seOrder == 2:
-            NGED = 2
-            NGEL = 4
+            NGED = 3
+            NGEL = 9
         elif seOrder == 4:
             NGED = 4
             NGEL = 16
@@ -450,7 +450,7 @@ if __name__ == '__main__':
         except RuntimeError:
             print('Cell connectivity and grid vertices exist in mesh data file.')
     else:
-        print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --SpectralElement option not set.')
+        print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --makeSEGrid option not set.')
 
     endt = time.time()
     print('Time to precompute GLL grid/connectivity (sec): ', endt - start)
@@ -469,7 +469,10 @@ if __name__ == '__main__':
         for ii in range(NEL):
             cdex = varConGLL[ii, :] - 1
             thisCell = varCoordGLL[:, cdex.astype(int)]
-            elArea, jacobians[ii, :] = computeAreaIntegralSE(thisCell, 4)
+            if seOrder == 2:
+                   elArea, jacobians[ii, :] = intse.computeAreaIntegralSE2(thisCell)
+            elif seOrder == 4:
+                   elArea, jacobians[ii, :] = intse.computeAreaIntegralSE4(thisCell)
         try:
             print('Storing GLL Jacobian arrays.')
             jacobiansGLL = 'element_jacobians'
@@ -482,7 +485,7 @@ if __name__ == '__main__':
         except RuntimeError:
             print('Cell connectivity and grid vertices exist in mesh data file.')
     else:
-        print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --SpectralElement option not set.')
+        print('GLL global grid will NOT be computed. Elements are NOT regular quadrilaterals or --makeSEGrid option not set.')
 
     endt = time.time()
     print('Time to precompute GLL element Jacobian weights (sec): ', endt - start)

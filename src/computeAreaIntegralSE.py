@@ -59,7 +59,7 @@ def computeCart2LL(cellCoord):
     return pointLonLat
 
 
-def computeAreaIntegralSE(varCoords, order):
+def computeAreaIntegralSE4(varCoords, order=4):
     # avg = Boolean flag to take average of the function
     # farea = Boolean flag to compute only the area integral (ignore field)
 
