@@ -152,31 +152,49 @@ def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon,
         # Fectch every NEEL edges per element
         if ii > 0:
             edex = np.add(edex, NEEL)
-        thisElement = edgeNodeMapGLL[edex, :]
+        thisElement = edgeNodeMapGLL[edex,:]
 
         # Set perimeter edges to the new element connectivity
         cdex = range(1, NGED)
         for jj in range(NEEL):
             if jj == 0:
-                varConGLL[ii, 0:NGED] = thisElement[0, :]
+                # First edge in the new connectivity
+                varConGLL[ii, 0:NGED] = thisElement[0,:]
             elif jj == NEEL - 1:
-                varConGLL[ii, (NGEO - 2):NGEO] = thisElement[jj, 1:NGED - 1]
+                # Last edge in the new connectivity
+                if seOrder == 2:
+                       varConGLL[ii, (NGEO - 2):NGEO] = thisElement[jj, 0:NGED - 1]
+                elif seOrder == 4:
+                       varConGLL[ii, (NGEO - 2):NGEO] = thisElement[jj, 1:NGED - 1]
             else:
                 cdex = np.add(cdex, (NGED - 1))
                 varConGLL[ii, cdex] = thisElement[jj, 1:NGED]
 
-        # Now set the element interior GLL nodes using edges 2 and 4
         # Order follows connectivity of the parent element
-        edge24 = np.array([[thisElement[3, 2], thisElement[1, 1]],
-                           [thisElement[1, 2], thisElement[3, 1]]]) - 1
-        
-        # Fetch the end point coordinates (2, 3, 2) array
-        coords = []
-        coords.append((varCoordGLL[:, int(edge24[0, 0])],
-                    varCoordGLL[:, int(edge24[0, 1])]))
-                  
-        coords.append((varCoordGLL[:, int(edge24[1, 0])],
-                    varCoordGLL[:, int(edge24[1, 1])]))
+        if seOrder == 2:
+               # Get the ray between the interior node of edges 2 and 4
+               edge24 = np.array([[thisElement[3, 1], thisElement[1, 1]]]) - 1
+               
+               # Fetch the end point coordinates as (2, 3, 2) array
+               coords = []
+               coords.append((varCoordGLL[:, int(edge24[0, 0])],
+                           varCoordGLL[:, int(edge24[0, 1])]))
+                         
+        elif seOrder == 4:
+               # Get the rays between the interior nodes of edges 2 and 4
+               edge24 = np.array([[thisElement[3, 2], thisElement[1, 1]],
+                                  [thisElement[1, 2], thisElement[3, 1]]]) - 1
+               
+               # Fetch the end point coordinates as (2, 3, 2) array
+               coords = []
+               coords.append((varCoordGLL[:, int(edge24[0, 0])],
+                           varCoordGLL[:, int(edge24[0, 1])]))
+                         
+               coords.append((varCoordGLL[:, int(edge24[1, 0])],
+                           varCoordGLL[:, int(edge24[1, 1])]))
+        else:
+               print('ERROR: SE orders other than 2 or 4 NOT supported.')
+               return
             
         # Loop over the new interior edges
         for jj in range(len(coords)):
@@ -186,7 +204,11 @@ def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon,
                 coord1, coord2)
 
             # Loop over the new grids on the edge
-            hh = 2 * jj
+            if seOrder == 2:
+                   hh = jj
+            elif seOrder == 4:
+                   hh = 2 * jj
+                   
             for kk in range(1, NGED - 1):
                 # Compute angular location of new grid on the edge
                 newGridAngle = GN[kk] * edgeAngle
@@ -207,7 +229,7 @@ def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon,
                 
                 # Store the new grid
                 newGrid = np.zeros((3, 1))
-                newGrid[:, 0] = guessCoord #sol.x
+                newGrid[:, 0] = sol.x
                 varCoordGLL = np.append(varCoordGLL, newGrid, axis=1)
                 # Put the new grid ID at the end of the connectivity row
                 varConGLL[ii, NGEO + hh] = newGridID
@@ -231,5 +253,6 @@ def computeCoordConnGLL(NEL, NGED, NGEL, varCoord, varCon,
         ax.scatter(point[0], point[1], point[2], marker='D', label=str(node))
         ax.text(point[0], point[1], point[2], str(node))
     plt.legend()
+    input('GLL spot check of one element...')
     '''
     return edgeNodeMapGLL, varCoordGLL, varConGLL

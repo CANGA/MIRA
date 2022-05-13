@@ -21,7 +21,7 @@ def getGLLNodesWeights(order):
     # """ 2nd order method
     if order == 2:
         GN = [-1.0,
-              0.0
+              0.0,
               + 1.0]
 
         GW = [1.0 / 3.0,
@@ -44,7 +44,7 @@ def getGLLNodesWeights(order):
     ovec = np.ones(np.size(GN))
     GN = 0.5 * np.matrix(np.add(GN, ovec))
     GW = 0.5 * np.matrix(GW)
-
+    
     return np.ravel(GN), \
         np.ravel(GW)
 
@@ -59,7 +59,7 @@ def computeCart2LL(cellCoord):
     return pointLonLat
 
 
-def computeAreaIntegralSE4(varCoords, order=4):
+def computeAreaIntegralSE(varCoords, order=4):
     # avg = Boolean flag to take average of the function
     # farea = Boolean flag to compute only the area integral (ignore field)
 
@@ -69,15 +69,27 @@ def computeAreaIntegralSE4(varCoords, order=4):
     # Loop over the subtriangles and add up the areas
     GN, GW = getGLLNodesWeights(order)
     NP = len(GW)
-
-    # Set the connectivity index vector corresponding to varCoords
-    cdex = [0, 1, 2, 3, 11, 12, 13, 4, 10, 15, 14, 5, 9, 8, 7, 6]
-
-    # Compute the plane edge directions for this quadrilateral
-    nD30 = np.subtract(varCoords[:, 3], varCoords[:, 0])
-    nD69 = np.subtract(varCoords[:, 6], varCoords[:, 9])
-    nD90 = np.subtract(varCoords[:, 9], varCoords[:, 0])
-    nD63 = np.subtract(varCoords[:, 6], varCoords[:, 3])
+    
+    if order == 4:
+        # Set the connectivity index vector corresponding to varCoords
+        cdex = [0, 1, 2, 3, 11, 12, 13, 4, 10, 15, 14, 5, 9, 8, 7, 6]
+        corDex = [0, 3, 6, 9]
+    
+        # Compute the plane edge directions for this quadrilateral
+        nD30 = np.subtract(varCoords[:, 3], varCoords[:, 0])
+        nD69 = np.subtract(varCoords[:, 6], varCoords[:, 9])
+        nD90 = np.subtract(varCoords[:, 9], varCoords[:, 0])
+        nD63 = np.subtract(varCoords[:, 6], varCoords[:, 3])
+    elif order == 2:
+        # Set the connectivity index vector corresponding to varCoords
+        cdex = [0, 1, 2, 7, 8, 3, 6, 5, 4]
+        corDex = [0, 2, 4, 6]
+    
+        # Compute the plane edge directions for this quadrilateral
+        nD30 = np.subtract(varCoords[:, 2], varCoords[:, 0])
+        nD69 = np.subtract(varCoords[:, 4], varCoords[:, 6])
+        nD90 = np.subtract(varCoords[:, 6], varCoords[:, 0])
+        nD63 = np.subtract(varCoords[:, 4], varCoords[:, 2])
 
     # Loop over the quadrature points
     dF = np.zeros((3,))
@@ -95,18 +107,18 @@ def computeAreaIntegralSE4(varCoords, order=4):
             dOmdB = (1.0 - dB)
 
             # Fetch global coords of this quadrature point (on the plane)
-            dF[0] = varCoords[0, 0] * dOmdA * dOmdB \
-                + varCoords[0, 3] * dA * dOmdB \
-                + varCoords[0, 6] * dA * dB \
-                + varCoords[0, 9] * dOmdA * dB
-            dF[1] = varCoords[1, 0] * dOmdA * dOmdB \
-                + varCoords[1, 3] * dA * dOmdB \
-                + varCoords[1, 6] * dA * dB \
-                + varCoords[1, 9] * dOmdA * dB
-            dF[2] = varCoords[2, 0] * dOmdA * dOmdB \
-                + varCoords[2, 3] * dA * dOmdB \
-                + varCoords[2, 6] * dA * dB \
-                + varCoords[2, 9] * dOmdA * dB
+            dF[0] = varCoords[0, corDex[0]] * dOmdA * dOmdB \
+                + varCoords[0, corDex[1]] * dA * dOmdB \
+                + varCoords[0, corDex[2]] * dA * dB \
+                + varCoords[0, corDex[3]] * dOmdA * dB
+            dF[1] = varCoords[1, corDex[0]] * dOmdA * dOmdB \
+                + varCoords[1, corDex[1]] * dA * dOmdB \
+                + varCoords[1, corDex[2]] * dA * dB \
+                + varCoords[1, corDex[3]] * dOmdA * dB
+            dF[2] = varCoords[2, corDex[0]] * dOmdA * dOmdB \
+                + varCoords[2, corDex[1]] * dA * dOmdB \
+                + varCoords[2, corDex[2]] * dA * dB \
+                + varCoords[2, corDex[3]] * dOmdA * dB
 
             dF2 = dF**2
             dR = norm(dF, 2)

@@ -470,9 +470,9 @@ if __name__ == '__main__':
             cdex = varConGLL[ii, :] - 1
             thisCell = varCoordGLL[:, cdex.astype(int)]
             if seOrder == 2:
-                   elArea, jacobians[ii, :] = intse.computeAreaIntegralSE2(thisCell)
+                   elArea, jacobians[ii, :] = intse.computeAreaIntegralSE(thisCell, 2)
             elif seOrder == 4:
-                   elArea, jacobians[ii, :] = intse.computeAreaIntegralSE4(thisCell)
+                   elArea, jacobians[ii, :] = intse.computeAreaIntegralSE(thisCell, 4)
         try:
             print('Storing GLL Jacobian arrays.')
             jacobiansGLL = 'element_jacobians'
