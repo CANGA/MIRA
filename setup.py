@@ -13,7 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/CANGA/Remapping-Intercomparison",
     project_urls={
-        "Homepage": "https://www.canga-scidac.org/"
+        "Homepage": "https://www.canga-scidac.org/",
         "Bug Tracker": "https://github.com/CANGA/Remapping-Intercomparison/issues",
     },
     classifiers=[
